@@ -2,76 +2,108 @@
 
 import Image from 'next/image'
 
+const features = [
+  'Classes from Grade 1 to 13, including O/L and A/L',
+  'Open courses for practical, continued learning',
+  'Student-focused academic and career guidance',
+  'Dedicated scholarship and exam preparation support',
+]
+
+const stats = [
+  { value: '5,000+', label: 'Students Enrolled' },
+  { value: '30+',    label: 'Expert Teachers'   },
+  { value: '2024',   label: 'Established'        },
+]
+
 export default function AcademyInfo() {
   return (
-    <section className="py-16 bg-white">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <h2 className="text-4xl font-bold text-center mb-4">
-          Kegalle&apos;s Most<br />
-          <span className="text-dark-gray">Trusted Academy</span>
-        </h2>
+    <section className="bg-white py-20 lg:py-28">
+      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
 
-        <div className="grid md:grid-cols-2 gap-12 items-center mt-12">
-          {/* Left side - Image */}
-          <div className="relative">
-            <div className="relative h-80 md:h-96">
-              <Image
-                src="/photos/bggrund (3).jpg"
-                alt="Siyowin Higher Education Institute team"
-                fill
-                className="object-cover rounded-lg"
-              />
-              {/* Badge */}
-                <div className="absolute -top-4 -left-4 bg-red-500 text-white rounded-full w-20 h-20 flex items-center justify-center text-center text-sm font-bold shadow-lg">
-                <div>
-                  <div className="text-xl">2024</div>
-                  <div className="text-xs">EST.</div>
+        {/* ── Section label ── */}
+        <div className="mb-14 flex flex-col items-center text-center">
+          <span className="text-xs font-bold uppercase tracking-[0.25em] text-[#D9232D]">
+            About Siyowin
+          </span>
+          <h2 className="mt-3 text-3xl font-extrabold text-gray-900 sm:text-4xl lg:text-5xl">
+            Kegalle&apos;s Most Trusted Academy
+          </h2>
+          <div className="mt-4 h-px w-14 bg-[#D9232D]/30" />
+        </div>
+
+        {/* ── Content grid ── */}
+        <div className="grid items-center gap-16 lg:grid-cols-2 lg:gap-20">
+
+          {/* Image side */}
+          <div className="relative mx-auto w-full max-w-sm lg:max-w-none">
+            {/* Offset frame */}
+            <div className="absolute inset-0 translate-x-4 translate-y-4 rounded-3xl bg-gray-100" />
+            <div className="relative overflow-hidden rounded-3xl shadow-xl">
+              <div className="relative aspect-[4/5] w-full">
+                <Image
+                  src="/photos/bggrund (3).jpg"
+                  alt="Siyowin Higher Education Institute"
+                  fill
+                  className="object-cover"
+                  sizes="(max-width: 1024px) 80vw, 45vw"
+                  priority
+                />
+              </div>
+            </div>
+            {/* EST badge */}
+            <div className="absolute -right-4 -top-4 z-10 flex h-20 w-20 flex-col items-center justify-center rounded-full border-4 border-white bg-[#D9232D] shadow-lg">
+              <span className="text-xl font-black leading-none text-white">2024</span>
+              <span className="text-[9px] font-bold tracking-widest text-white/80">EST.</span>
+            </div>
+          </div>
+
+          {/* Text side */}
+          <div className="flex flex-col text-center lg:text-left">
+            <p className="mb-8 text-lg leading-relaxed text-gray-600">
+              Established in 2024, Siyowin Higher Education Institute has become a growing educational force in the Kegalle District — guiding students from Grade 1 to 13 and beyond through expert teaching, structured lessons, and open courses designed for every learner.
+            </p>
+
+            {/* Feature list */}
+            <ul className="mb-10 space-y-3 text-left">
+              {features.map((text, i) => (
+                <li key={i} className="flex items-start gap-3">
+                  <span className="mt-1.5 h-2 w-2 flex-shrink-0 rounded-full bg-[#D9232D]" />
+                  <span className="text-base text-gray-700">{text}</span>
+                </li>
+              ))}
+            </ul>
+
+            {/* Stats row */}
+            <div className="mb-10 grid grid-cols-3 divide-x divide-gray-200 rounded-2xl border border-gray-200 bg-gray-50">
+              {stats.map((s) => (
+                <div key={s.label} className="flex flex-col items-center py-5">
+                  <span className="text-2xl font-extrabold text-gray-900">{s.value}</span>
+                  <span className="mt-1 text-xs font-medium text-gray-500">{s.label}</span>
                 </div>
+              ))}
+            </div>
+
+            {/* CTA + Signature */}
+            <div className="flex flex-col items-center gap-6 sm:flex-row lg:items-center">
+              <a
+                href="#"
+                className="inline-flex items-center gap-2 rounded-full border-2 border-gray-900 px-7 py-3 text-sm font-bold text-gray-900 transition-all duration-300 hover:bg-gray-900 hover:text-white active:scale-95"
+              >
+                Learn More About Us
+                <svg className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M17 8l4 4m0 0l-4 4m4-4H3" />
+                </svg>
+              </a>
+
+              <div className="hidden h-10 w-px bg-gray-200 sm:block" />
+
+              <div className="text-center sm:text-left">
+                <p className="text-sm font-bold text-gray-900">Rukshan Kulakumara</p>
+                <p className="text-xs text-gray-500">CEO, Siyowin Higher Education Institute</p>
               </div>
             </div>
           </div>
 
-          {/* Right side - Content */}
-          <div>
-            <p className="text-gray-600 mb-6 leading-relaxed">
-              Established in 2024, Siyowin Higher Education Institute has become a growing educational force in the Kegalle District, guiding thousands of students from Grade 1 to 13 and beyond through open courses.
-            </p>
-            <p className="text-gray-600 mb-8 leading-relaxed">
-              We are proud to support the next generation in chasing their dreams.
-            </p>
-
-            {/* Features */}
-            <div className="space-y-4 mb-8">
-              <div className="flex items-start gap-3">
-                <span className="text-orange text-2xl">&#10003;</span>
-                <span className="text-gray-700">Classes from Grade 1 to 13</span>
-              </div>
-              <div className="flex items-start gap-3">
-                <span className="text-orange text-2xl">&#10003;</span>
-                <span className="text-gray-700">Open courses for continued learning</span>
-              </div>
-              <div className="flex items-start gap-3">
-                <span className="text-orange text-2xl">&#10003;</span>
-                <span className="text-gray-700">Student-focused academic guidance</span>
-              </div>
-              <div className="flex items-start gap-3">
-                <span className="text-orange text-2xl">&#10003;</span>
-                <span className="text-gray-700">Dedicated support for future goals</span>
-              </div>
-            </div>
-
-            {/* Signature and button */}
-            <div className="flex items-center gap-4 mb-6">
-              <div>
-                <p className="font-bold text-gray-800">Rukshan Kulakumara</p>
-                <p className="text-sm text-gray-600">CEO, Siyowin Higher Education Institute</p>
-              </div>
-            </div>
-
-            <button className="bg-orange hover:bg-orange-light text-white font-bold py-3 px-8 rounded transition">
-              Learn More About Us &rarr;
-            </button>
-          </div>
         </div>
       </div>
     </section>
