@@ -9,9 +9,11 @@ import ProgressChart from './ProgressChart';
 import HomeworkSection from './HomeworkSection';
 import LeaderboardPreview from './LeaderboardPreview';
 import SubjectsPage from './pages/SubjectsPage';
+import SubjectReportPage from './pages/SubjectReportPage';
 import LeaderboardPage from './pages/LeaderboardPage';
 import ProgressPage from './pages/ProgressPage';
 import SettingsPage from './pages/SettingsPage';
+import { getSubjectById } from './dashboardData';
 
 const NAV_ITEMS = [
   { id: 'dashboard',   label: 'Dashboard',   icon: 'layout-dashboard' },
@@ -24,13 +26,30 @@ const NAV_ITEMS = [
 export default function StudentDashboard() {
   const [activeNav, setActiveNav] = useState('dashboard');
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [selectedSubjectId, setSelectedSubjectId] = useState<string | null>(null);
+
+  const selectedSubject = selectedSubjectId ? getSubjectById(selectedSubjectId) : null;
+
+  const handleNavChange = (navId: string) => {
+    setSelectedSubjectId(null);
+    setActiveNav(navId);
+  };
+
+  const openSubject = (subjectId: string) => {
+    setSelectedSubjectId(subjectId);
+    setActiveNav('subjects');
+  };
+
+  const closeSubjectReport = () => {
+    setSelectedSubjectId(null);
+  };
 
   return (
     <div className="sd-root">
       <DashboardSidebar
         navItems={NAV_ITEMS}
         activeNav={activeNav}
-        onNavChange={setActiveNav}
+        onNavChange={handleNavChange}
         isOpen={sidebarOpen}
         onClose={() => setSidebarOpen(false)}
       />
@@ -55,7 +74,13 @@ export default function StudentDashboard() {
               </div>
               <OverviewCards />
               <div className="sd-mid-grid">
-                <SubjectCards />
+                <SubjectCards
+                  onSelectSubject={openSubject}
+                  onViewAll={() => {
+                    setSelectedSubjectId(null);
+                    setActiveNav('subjects');
+                  }}
+                />
                 <ProgressChart />
               </div>
               <div className="sd-bottom-grid">
@@ -65,7 +90,13 @@ export default function StudentDashboard() {
             </>
           )}
 
-          {activeNav === 'subjects'    && <SubjectsPage />}
+          {activeNav === 'subjects' && selectedSubject && (
+            <SubjectReportPage subject={selectedSubject} onBack={closeSubjectReport} />
+          )}
+
+          {activeNav === 'subjects' && !selectedSubject && (
+            <SubjectsPage onSelectSubject={openSubject} />
+          )}
           {activeNav === 'leaderboard' && <LeaderboardPage />}
           {activeNav === 'progress'    && <ProgressPage />}
           {activeNav === 'settings'    && <SettingsPage />}
