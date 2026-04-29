@@ -61,8 +61,14 @@ export default function HeroSection() {
         <p className="text-lg md:text-xl text-gray-100 mb-8 drop-shadow-md">
           Inspiring Minds Through Excellence in Education
         </p>
-        <button className="bg-red hover:bg-red-600 text-white font-bold py-3 px-8 rounded transition">
-          LMS Login
+        <button
+          onClick={() => window.dispatchEvent(new CustomEvent('open-lms-login'))}
+          className="group relative overflow-hidden rounded-md bg-gradient-to-r from-[#D9232D] to-[#F47920] px-8 py-3.5 text-sm font-bold text-white shadow-lg shadow-orange-400/40 transition-all duration-300 hover:-translate-y-0.5 hover:shadow-xl hover:shadow-orange-400/50 active:scale-95 cursor-pointer"
+        >
+          <span className="relative z-10 flex items-center gap-2">
+            LMS Login
+          </span>
+          <span className="absolute inset-0 translate-x-full bg-white/20 transition-transform duration-500 group-hover:translate-x-0" />
         </button>
       </div>
 
