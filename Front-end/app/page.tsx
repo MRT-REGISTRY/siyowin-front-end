@@ -5,18 +5,21 @@ import LecturerCarousel from '@/components/LecturerCarousel'
 import Gallery from '@/components/Gallery'
 import Articles from '@/components/Articles'
 import Footer from '@/components/Footer'
+import { getSiteContent } from '@/utils/siteContent'
 
-export default function Home() {
+export default async function Home() {
+  const content = await getSiteContent()
+
   return (
     <main className="min-h-screen bg-white">
       <Navbar />
-      <HeroSection />
-      <AcademyInfo />
-      <LecturerCarousel variant={1} />
-      <LecturerCarousel variant={2} />
-      <LecturerCarousel variant={3} />
-      <Gallery />
-      <Articles />
+      <HeroSection images={content.heroImages} />
+      <AcademyInfo features={content.aboutFeatures} stats={content.aboutStats} />
+      {content.lecturerSections.map((section) => (
+        <LecturerCarousel key={section.id} section={section} />
+      ))}
+      <Gallery images={content.galleryImages} />
+      <Articles articles={content.articles} />
       <Footer />
     </main>
   )

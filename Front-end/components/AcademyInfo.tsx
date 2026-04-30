@@ -1,21 +1,15 @@
 'use client'
 
 import Image from 'next/image'
+import { SiteAboutFeature, SiteAboutStat } from '@/types/siteContent'
 
-const features = [
-  'Classes from Grade 1 to 13, including O/L and A/L',
-  'Open courses for practical, continued learning',
-  'Student-focused academic and career guidance',
-  'Dedicated scholarship and exam preparation support',
-]
-
-const stats = [
-  { value: '5,000+', label: 'Students Enrolled' },
-  { value: '30+',    label: 'Expert Teachers'   },
-  { value: '2024',   label: 'Established'        },
-]
-
-export default function AcademyInfo() {
+export default function AcademyInfo({
+  features,
+  stats,
+}: {
+  features: SiteAboutFeature[]
+  stats: SiteAboutStat[]
+}) {
   return (
     <section className="bg-white py-20 lg:py-28">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
@@ -65,10 +59,10 @@ export default function AcademyInfo() {
 
             {/* Feature list */}
             <ul className="mb-10 space-y-3 text-left">
-              {features.map((text, i) => (
-                <li key={i} className="flex items-start gap-3">
+              {features.map((feature) => (
+                <li key={feature.id} className="flex items-start gap-3">
                   <span className="mt-1.5 h-2 w-2 flex-shrink-0 rounded-full bg-[#D9232D]" />
-                  <span className="text-base text-gray-700">{text}</span>
+                  <span className="text-base text-gray-700">{feature.text}</span>
                 </li>
               ))}
             </ul>

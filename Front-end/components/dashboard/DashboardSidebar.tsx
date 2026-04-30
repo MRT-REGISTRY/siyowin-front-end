@@ -9,6 +9,7 @@ import {
   Settings,
   X,
 } from 'lucide-react';
+import { StudentProfile } from '@/types';
 
 const ICON_MAP: Record<string, React.ElementType> = {
   'layout-dashboard': LayoutDashboard,
@@ -30,6 +31,7 @@ interface Props {
   onNavChange: (id: string) => void;
   isOpen: boolean;
   onClose: () => void;
+  profile: StudentProfile | null;
 }
 
 export default function DashboardSidebar({
@@ -38,10 +40,10 @@ export default function DashboardSidebar({
   onNavChange,
   isOpen,
   onClose,
+  profile,
 }: Props) {
   return (
     <aside className={`sd-sidebar ${isOpen ? 'sd-sidebar-open' : ''}`}>
-      {/* Logo */}
       <div className="sd-sidebar-logo">
         <div className="sd-logo-img-wrap">
           <Image
@@ -62,10 +64,8 @@ export default function DashboardSidebar({
         </button>
       </div>
 
-      {/* Nav label */}
       <p className="sd-sidebar-section-label">MENU</p>
 
-      {/* Navigation */}
       <nav className="sd-sidebar-nav">
         {navItems.map((item) => {
           const Icon = ICON_MAP[item.icon];
@@ -87,12 +87,13 @@ export default function DashboardSidebar({
         })}
       </nav>
 
-      {/* Bottom profile */}
       <div className="sd-sidebar-footer">
-        <div className="sd-sidebar-avatar">A</div>
+        <div className="sd-sidebar-avatar">{profile?.avatar ?? ''}</div>
         <div className="sd-sidebar-footer-info">
-          <p className="sd-sidebar-footer-name">Alex Johnson</p>
-          <p className="sd-sidebar-footer-role">Grade 11 · Section B</p>
+          <p className="sd-sidebar-footer-name">{profile?.name ?? 'Student'}</p>
+          <p className="sd-sidebar-footer-role">
+            {profile ? `${profile.grade} - ${profile.classId.toUpperCase()}` : 'Student profile'}
+          </p>
         </div>
       </div>
     </aside>

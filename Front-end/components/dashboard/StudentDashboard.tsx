@@ -13,7 +13,7 @@ import SubjectReportPage from './pages/SubjectReportPage';
 import ProgressPage from './pages/ProgressPage';
 import SettingsPage from './pages/SettingsPage';
 import { apiGet } from '@/utils/api';
-import { DashboardOverview, SubjectRecord } from '@/types';
+import { DashboardOverview, StudentProfile, SubjectRecord } from '@/types';
 
 const NAV_ITEMS = [
   { id: 'dashboard',   label: 'Dashboard',   icon: 'layout-dashboard' },
@@ -27,6 +27,7 @@ export default function StudentDashboard() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [selectedSubjectId, setSelectedSubjectId] = useState<string | null>(null);
   const [subjects, setSubjects] = useState<SubjectRecord[]>([]);
+  const [profile, setProfile] = useState<StudentProfile | null>(null);
   const [overview, setOverview] = useState<DashboardOverview | null>(null);
   const [progress, setProgress] = useState<Array<{ month: string; score: number; classAvg: number }>>([]);
   const [homework, setHomework] = useState<Array<any>>([]);
@@ -40,6 +41,7 @@ export default function StudentDashboard() {
 
     apiGet<{
       overview: DashboardOverview;
+      profile: StudentProfile;
       subjects: SubjectRecord[];
       progress: Array<{ month: string; average: number; classAvg?: number }>;
       homework: Array<any>;
@@ -47,6 +49,7 @@ export default function StudentDashboard() {
       .then((data) => {
         if (!mounted) return;
         setOverview(data.overview);
+        setProfile(data.profile);
         setSubjects(data.subjects);
         setProgress(data.progress.map((item) => ({ month: item.month, score: item.average, classAvg: item.classAvg ?? 74 })));
         setHomework(data.homework);
@@ -87,6 +90,7 @@ export default function StudentDashboard() {
         onNavChange={handleNavChange}
         isOpen={sidebarOpen}
         onClose={() => setSidebarOpen(false)}
+        profile={profile}
       />
       {sidebarOpen && (
         <div className="sd-overlay" onClick={() => setSidebarOpen(false)} aria-hidden="true" />
@@ -103,11 +107,11 @@ export default function StudentDashboard() {
               <div className="sd-greeting">
                 <div>
                   <h1 className="sd-greeting-title">
-                    Good afternoon, <span className="sd-highlight">Alex! 👋</span>
+                    Good afternoon, <span className="sd-highlight">{profile?.name.split(' ')[0] ?? 'Student'}!</span>
                   </h1>
                   <p className="sd-greeting-sub">Here&apos;s a summary of your academic performance this term.</p>
                 </div>
-                <div className="sd-term-badge">Term 2 · 2026</div>
+                <div className="sd-term-badge">{profile ? `${profile.term} - ${profile.year}` : 'Current term'}</div>
               </div>
               <OverviewCards overview={overview} subjects={subjects} />
               <div className="sd-mid-grid">
@@ -136,7 +140,7 @@ export default function StudentDashboard() {
           )}
           
           {activeNav === 'progress'    && <ProgressPage overview={overview} subjects={subjects} progress={progress} />}
-          {activeNav === 'settings'    && <SettingsPage />}
+          {activeNav === 'settings'    && <SettingsPage profile={profile} />}
         </main>
       </div>
     </div>

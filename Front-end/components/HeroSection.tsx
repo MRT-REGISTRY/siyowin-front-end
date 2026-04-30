@@ -3,20 +3,10 @@
 import { useEffect, useState } from 'react'
 import Image from 'next/image'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
+import { SiteHeroImage } from '@/types/siteContent'
 
-export default function HeroSection() {
-  // Array of background images with their aspect ratios
-  const bgImages = [
-    { src: '/photos/bggrund (1).jpg', alt: 'Academy background 1', width: 2048, height: 2048 },
-    { src: '/photos/bggrund (2).jpg', alt: 'Academy background 2', width: 2048, height: 1542 },
-    { src: '/photos/bggrund (3).jpg', alt: 'Academy background 3', width: 2048, height: 1542 },
-    { src: '/photos/bggrund (4).jpg', alt: 'Academy background 4', width: 2048, height: 1536 },
-    { src: '/photos/bggrund (5).jpg', alt: 'Academy background 5', width: 2048, height: 1366 },
-    { src: '/photos/bggrund (6).jpg', alt: 'Academy background 6', width: 2048, height: 1366 },
-    { src: '/photos/bggrund (7).jpg', alt: 'Academy background 7', width: 2048, height: 1414 },
-    { src: '/photos/bggrund (8).jpg', alt: 'Academy background 8', width: 2048, height: 1536 },
-  ]
-
+export default function HeroSection({ images }: { images: SiteHeroImage[] }) {
+  const bgImages = images
   const [currentImageIndex, setCurrentImageIndex] = useState(0)
   const selectedImage = bgImages[currentImageIndex]
 
@@ -29,12 +19,16 @@ export default function HeroSection() {
   }
 
   useEffect(() => {
+    if (bgImages.length < 2) return
+
     const imageTimer = window.setInterval(() => {
       setCurrentImageIndex((prev) => (prev === bgImages.length - 1 ? 0 : prev + 1))
     }, 5000)
 
     return () => window.clearInterval(imageTimer)
   }, [bgImages.length])
+
+  if (!selectedImage) return null
 
   return (
     <div className="relative h-screen w-full overflow-hidden">
@@ -75,6 +69,7 @@ export default function HeroSection() {
       {/* Navigation Buttons */}
       <button
         onClick={handlePrevious}
+        disabled={bgImages.length < 2}
         className="absolute left-4 top-1/2 z-20 transform -translate-y-1/2 bg-white/30 hover:bg-white/50 text-white p-2 rounded-full transition duration-200"
         aria-label="Previous image"
       >
@@ -83,6 +78,7 @@ export default function HeroSection() {
 
       <button
         onClick={handleNext}
+        disabled={bgImages.length < 2}
         className="absolute right-4 top-1/2 z-20 transform -translate-y-1/2 bg-white/30 hover:bg-white/50 text-white p-2 rounded-full transition duration-200"
         aria-label="Next image"
       >

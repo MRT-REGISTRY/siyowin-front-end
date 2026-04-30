@@ -3,65 +3,10 @@
 import { useEffect, useRef, useState, useCallback } from 'react'
 import Image from 'next/image'
 import { ArrowRight, ChevronLeft, ChevronRight } from 'lucide-react'
+import { SiteLecturerSection } from '@/types/siteContent'
 
 interface LecturerCarouselProps {
-  variant?: number
-}
-
-type Lecturer = {
-  id: number
-  name: string
-  subject: string
-  credentials: string
-  image: string
-  photoBg: string
-  infoBg: string
-  accent: string
-}
-
-const carouselSections: Record<
-  number,
-  { title: string; highlight: string; description: string; viewAllHref: string; lecturers: Lecturer[] }
-> = {
-  1: {
-    title: 'O/L',
-    highlight: 'Teachers',
-    description: 'Strong subject guidance for Ordinary Level students.',
-    viewAllHref: '#ol-teachers',
-    lecturers: [
-      { id: 101, name: 'Tissa Jananayake',      subject: 'Science',      credentials: 'O/L science theory, revision and paper discussion',          image: '/lecturer-1.jpg', photoBg: '#dfb08f', infoBg: '#dceee5', accent: '#1fac74' },
-      { id: 102, name: 'Charitha Dissanayake',   subject: 'Mathematics',  credentials: 'O/L mathematics theory and model paper training',            image: '/lecturer-2.jpg', photoBg: '#ecd681', infoBg: '#eee8dc', accent: '#f28a1f' },
-      { id: 103, name: 'Dushyantha Mahabadugge', subject: 'English',      credentials: 'Grammar, writing and exam-focused language practice',         image: '/lecturer-3.jpg', photoBg: '#fb8fa0', infoBg: '#e8fbff', accent: '#08a7cc' },
-      { id: 104, name: 'Samitha Rathnayake',     subject: 'History',      credentials: 'Structured lessons, short notes and past papers',             image: '/lecturer-4.jpg', photoBg: '#8d93ef', infoBg: '#e3dde5', accent: '#a761dd' },
-      { id: 105, name: 'Hiru Siriwardana',       subject: 'Commerce',     credentials: 'Business studies and accounting fundamentals',                image: '/lecturer-5.jpg', photoBg: '#b6e58d', infoBg: '#dfe8ee', accent: '#3c86e8' },
-    ],
-  },
-  2: {
-    title: 'A/L',
-    highlight: 'Teachers',
-    description: 'Advanced Level classes led by experienced subject specialists.',
-    viewAllHref: '#al-teachers',
-    lecturers: [
-      { id: 201, name: 'Dushyantha Mahabadugge', subject: 'Engineering Technology', credentials: 'B.Sc. Eng. (Hons.) UOM, C.I.M.A., L.I.C.A., P.G. Dip.',    image: '/lecturer-3.jpg', photoBg: '#fb8fa0', infoBg: '#e8fbff', accent: '#08a7cc' },
-      { id: 202, name: 'Samitha Rathnayake',     subject: 'Chemistry',              credentials: 'B.Sc. (Phy. Sp.) Colombo',                               image: '/lecturer-4.jpg', photoBg: '#8d93ef', infoBg: '#e3dde5', accent: '#a761dd' },
-      { id: 203, name: 'Charitha Dissanayake',   subject: 'Physics',                credentials: 'B.Sc Engineering Honours, University of Moratuwa',        image: '/lecturer-2.jpg', photoBg: '#ecd681', infoBg: '#eee8dc', accent: '#f28a1f' },
-      { id: 204, name: 'Tissa Jananayake',       subject: 'Biology',                credentials: 'B.Sc. Honours Microbiology, Psychology Counselling',      image: '/lecturer-1.jpg', photoBg: '#dfb08f', infoBg: '#dceee5', accent: '#1fac74' },
-      { id: 205, name: 'Hiru Siriwardana',       subject: 'Accounting',             credentials: 'University of Sri Jayewardenepura',                      image: '/lecturer-5.jpg', photoBg: '#b6e58d', infoBg: '#dfe8ee', accent: '#3c86e8' },
-    ],
-  },
-  3: {
-    title: 'Scholarship',
-    highlight: '& Other Courses',
-    description: 'Foundation support, scholarship preparation and practical open courses.',
-    viewAllHref: '#scholarship-courses',
-    lecturers: [
-      { id: 301, name: 'Nethmi Perera',    subject: 'Grade 5 Scholarship', credentials: 'Scholarship paper classes, IQ and Sinhala practice',           image: '/lecturer-5.jpg', photoBg: '#b6e58d', infoBg: '#dfe8ee', accent: '#3c86e8' },
-      { id: 302, name: 'Kasun Jayasinghe', subject: 'ICT Course',          credentials: 'Computer basics, office tools and practical ICT skills',       image: '/lecturer-3.jpg', photoBg: '#fb8fa0', infoBg: '#e8fbff', accent: '#08a7cc' },
-      { id: 303, name: 'Ayesha Fernando',  subject: 'English Course',      credentials: 'Spoken English, grammar and communication skills',             image: '/lecturer-1.jpg', photoBg: '#dfb08f', infoBg: '#dceee5', accent: '#1fac74' },
-      { id: 304, name: 'Ravindu Bandara',  subject: 'Primary Classes',     credentials: 'Grade 1 to 5 foundation learning and activity classes',        image: '/lecturer-2.jpg', photoBg: '#ecd681', infoBg: '#eee8dc', accent: '#f28a1f' },
-      { id: 305, name: 'Dinuka Herath',    subject: 'Exam Skills',         credentials: 'Study planning, model papers and confidence building',         image: '/lecturer-4.jpg', photoBg: '#8d93ef', infoBg: '#e3dde5', accent: '#a761dd' },
-    ],
-  },
+  section: SiteLecturerSection
 }
 
 const SIDE_COUNT = 2
@@ -78,8 +23,8 @@ const positions: Record<
    2:   { scale: 0.70, opacity: 0.30, zIndex: 1, xOffset: '97%',  yOffset: 44, blur: '2.5px' },
 }
 
-export default function LecturerCarousel({ variant = 1 }: LecturerCarouselProps) {
-  const activeSection = carouselSections[variant] ?? carouselSections[1]
+export default function LecturerCarousel({ section }: LecturerCarouselProps) {
+  const activeSection = section
   const lecturers = activeSection.lecturers
   const total = lecturers.length
 

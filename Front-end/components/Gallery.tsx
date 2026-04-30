@@ -3,17 +3,9 @@
 import { useState } from 'react'
 import Image from 'next/image'
 import { X, ZoomIn } from 'lucide-react'
+import { SiteGalleryImage } from '@/types/siteContent'
 
 type Filter = 'all' | 'indoor' | 'outdoor'
-
-const galleryImages = [
-  { id: 1, src: '/gallery-1.jpg', alt: 'Siyowin Academy event 1',   category: 'indoor'  as Filter },
-  { id: 2, src: '/gallery-2.jpg', alt: 'Siyowin Academy event 2',   category: 'outdoor' as Filter },
-  { id: 3, src: '/gallery-3.jpg', alt: 'Siyowin Academy event 3',   category: 'indoor'  as Filter },
-  { id: 4, src: '/gallery-4.jpg', alt: 'Siyowin Academy event 4',   category: 'outdoor' as Filter },
-  { id: 5, src: '/gallery-5.jpg', alt: 'Siyowin Academy event 5',   category: 'indoor'  as Filter },
-  { id: 6, src: '/gallery-6.jpg', alt: 'Siyowin Academy event 6',   category: 'outdoor' as Filter },
-]
 
 const filters: { label: string; value: Filter }[] = [
   { label: 'All Photos',     value: 'all'     },
@@ -21,15 +13,15 @@ const filters: { label: string; value: Filter }[] = [
   { label: 'Outdoor Events', value: 'outdoor' },
 ]
 
-export default function Gallery() {
+export default function Gallery({ images }: { images: SiteGalleryImage[] }) {
   const [active,     setActive]     = useState<Filter>('all')
   const [lightbox,   setLightbox]   = useState<number | null>(null)
 
   const filtered = active === 'all'
-    ? galleryImages
-    : galleryImages.filter((img) => img.category === active)
+    ? images
+    : images.filter((img) => img.category === active)
 
-  const lightboxImg = lightbox !== null ? galleryImages.find((g) => g.id === lightbox) : null
+  const lightboxImg = lightbox !== null ? images.find((g) => g.id === lightbox) : null
 
   const openLightbox  = (id: number) => setLightbox(id)
   const closeLightbox = ()           => setLightbox(null)

@@ -68,3 +68,66 @@ insert into marks (student_id, subject_id, subject_name, exam_type, exam_name, e
 ('st-3','sci','Science','month-test','May Benchmark','2026-05-16',84,'Improved lab work'),
 ('st-4','hist','History','term-test','Term Test 2','2026-05-18',87,'Excellent recall')
 on conflict (student_id, subject_id, exam_type, exam_name) do update set subject_name = excluded.subject_name, exam_date = excluded.exam_date, mark = excluded.mark, note = excluded.note;
+
+insert into site_hero_images (id, src, alt, width, height, display_order) values
+('hero-1','/photos/bggrund (1).jpg','Siyowin academy classroom event',2048,2048,1),
+('hero-2','/photos/bggrund (2).jpg','Siyowin academy student program',2048,1542,2),
+('hero-3','/photos/bggrund (3).jpg','Siyowin higher education institute',2048,1542,3),
+('hero-4','/photos/bggrund (4).jpg','Siyowin academy learning session',2048,1536,4),
+('hero-5','/photos/bggrund (5).jpg','Siyowin academy event crowd',2048,1366,5),
+('hero-6','/photos/bggrund (6).jpg','Siyowin academy lecture hall',2048,1366,6),
+('hero-7','/photos/bggrund (7).jpg','Siyowin academy student gathering',2048,1414,7),
+('hero-8','/photos/bggrund (8).jpg','Siyowin academy campus moment',2048,1536,8)
+on conflict (id) do update set src = excluded.src, alt = excluded.alt, width = excluded.width, height = excluded.height, display_order = excluded.display_order;
+
+insert into site_about_features (id, text, display_order) values
+('feature-1','Classes from Grade 1 to 13, including O/L and A/L',1),
+('feature-2','Open courses for practical, continued learning',2),
+('feature-3','Student-focused academic and career guidance',3),
+('feature-4','Dedicated scholarship and exam preparation support',4)
+on conflict (id) do update set text = excluded.text, display_order = excluded.display_order;
+
+insert into site_about_stats (id, value, label, display_order) values
+('students','5,000+','Students Enrolled',1),
+('teachers','30+','Expert Teachers',2),
+('established','2024','Established',3)
+on conflict (id) do update set value = excluded.value, label = excluded.label, display_order = excluded.display_order;
+
+insert into site_lecturer_sections (id, title, highlight, description, view_all_href, display_order) values
+(1,'O/L','Teachers','Strong subject guidance for Ordinary Level students.','#ol-teachers',1),
+(2,'A/L','Teachers','Advanced Level classes led by experienced subject specialists.','#al-teachers',2),
+(3,'Scholarship','& Other Courses','Foundation support, scholarship preparation and practical open courses.','#scholarship-courses',3)
+on conflict (id) do update set title = excluded.title, highlight = excluded.highlight, description = excluded.description, view_all_href = excluded.view_all_href, display_order = excluded.display_order;
+
+insert into site_lecturers (id, section_id, name, subject, credentials, image, photo_bg, info_bg, accent, display_order) values
+(101,1,'Tissa Jananayake','Science','O/L science theory, revision and paper discussion','/lecturer-1.jpg','#dfb08f','#dceee5','#1fac74',1),
+(102,1,'Charitha Dissanayake','Mathematics','O/L mathematics theory and model paper training','/lecturer-2.jpg','#ecd681','#eee8dc','#f28a1f',2),
+(103,1,'Dushyantha Mahabadugge','English','Grammar, writing and exam-focused language practice','/lecturer-3.jpg','#fb8fa0','#e8fbff','#08a7cc',3),
+(104,1,'Samitha Rathnayake','History','Structured lessons, short notes and past papers','/lecturer-4.jpg','#8d93ef','#e3dde5','#a761dd',4),
+(105,1,'Hiru Siriwardana','Commerce','Business studies and accounting fundamentals','/lecturer-5.jpg','#b6e58d','#dfe8ee','#3c86e8',5),
+(201,2,'Dushyantha Mahabadugge','Engineering Technology','B.Sc. Eng. (Hons.) UOM, C.I.M.A., L.I.C.A., P.G. Dip.','/lecturer-3.jpg','#fb8fa0','#e8fbff','#08a7cc',1),
+(202,2,'Samitha Rathnayake','Chemistry','B.Sc. (Phy. Sp.) Colombo','/lecturer-4.jpg','#8d93ef','#e3dde5','#a761dd',2),
+(203,2,'Charitha Dissanayake','Physics','B.Sc Engineering Honours, University of Moratuwa','/lecturer-2.jpg','#ecd681','#eee8dc','#f28a1f',3),
+(204,2,'Tissa Jananayake','Biology','B.Sc. Honours Microbiology, Psychology Counselling','/lecturer-1.jpg','#dfb08f','#dceee5','#1fac74',4),
+(205,2,'Hiru Siriwardana','Accounting','University of Sri Jayewardenepura','/lecturer-5.jpg','#b6e58d','#dfe8ee','#3c86e8',5),
+(301,3,'Nethmi Perera','Grade 5 Scholarship','Scholarship paper classes, IQ and Sinhala practice','/lecturer-5.jpg','#b6e58d','#dfe8ee','#3c86e8',1),
+(302,3,'Kasun Jayasinghe','ICT Course','Computer basics, office tools and practical ICT skills','/lecturer-3.jpg','#fb8fa0','#e8fbff','#08a7cc',2),
+(303,3,'Ayesha Fernando','English Course','Spoken English, grammar and communication skills','/lecturer-1.jpg','#dfb08f','#dceee5','#1fac74',3),
+(304,3,'Ravindu Bandara','Primary Classes','Grade 1 to 5 foundation learning and activity classes','/lecturer-2.jpg','#ecd681','#eee8dc','#f28a1f',4),
+(305,3,'Dinuka Herath','Exam Skills','Study planning, model papers and confidence building','/lecturer-4.jpg','#8d93ef','#e3dde5','#a761dd',5)
+on conflict (id) do update set section_id = excluded.section_id, name = excluded.name, subject = excluded.subject, credentials = excluded.credentials, image = excluded.image, photo_bg = excluded.photo_bg, info_bg = excluded.info_bg, accent = excluded.accent, display_order = excluded.display_order;
+
+insert into site_gallery_images (id, src, alt, category, display_order) values
+(1,'/gallery-1.jpg','Siyowin Academy indoor event','indoor',1),
+(2,'/gallery-2.jpg','Siyowin Academy outdoor event','outdoor',2),
+(3,'/gallery-3.jpg','Siyowin Academy classroom activity','indoor',3),
+(4,'/gallery-4.jpg','Siyowin Academy outdoor student program','outdoor',4),
+(5,'/gallery-5.jpg','Siyowin Academy lecture moment','indoor',5),
+(6,'/gallery-6.jpg','Siyowin Academy outdoor gathering','outdoor',6)
+on conflict (id) do update set src = excluded.src, alt = excluded.alt, category = excluded.category, display_order = excluded.display_order;
+
+insert into site_articles (id, title, description, image, published_label, category, read_time, href, display_order) values
+(1,'Why Specialized Guidance Matters for O/L Examinations','Discover why structured tuition beyond school helps students build confidence, fill knowledge gaps, and perform at their best when it counts most.','/article-1.jpg','12 Oct 2024','Education','4 min read','#',1),
+(2,'Simple Ways to Measure and Track Your Exam Progress','Learn the techniques our teachers use to monitor student growth and how you can apply the same methods at home for consistent improvement.','/article-2.jpg','28 Sep 2024','Study Tips','5 min read','#',2),
+(3,'Exploring Career Paths After A/L Examinations','Not sure what comes next? We break down promising higher education routes and career options available to A/L students in Sri Lanka.','/article-3.jpg','5 Sep 2024','Career','6 min read','#',3)
+on conflict (id) do update set title = excluded.title, description = excluded.description, image = excluded.image, published_label = excluded.published_label, category = excluded.category, read_time = excluded.read_time, href = excluded.href, display_order = excluded.display_order;

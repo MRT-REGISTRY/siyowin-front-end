@@ -11,7 +11,10 @@ router.get('/student', requireRoles('student', 'admin', 'super-admin'), async (r
   const subjects = await repo.getSubjects();
 
   res.json({
-    profile: await repo.getStudentProfile(studentId),
+    profile: {
+      ...(await repo.getStudentProfile(studentId)),
+      email: req.user?.email ?? '',
+    },
     overview: await repo.getOverview(),
     subjects,
     progress: repo.getProgressSeries(),

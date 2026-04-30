@@ -53,6 +53,18 @@ export type DashboardOverview = {
   classRank: number;
 };
 
+export type StudentProfile = {
+  id: string;
+  name: string;
+  index: string;
+  grade: string;
+  classId: string;
+  email?: string;
+  term: string;
+  year: number;
+  avatar: string;
+};
+
 export type AdminRole = 'super-admin' | 'admin';
 
 export type AdminClassOption = {

@@ -1,7 +1,8 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { User, Bell, Lock, Palette, Globe, ChevronRight, Camera } from 'lucide-react';
+import { StudentProfile } from '@/types';
 
 const SECTIONS = [
   { id: 'profile',   label: 'Profile',        icon: User },
@@ -11,16 +12,24 @@ const SECTIONS = [
   { id: 'language',  label: 'Language',       icon: Globe },
 ];
 
-export default function SettingsPage() {
+export default function SettingsPage({ profile }: { profile: StudentProfile | null }) {
   const [activeSection, setActiveSection] = useState('profile');
-  const [name, setName]     = useState('Alex Johnson');
-  const [email, setEmail]   = useState('alex@siyowin.lk');
-  const [grade, setGrade]   = useState('Grade 11');
-  const [section, setSection] = useState('Section B');
+  const [name, setName]     = useState(profile?.name ?? '');
+  const [email, setEmail]   = useState(profile?.email ?? '');
+  const [grade, setGrade]   = useState(profile?.grade ?? '');
+  const [section, setSection] = useState(profile?.classId ?? '');
   const [emailNotif, setEmailNotif] = useState(true);
   const [pushNotif, setPushNotif]   = useState(true);
   const [hwReminder, setHwReminder] = useState(true);
   const [saved, setSaved] = useState(false);
+
+  useEffect(() => {
+    if (!profile) return;
+    setName(profile.name);
+    setEmail(profile.email ?? '');
+    setGrade(profile.grade);
+    setSection(profile.classId);
+  }, [profile]);
 
   const handleSave = () => {
     setSaved(true);
@@ -65,7 +74,7 @@ export default function SettingsPage() {
 
               {/* Avatar */}
               <div className="stg-avatar-row">
-                <div className="stg-avatar">A</div>
+                <div className="stg-avatar">{profile?.avatar ?? ''}</div>
                 <button className="stg-avatar-btn"><Camera size={14} /> Change Photo</button>
               </div>
 
@@ -81,13 +90,13 @@ export default function SettingsPage() {
                 <div className="stg-field">
                   <label className="stg-label">Grade</label>
                   <select className="stg-input" value={grade} onChange={e => setGrade(e.target.value)}>
-                    {['Grade 9','Grade 10','Grade 11','Grade 12','Grade 13'].map(g => <option key={g}>{g}</option>)}
+                    {grade && <option>{grade}</option>}
                   </select>
                 </div>
                 <div className="stg-field">
                   <label className="stg-label">Section</label>
                   <select className="stg-input" value={section} onChange={e => setSection(e.target.value)}>
-                    {['Section A','Section B','Section C'].map(s => <option key={s}>{s}</option>)}
+                    {section && <option>{section.toUpperCase()}</option>}
                   </select>
                 </div>
               </div>
