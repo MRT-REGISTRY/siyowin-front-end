@@ -1,7 +1,8 @@
 'use client';
 
 import { Crown } from 'lucide-react';
-import { getLeaderboardForSubject, LeaderboardEntry } from './dashboardData';
+import { getLeaderboardForSubject } from '@/data/dashboardData';
+import { LeaderboardEntry } from '@/types';
 
 interface Props {
   subjectId: string;

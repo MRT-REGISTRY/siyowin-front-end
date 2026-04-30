@@ -1,8 +1,7 @@
 'use client';
 
 import { ArrowLeft, CalendarDays, FileText, GraduationCap, NotebookPen } from 'lucide-react';
-
-import { SubjectRecord } from '../dashboardData';
+import { SubjectRecord } from '@/types';
 import LeaderboardForSubject from '../LeaderboardForSubject';
 
 interface Props {
