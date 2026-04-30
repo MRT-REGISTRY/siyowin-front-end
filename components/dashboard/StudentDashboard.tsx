@@ -7,10 +7,8 @@ import OverviewCards from './OverviewCards';
 import SubjectCards from './SubjectCards';
 import ProgressChart from './ProgressChart';
 import HomeworkSection from './HomeworkSection';
-import LeaderboardPreview from './LeaderboardPreview';
 import SubjectsPage from './pages/SubjectsPage';
 import SubjectReportPage from './pages/SubjectReportPage';
-import LeaderboardPage from './pages/LeaderboardPage';
 import ProgressPage from './pages/ProgressPage';
 import SettingsPage from './pages/SettingsPage';
 import { getSubjectById } from './dashboardData';
@@ -18,7 +16,6 @@ import { getSubjectById } from './dashboardData';
 const NAV_ITEMS = [
   { id: 'dashboard',   label: 'Dashboard',   icon: 'layout-dashboard' },
   { id: 'subjects',    label: 'My Subjects',  icon: 'book-open' },
-  { id: 'leaderboard', label: 'Leaderboard',  icon: 'trophy' },
   { id: 'progress',    label: 'Progress',     icon: 'trending-up' },
   { id: 'settings',    label: 'Settings',     icon: 'settings' },
 ];
@@ -85,7 +82,6 @@ export default function StudentDashboard() {
               </div>
               <div className="sd-bottom-grid">
                 <HomeworkSection />
-                <LeaderboardPreview />
               </div>
             </>
           )}
@@ -97,7 +93,7 @@ export default function StudentDashboard() {
           {activeNav === 'subjects' && !selectedSubject && (
             <SubjectsPage onSelectSubject={openSubject} />
           )}
-          {activeNav === 'leaderboard' && <LeaderboardPage />}
+          
           {activeNav === 'progress'    && <ProgressPage />}
           {activeNav === 'settings'    && <SettingsPage />}
         </main>

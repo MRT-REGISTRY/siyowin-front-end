@@ -179,3 +179,42 @@ export const SUBJECTS: SubjectRecord[] = [
 ];
 
 export const getSubjectById = (id: string) => SUBJECTS.find((subject) => subject.id === id);
+
+export type LeaderboardEntry = {
+  rank: number;
+  name: string;
+  marks: number;
+  avatar?: string;
+  badge?: 'gold' | 'silver' | 'bronze' | null;
+  isYou?: boolean;
+};
+
+export const getLeaderboardForSubject = (subjectId: string): LeaderboardEntry[] => {
+  // Simple seeded leaderboards per subject for demo purposes.
+  // In a real app this would come from an API scoped by class/subject/teacher.
+  const seed: Record<string, LeaderboardEntry[]> = {
+    math: [
+      { rank: 1, name: 'Priya Sharma', marks: 97, avatar: 'P', badge: 'gold' },
+      { rank: 2, name: 'Daniel Kim', marks: 94, avatar: 'D', badge: 'silver' },
+      { rank: 3, name: 'Alex Johnson', marks: 91, avatar: 'A', badge: 'bronze', isYou: true },
+      { rank: 4, name: 'Sarah Chen', marks: 88, avatar: 'S' },
+      { rank: 5, name: 'Marco Rivera', marks: 85, avatar: 'M' },
+    ],
+    sci: [
+      { rank: 1, name: 'Daniel Kim', marks: 96, avatar: 'D', badge: 'gold' },
+      { rank: 2, name: 'Priya Sharma', marks: 92, avatar: 'P', badge: 'silver' },
+      { rank: 3, name: 'Alex Johnson', marks: 89, avatar: 'A', isYou: true },
+      { rank: 4, name: 'Yuki Tanaka', marks: 86, avatar: 'Y' },
+      { rank: 5, name: 'Omar Hassan', marks: 82, avatar: 'O' },
+    ],
+    eng: [
+      { rank: 1, name: 'Alex Johnson', marks: 93, avatar: 'A', badge: 'gold', isYou: true },
+      { rank: 2, name: 'Priya Sharma', marks: 90, avatar: 'P', badge: 'silver' },
+      { rank: 3, name: 'Daniel Kim', marks: 88, avatar: 'D', badge: 'bronze' },
+    ],
+  };
+
+  return seed[subjectId] || (
+    SUBJECTS.slice(0, 5).map((s, i) => ({ rank: i + 1, name: `${s.name} Student ${i + 1}`, marks: Math.max(60, 100 - i * 3), avatar: s.emoji[0] }))
+  );
+};

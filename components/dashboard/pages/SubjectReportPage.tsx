@@ -3,6 +3,7 @@
 import { ArrowLeft, CalendarDays, FileText, GraduationCap, NotebookPen } from 'lucide-react';
 
 import { SubjectRecord } from '../dashboardData';
+import LeaderboardForSubject from '../LeaderboardForSubject';
 
 interface Props {
   subject: SubjectRecord;
@@ -136,6 +137,18 @@ export default function SubjectReportPage({ subject, onBack }: Props) {
           <p className="sdr-homework-note">
             {homeworkPercent >= 100 ? 'Homework target completed for the month.' : `${remainingHomework} assignment${remainingHomework === 1 ? '' : 's'} still pending this month.`}
           </p>
+        </article>
+      </section>
+      
+      <section className="sdr-main-grid">
+        <article className="sdr-leaderboard-card sdp-card">
+          <div className="sd-section-header">
+            <div>
+              <h2 className="sd-section-title">Class Leaderboard</h2>
+              <p className="sd-section-sub">Performance within this class / subject</p>
+            </div>
+          </div>
+          <LeaderboardForSubject subjectId={subject.id} />
         </article>
       </section>
     </div>
