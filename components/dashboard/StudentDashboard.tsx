@@ -11,7 +11,7 @@ import SubjectsPage from './pages/SubjectsPage';
 import SubjectReportPage from './pages/SubjectReportPage';
 import ProgressPage from './pages/ProgressPage';
 import SettingsPage from './pages/SettingsPage';
-import { getSubjectById } from './dashboardData';
+import { getSubjectById } from '@/data/dashboardData';
 
 const NAV_ITEMS = [
   { id: 'dashboard',   label: 'Dashboard',   icon: 'layout-dashboard' },

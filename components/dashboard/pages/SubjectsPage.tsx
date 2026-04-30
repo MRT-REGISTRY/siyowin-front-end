@@ -1,8 +1,11 @@
 'use client';
 
 import { TrendingUp, TrendingDown, Minus, Filter, Search, ArrowRight } from 'lucide-react';
+import { SUBJECTS } from '@/data/dashboardData';
 
-import { SUBJECTS } from '../dashboardData';
+interface Props {
+  onSelectSubject?: (subjectId: string) => void;
+}
 
 const TrendIcon = ({ trend }: { trend: string }) => {
   if (trend === 'up') return <TrendingUp size={14} />;

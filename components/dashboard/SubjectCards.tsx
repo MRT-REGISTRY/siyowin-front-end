@@ -1,8 +1,7 @@
 'use client';
 
 import { TrendingUp, TrendingDown, Minus, ArrowRight } from 'lucide-react';
-
-import { SUBJECTS } from './dashboardData';
+import { SUBJECTS } from '@/data/dashboardData';
 
 const TrendIcon = ({ trend }: { trend: string }) => {
   if (trend === 'up') return <TrendingUp size={14} className="sd-trend-icon-up" />;
