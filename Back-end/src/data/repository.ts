@@ -174,6 +174,12 @@ export const repo = {
     }, () => store.teachers);
   },
 
+  async getTeacherById(teacherId?: string) {
+    if (!teacherId) return undefined;
+    const teachers = await this.getTeachers();
+    return teachers.find((teacher) => teacher.id === teacherId);
+  },
+
   async createStudent(input: Omit<AdminStudent, 'id' | 'marks'>) {
     return withFallback(async () => {
       const student = createMemoryStudent(input);

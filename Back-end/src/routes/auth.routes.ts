@@ -26,7 +26,11 @@ router.post('/login', validateBody(loginSchema), async (req, res) => {
     return;
   }
 
-  if (role && user.role !== role) {
+  const roleMatches = role === 'admin'
+    ? user.role === 'admin' || user.role === 'super-admin'
+    : !role || user.role === role;
+
+  if (!roleMatches) {
     res.status(403).json({ message: `This account is not registered as ${role}.` });
     return;
   }

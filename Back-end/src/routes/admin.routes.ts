@@ -8,7 +8,7 @@ import { parseCsv } from '../utils/csv.js';
 
 const router = Router();
 
-router.use(requireAuth, requireRoles('teacher', 'admin', 'super-admin'));
+router.use(requireAuth, requireRoles('admin', 'super-admin'));
 
 const studentSchema = z.object({
   name: z.string().min(1),

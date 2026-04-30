@@ -12,7 +12,6 @@ const navLinks = [
   { label: 'Gallery',  href: '#' },
   { label: 'FAQ',      href: '#' },
   { label: 'More Info',href: '#' },
-  { label: 'Admin Portal', href: '/admin' },
 ]
 
 export default function Navbar() {

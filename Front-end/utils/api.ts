@@ -50,6 +50,32 @@ export const getStoredToken = () => {
   return window.localStorage.getItem('siyowin_token');
 };
 
+export const getStoredUser = (): LoginResponse['user'] | null => {
+  if (typeof window === 'undefined') return null;
+
+  const rawUser = window.localStorage.getItem('siyowin_user');
+  if (!rawUser) return null;
+
+  try {
+    return JSON.parse(rawUser) as LoginResponse['user'];
+  } catch {
+    return null;
+  }
+};
+
+export const clearSession = () => {
+  if (typeof window === 'undefined') return;
+  window.localStorage.removeItem('siyowin_token');
+  window.localStorage.removeItem('siyowin_user');
+};
+
+export const getDashboardPathForRole = (role?: LoginRole) => {
+  if (role === 'student') return '/dashboard';
+  if (role === 'teacher') return '/teacher';
+  if (role === 'admin' || role === 'super-admin') return '/admin';
+  return '/';
+};
+
 export const apiGet = <T>(path: string) =>
   apiRequest<T>(path, {
     token: getStoredToken(),

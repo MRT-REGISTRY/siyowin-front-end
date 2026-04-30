@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { ShieldCheck, UserPlus, Users } from 'lucide-react';
 
 import { apiGet, apiPost } from '@/utils/api';
+import { getStoredUser } from '@/utils/api';
 import { AdminRole, AdminSubjectOption, AdminTeacher } from '@/types';
 
 type NoticeState = {
@@ -36,6 +37,11 @@ export default function StudentTeacherPage({ onNotice }: Props) {
   const teacherCount = useMemo(() => teachers.length, [teachers.length]);
 
   useEffect(() => {
+    const user = getStoredUser();
+    if (user?.role === 'super-admin' || user?.role === 'admin') {
+      setRole(user.role);
+    }
+
     apiGet<{ grades: string[]; subjects: AdminSubjectOption[] }>('/admin/meta')
       .then((data) => {
         setGrades(data.grades);
@@ -121,21 +127,10 @@ export default function StudentTeacherPage({ onNotice }: Props) {
                 </div>
               </div>
 
-              <div className="flex flex-wrap gap-3 rounded-3xl border border-slate-200 bg-white p-3 shadow-sm">
-                <button
-                  type="button"
-                  onClick={() => setRole('super-admin')}
-                  className={`rounded-2xl px-4 py-3 text-sm font-semibold transition ${role === 'super-admin' ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'}`}
-                >
-                  Super admin
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setRole('admin')}
-                  className={`rounded-2xl px-4 py-3 text-sm font-semibold transition ${role === 'admin' ? 'bg-sky-600 text-white' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'}`}
-                >
-                  Admin
-                </button>
+              <div className="rounded-3xl border border-slate-200 bg-white p-3 shadow-sm">
+                <div className="rounded-2xl bg-slate-900 px-4 py-3 text-sm font-semibold text-white">
+                  {role === 'super-admin' ? 'Super admin' : 'Admin'}
+                </div>
               </div>
             </div>
           </div>
