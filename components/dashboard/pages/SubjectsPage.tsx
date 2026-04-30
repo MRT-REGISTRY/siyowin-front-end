@@ -1,17 +1,7 @@
 'use client';
 
-import { TrendingUp, TrendingDown, Minus, Filter, Search, ArrowRight } from 'lucide-react';
+import { Filter, Search, ArrowRight } from 'lucide-react';
 import { SUBJECTS } from '@/data/dashboardData';
-
-interface Props {
-  onSelectSubject?: (subjectId: string) => void;
-}
-
-const TrendIcon = ({ trend }: { trend: string }) => {
-  if (trend === 'up') return <TrendingUp size={14} />;
-  if (trend === 'down') return <TrendingDown size={14} />;
-  return <Minus size={14} />;
-};
 
 interface Props {
   onSelectSubject?: (subjectId: string) => void;
@@ -51,7 +41,6 @@ export default function SubjectsPage({ onSelectSubject }: Props) {
       {/* Subject cards grid */}
       <div className="sdp-grid">
         {SUBJECTS.map((subject) => {
-          const aboveAvg = subject.currentMark >= subject.classAvg;
           return (
             <button
               key={subject.id}

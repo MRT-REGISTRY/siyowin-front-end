@@ -25,8 +25,6 @@ export default function SubjectCards({ onSelectSubject, onViewAll }: Props) {
       </div>
       <div className="sd-subjects-grid">
         {SUBJECTS.map((subject) => {
-          const pct = subject.currentMark;
-          const aboveAvg = subject.currentMark >= subject.classAvg;
           return (
             <button
               key={subject.id}
