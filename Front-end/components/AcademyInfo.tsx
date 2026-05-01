@@ -56,6 +56,27 @@ export default function AcademyInfo({
             <p className="mb-8 text-lg leading-relaxed text-gray-600">
               Established in 2024, Siyowin Higher Education Institute has become a growing educational force in the Kegalle District — guiding students from Grade 1 to 13 and beyond through expert teaching, structured lessons, and open courses designed for every learner.
             </p>
+            <p className="mb-8 text-base text-gray-600">
+              Branches:{' '}
+              <a
+                href="https://maps.app.goo.gl/XnQmxctCutWefQpe9"
+                target="_blank"
+                rel="noreferrer"
+                className="font-semibold text-[#D9232D] transition-colors duration-200 hover:text-[#F47920]"
+              >
+                Palladeniya Road, Kegalle
+              </a>
+              {' '} &amp;{' '}
+              <a
+                href="https://maps.app.goo.gl/tCkCJqx9c1koDD9c7"
+                target="_blank"
+                rel="noreferrer"
+                className="font-semibold text-[#D9232D] transition-colors duration-200 hover:text-[#F47920]"
+              >
+                Behind Commercial Bank, Kegalle
+              </a>
+              .
+            </p>
 
             {/* Feature list */}
             <ul className="mb-10 space-y-3 text-left">

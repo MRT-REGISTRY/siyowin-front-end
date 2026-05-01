@@ -3,36 +3,11 @@
 import { useState } from "react";
 import { ArrowRight, Award, BookOpen, GraduationCap, Search, X } from "lucide-react";
 import Navbar from "@/components/Navbar";
+import { teacherDirectory, type TeacherProfile } from "@/data/teachers";
 
-type Teacher = {
-  id: number;
-  name: string;
-  subject: string;
-  credentials: string;
-  experience: string;
-  about: string;
-  category: "ol" | "al" | "scholarship";
-  photoBg: string;
-  accent: string;
-  initials: string;
-  photo?: string;
-};
+type Teacher = TeacherProfile;
 
-const teachers: Teacher[] = [
-  {
-    id: 1,
-    name: "Rukashan Kulakumara",
-    subject: "6-11 Maths",
-    credentials: "Mathematics tutor for school students",
-    experience: "8+ years",
-    about: "Dummy description: Rukashan Kulakumara is a dedicated maths tutor who helps students build strong fundamentals, practice exam-style questions, and improve confidence step by step.",
-    category: "ol",
-    photoBg: "#dfb08f",
-    accent: "#1fac74",
-    initials: "RK",
-    photo: "/teachers/rukshan_kulakuamara.webp",
-  },
-];
+const teachers: Teacher[] = teacherDirectory;
 
 const tabs = [
   { id: "all", label: "All Teachers", icon: GraduationCap },

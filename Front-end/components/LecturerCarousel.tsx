@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState, useCallback } from 'react'
+import { useRouter } from 'next/navigation'
 import Image from 'next/image'
 import { ArrowRight, ChevronLeft, ChevronRight } from 'lucide-react'
 import { SiteLecturerSection } from '@/types/siteContent'
@@ -16,24 +17,27 @@ const positions: Record<
   number,
   { scale: number; opacity: number; zIndex: number; xOffset: string; yOffset: number; blur: string }
 > = {
-  '-2': { scale: 0.70, opacity: 0.30, zIndex: 1, xOffset: '-97%', yOffset: 44, blur: '2.5px' },
-  '-1': { scale: 0.84, opacity: 0.75, zIndex: 2, xOffset: '-53%', yOffset: 20, blur: '0.8px' },
-   0:   { scale: 1,    opacity: 1,    zIndex: 4, xOffset: '0%',   yOffset: 0,  blur: '0px'  },
-   1:   { scale: 0.84, opacity: 0.75, zIndex: 2, xOffset: '53%',  yOffset: 20, blur: '0.8px' },
-   2:   { scale: 0.70, opacity: 0.30, zIndex: 1, xOffset: '97%',  yOffset: 44, blur: '2.5px' },
+  '-2': { scale: 0.60, opacity: 0.25, zIndex: 1, xOffset: '-235%', yOffset: 58, blur: '3px' },
+  '-1': { scale: 0.80, opacity: 0.80, zIndex: 2, xOffset: '-130%', yOffset: 20, blur: '0.8px' },
+   0:   { scale: 1,    opacity: 1,    zIndex: 4, xOffset: '0%',    yOffset: 0,  blur: '0px'  },
+   1:   { scale: 0.80, opacity: 0.80, zIndex: 2, xOffset: '130%',  yOffset: 20, blur: '0.8px' },
+   2:   { scale: 0.60, opacity: 0.25, zIndex: 1, xOffset: '235%',  yOffset: 58, blur: '3px' },
 }
 
 export default function LecturerCarousel({ section }: LecturerCarouselProps) {
+  const router = useRouter()
   const activeSection = section
   const lecturers = activeSection.lecturers
   const total = lecturers.length
+  const viewAllHref = activeSection.viewAllHref?.startsWith('/') ? activeSection.viewAllHref : '/teachers'
+  const shouldLoop = total > 1
 
   const [mounted, setMounted] = useState(false)
   useEffect(() => { setMounted(true) }, [])
 
-  const cloned = total > 0 ? [...lecturers, ...lecturers, ...lecturers] : []
+  const cloned = total > 0 ? (shouldLoop ? [...lecturers, ...lecturers, ...lecturers] : lecturers) : []
 
-  const [index, setIndex]                 = useState(total)
+  const [index, setIndex]                 = useState(shouldLoop ? total : 0)
   const [transitioning, setTransitioning] = useState(false)
   const [isPaused, setIsPaused]           = useState(false)
 
@@ -43,11 +47,13 @@ export default function LecturerCarousel({ section }: LecturerCarouselProps) {
   const activeIndex = total === 0 ? 0 : ((index % total) + total) % total
 
   useEffect(() => {
+    if (!shouldLoop) return
     const raf = requestAnimationFrame(() => setTransitioning(true))
     return () => cancelAnimationFrame(raf)
-  }, [])
+  }, [shouldLoop])
 
   const handleTransitionEnd = useCallback(() => {
+    if (!shouldLoop) return
     if (loopTimerRef.current) clearTimeout(loopTimerRef.current)
     if (index < total) {
       setTransitioning(false)
@@ -56,25 +62,40 @@ export default function LecturerCarousel({ section }: LecturerCarouselProps) {
       setTransitioning(false)
       setIndex(index - total)
     }
-  }, [index, total])
+  }, [index, total, shouldLoop])
 
   useEffect(() => {
-    if (!transitioning) return
+    if (!transitioning || !shouldLoop) return
     loopTimerRef.current = setTimeout(handleTransitionEnd, TRANSITION_MS + 80)
     return () => { if (loopTimerRef.current) clearTimeout(loopTimerRef.current) }
-  }, [index, transitioning, handleTransitionEnd])
+  }, [index, transitioning, handleTransitionEnd, shouldLoop])
 
   useEffect(() => {
-    if (transitioning) return
+    if (transitioning || !shouldLoop) return
     const raf = requestAnimationFrame(() =>
       requestAnimationFrame(() => setTransitioning(true))
     )
     return () => cancelAnimationFrame(raf)
-  }, [transitioning])
+  }, [transitioning, shouldLoop])
 
-  const goTo         = useCallback((n: number) => { setTransitioning(true); setIndex(n) }, [])
+  const goTo         = useCallback((n: number) => {
+    if (!shouldLoop) return
+    setTransitioning(true)
+    setIndex(n)
+  }, [shouldLoop])
   const goToPrevious = useCallback(() => goTo(index - 1), [goTo, index])
   const goToNext     = useCallback(() => goTo(index + 1), [goTo, index])
+  const handleCardClick = useCallback(
+    (offset: number, isCenter: boolean) => {
+      if (isCenter) {
+        router.push(viewAllHref)
+        return
+      }
+
+      goTo(index + offset)
+    },
+    [goTo, index, router, viewAllHref]
+  )
 
   useEffect(() => {
     if (isPaused || total < 2) return
@@ -149,7 +170,7 @@ export default function LecturerCarousel({ section }: LecturerCarouselProps) {
             return (
               <article
                 key={`d-${lecturer.id}-${i}`}
-                onClick={() => !isCenter && goTo(index + offset)}
+                onClick={() => handleCardClick(offset, isCenter)}
                 onTransitionEnd={isCenter ? handleTransitionEnd : undefined}
                 style={{
                   position: 'absolute', left: '50%',
@@ -159,8 +180,8 @@ export default function LecturerCarousel({ section }: LecturerCarouselProps) {
                   filter: `blur(${pos.blur})`,
                   transition: cardTransition,
                   willChange: 'transform, opacity',
-                  cursor: isCenter ? 'default' : 'pointer',
-                  width: isCenter ? '300px' : '240px',
+                  cursor: 'pointer',
+                  width: isCenter ? '300px' : '200px',
                 }}
                 className="overflow-hidden rounded-3xl shadow-2xl"
               >
@@ -222,7 +243,11 @@ export default function LecturerCarousel({ section }: LecturerCarouselProps) {
             const isCurrent = i === index
             return (
               <div key={`m-${lecturer.id}-${i}`} style={{ minWidth: '100%', padding: '0 12px' }}>
-                <article className="overflow-hidden rounded-3xl shadow-xl"
+                <article
+                  className="overflow-hidden rounded-3xl shadow-xl"
+                  onClick={() => {
+                    if (isCurrent) router.push(viewAllHref)
+                  }}
                   style={{
                     transform: isCurrent ? 'scale(1)' : 'scale(0.94)',
                     opacity: isCurrent ? 1 : 0.5,
@@ -266,7 +291,7 @@ export default function LecturerCarousel({ section }: LecturerCarouselProps) {
       {/* View All — outside overflow-hidden, no z-index stacking issue */}
       <div className="mt-10 flex justify-center">
         <a
-          href={activeSection.viewAllHref}
+          href={viewAllHref}
           className="group inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-blue-600 to-blue-500 px-7 py-3 text-sm font-bold text-white shadow-lg shadow-blue-200 transition-all duration-300 hover:-translate-y-0.5 hover:shadow-xl hover:shadow-blue-300 active:scale-95"
         >
           View all teachers
