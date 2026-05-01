@@ -1,6 +1,9 @@
 import dotenv from 'dotenv';
 
-dotenv.config();
+dotenv.config({ path: 'Back-end/.env.local' });
+dotenv.config({ path: '.env.local' });
+dotenv.config({ path: 'Back-end/.env' });
+dotenv.config({ path: '.env' });
 
 export const env = {
   port: Number(process.env.PORT ?? 4000),
