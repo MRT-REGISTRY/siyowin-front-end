@@ -103,6 +103,21 @@ export default function SubjectReportPage({ subject, onBack }: Props) {
         </div>
       </section>
 
+      <section className="sdr-metric-grid">
+        {[
+          ['Class', subject.classLabel],
+          ['Grade', subject.gradeId ?? 'Not set'],
+          ['Medium', subject.medium ?? 'Not set'],
+          ['Schedule', subject.schedule ?? 'Not set'],
+          ['Fee', subject.fee !== null && subject.fee !== undefined ? `Rs. ${subject.fee}` : 'Not set'],
+        ].map(([label, value]) => (
+          <article key={label} className="sdr-metric-card sdp-card">
+            <span className="sdr-metric-label">{label}</span>
+            <strong className="sdr-metric-value" style={{ fontSize: 18 }}>{value}</strong>
+          </article>
+        ))}
+      </section>
+
       {loading && <p className="sdp-card">Loading exam results...</p>}
       {!loading && error && <p className="sdp-card text-red-600">{error}</p>}
 

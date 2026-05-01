@@ -1,7 +1,6 @@
 'use client';
 
-import { useState } from 'react';
-import { useEffect } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import DashboardSidebar from './DashboardSidebar';
 import DashboardNavbar from './DashboardNavbar';
 import OverviewCards from './OverviewCards';
@@ -32,9 +31,30 @@ export default function StudentDashboard() {
   const [overview, setOverview] = useState<DashboardOverview | null>(null);
   const [progress, setProgress] = useState<Array<{ month: string; score: number; classAvg: number }>>([]);
   const [homework, setHomework] = useState<Array<any>>([]);
+  const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
+  const normalizedSearchQuery = searchQuery.trim().toLowerCase();
+  const visibleSubjects = useMemo(() => {
+    if (!normalizedSearchQuery) return subjects;
+    return subjects.filter((subject) => [
+      subject.name,
+      subject.subjectName,
+      subject.teacher,
+      subject.classLabel,
+      subject.gradeId,
+    ].some((value) => (value ?? '').toLowerCase().includes(normalizedSearchQuery)));
+  }, [normalizedSearchQuery, subjects]);
+  const visibleHomework = useMemo(() => {
+    if (!normalizedSearchQuery) return homework;
+    return homework.filter((item) => [
+      item.title,
+      item.subjectName,
+      item.status,
+      item.dueDate,
+    ].some((value) => String(value ?? '').toLowerCase().includes(normalizedSearchQuery)));
+  }, [homework, normalizedSearchQuery]);
   const selectedSubject = selectedSubjectId ? subjects.find((subject) => subject.id === selectedSubjectId) ?? null : null;
 
   useEffect(() => {
@@ -102,7 +122,12 @@ export default function StudentDashboard() {
       )}
 
       <div className="sd-main-wrapper">
-        <DashboardNavbar onMenuToggle={() => setSidebarOpen(true)} />
+        <DashboardNavbar
+          onMenuToggle={() => setSidebarOpen(true)}
+          profile={profile}
+          searchValue={searchQuery}
+          onSearchChange={setSearchQuery}
+        />
 
         <main className="sd-content">
           {loading && <p className="sdp-card">Loading dashboard...</p>}
@@ -121,7 +146,7 @@ export default function StudentDashboard() {
               <OverviewCards overview={overview} subjects={subjects} />
               <div className="sd-mid-grid">
                 <SubjectCards
-                  subjects={subjects}
+                  subjects={visibleSubjects}
                   onSelectSubject={openSubject}
                   onViewAll={() => {
                     setSelectedSubjectId(null);
@@ -131,7 +156,7 @@ export default function StudentDashboard() {
                 <ProgressChart data={progress} />
               </div>
               <div className="sd-bottom-grid">
-                <HomeworkSection homework={homework} />
+                <HomeworkSection homework={visibleHomework} />
               </div>
             </>
           )}
@@ -141,7 +166,7 @@ export default function StudentDashboard() {
           )}
 
           {activeNav === 'subjects' && !selectedSubject && (
-            <SubjectsPage subjects={subjects} onSelectSubject={openSubject} />
+            <SubjectsPage subjects={visibleSubjects} onSelectSubject={openSubject} />
           )}
           
           {activeNav === 'progress'    && <ProgressPage overview={overview} subjects={subjects} progress={progress} />}

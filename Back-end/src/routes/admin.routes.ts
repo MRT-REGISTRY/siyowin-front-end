@@ -84,9 +84,10 @@ router.get('/meta', asyncHandler(async (req, res) => {
   const classes = await repo.getClasses();
   const subjects = await repo.getSubjects();
   const studentClassOptions = await repo.getStudentEnrollmentOptions();
+  const grades = Array.from(new Set([...store.grades, ...classes.map((classItem) => classItem.grade)]));
 
   res.json({
-    grades: store.grades,
+    grades,
     classes: grade ? classes.filter((classItem) => classItem.grade === grade) : classes,
     studentClassOptions: grade ? studentClassOptions.filter((option) => option.grade === grade) : studentClassOptions,
     subjects: classId
@@ -383,6 +384,7 @@ router.delete('/marks', asyncHandler(async (req, res) => {
     subjectId: String(req.query.subjectId ?? ''),
     examType: String(req.query.examType ?? ''),
     examName: String(req.query.examName ?? ''),
+    examDate: String(req.query.examDate ?? '') || undefined,
   };
 
   if (!params.studentId || !params.subjectId || !params.examType || !params.examName) {
@@ -409,9 +411,11 @@ router.post('/marks/bulk', validateBody(bulkMarksSchema), asyncHandler(async (re
       return { row, status: 'skipped', reason: 'Missing student_index or invalid mark.' };
     }
 
+    const classId = row.class_id ?? row.subject_id ?? '';
     const result = await repo.upsertMark(row.student_index, {
-      subjectId: row.subject_id ?? '',
+      subjectId: classId,
       subjectName: row.subject_name ?? '',
+      classId,
       examType: row.exam_type ?? '',
       examName: row.exam_name ?? '',
       examDate: row.exam_date ?? '',

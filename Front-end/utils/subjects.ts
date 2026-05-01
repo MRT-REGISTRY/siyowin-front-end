@@ -3,7 +3,7 @@ import { ApiSubjectRecord, SubjectRecord } from '@/types';
 const gradeLabelFromId = (gradeId?: string | null) => {
   if (!gradeId) return 'Current grade';
   const match = gradeId.match(/grade-(\d+)/i);
-  return match ? `Grade ${match[1]}` : 'Current grade';
+  return match ? `Grade ${match[1]}` : gradeId;
 };
 
 const subjectEmojiFromSubject = (subjectName?: string | null, id?: string) => {
@@ -41,19 +41,21 @@ export const normalizeSubject = (
   const total = subjectHomework.length;
   const progress = subjectProgressFromHomework(done, total);
   const subjectName = subject.subject_name ?? subject.id;
-  const classLabel = `${gradeLabelFromId(subject.grade_id)} - ${subjectName}`;
+  const classLabel = subject.class_label ?? `${gradeLabelFromId(subject.grade ?? subject.grade_id)} - ${subjectName}`;
+  const currentMark = subject.current_mark ?? progress;
+  const classAvg = subject.class_avg ?? currentMark;
 
   return {
     id: subject.id,
     name: subjectName,
     emoji: subjectEmojiFromSubject(subjectName, subject.id),
     color: subjectHomework[0]?.color ?? subjectColorFromId(subject.id),
-    teacher: subject.teacher_id ? `Teacher ${subject.teacher_id}` : 'TBA',
+    teacher: subject.teacher_name ?? 'Unassigned',
     classLabel,
-    rank: 0,
-    trend: progress >= 80 ? 'up' : progress >= 50 ? 'neutral' : 'down',
-    currentMark: progress,
-    classAvg: progress,
+    rank: subject.rank ?? 0,
+    trend: currentMark >= classAvg ? 'up' : currentMark > 0 ? 'down' : 'neutral',
+    currentMark,
+    classAvg,
     nextExam: '',
     termTest: progress,
     dayPaper: progress,
@@ -63,8 +65,11 @@ export const normalizeSubject = (
     homeworkTargetThisMonth: total,
     recentHomeworks: subjectHomework.map(({ subjectId: _subjectId, subjectName: _subjectName, color: _color, ...item }) => item),
     teacherId: subject.teacher_id,
-    gradeId: subject.grade_id,
+    gradeId: subject.grade ?? subject.grade_id,
     subjectName,
+    medium: subject.medium,
+    schedule: subject.schedule,
+    fee: subject.fee,
     year: subject.year,
     isActive: subject.is_active,
     createdAt: subject.created_at,

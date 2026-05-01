@@ -302,9 +302,9 @@ export const upsertMark = (studentId: string, mark: AdminStudentMark) => {
   const student = store.students.find((item) => item.id === studentId || item.index === studentId);
   if (!student) return null;
 
-  const markKey = buildMarkKey(mark.subjectId, mark.examType, mark.examName);
+  const markKey = buildMarkKey(mark.subjectId, mark.examType, mark.examName, mark.examDate);
   const existingIndex = student.marks.findIndex(
-    (item) => buildMarkKey(item.subjectId, item.examType, item.examName) === markKey,
+    (item) => buildMarkKey(item.subjectId, item.examType, item.examName, item.examDate) === markKey,
   );
 
   if (existingIndex >= 0) {
@@ -321,14 +321,18 @@ export const deleteMark = (params: {
   subjectId: string;
   examType: string;
   examName: string;
+  examDate?: string;
 }) => {
   const student = store.students.find((item) => item.id === params.studentId || item.index === params.studentId);
   if (!student) return null;
 
-  const markKey = buildMarkKey(params.subjectId, params.examType, params.examName);
+  const markKey = buildMarkKey(params.subjectId, params.examType, params.examName, params.examDate);
+  const legacyMarkKey = buildMarkKey(params.subjectId, params.examType, params.examName);
   const beforeCount = student.marks.length;
   student.marks = student.marks.filter(
-    (item) => buildMarkKey(item.subjectId, item.examType, item.examName) !== markKey,
+    (item) => params.examDate
+      ? buildMarkKey(item.subjectId, item.examType, item.examName, item.examDate) !== markKey
+      : buildMarkKey(item.subjectId, item.examType, item.examName) !== legacyMarkKey,
   );
 
   return { student, deleted: student.marks.length < beforeCount };
