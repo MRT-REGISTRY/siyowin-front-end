@@ -29,6 +29,7 @@ const classSchema = z.object({
   name: z.string().min(1),
   medium: z.string().min(1),
   subjectName: z.string().min(1),
+  teacherId: z.string().optional(),
   academicYear: z.number().int().min(2000).max(2100).optional(),
   schedule: z.string().optional(),
   fee: z.number().min(0).optional(),
@@ -48,13 +49,17 @@ const teacherAssignmentSchema = z.object({
 
 const teacherSchema = z.object({
   name: z.string().min(1),
-  subject: z.string().min(1),
-  grade: z.string().min(1),
+  subject: z.string().optional().default(''),
+  grade: z.string().optional().default(''),
   username: z.string().min(1),
   password: z.string().min(6),
   email: z.string().email(),
   phone: z.string().min(1),
-  assignments: z.array(teacherAssignmentSchema).min(1),
+  assignments: z.array(teacherAssignmentSchema).optional().default([]),
+});
+
+const classTeacherSchema = z.object({
+  teacherId: z.string().min(1).nullable().optional(),
 });
 
 const markSchema = z.object({
@@ -137,8 +142,8 @@ router.post('/classes', validateBody(classSchema), asyncHandler(async (req, res)
     grade,
     name,
     medium,
+    teacherId: req.body.teacherId?.trim() || undefined,
     subjectName,
-    subjectId: slugify(subjectName),
     academicYear: req.body.academicYear ?? new Date().getFullYear(),
     schedule: req.body.schedule?.trim(),
     fee: req.body.fee,
@@ -146,6 +151,18 @@ router.post('/classes', validateBody(classSchema), asyncHandler(async (req, res)
   });
 
   res.status(201).json({ class: classItem });
+}));
+
+router.patch('/classes/:classId/teacher', validateBody(classTeacherSchema), asyncHandler(async (req, res) => {
+  const classId = String(req.params.classId ?? '');
+  const classItem = await repo.setClassTeacher(classId, req.body.teacherId?.trim() || null);
+
+  if (!classItem) {
+    res.status(404).json({ message: 'Class or teacher not found.' });
+    return;
+  }
+
+  res.json({ class: classItem });
 }));
 
 router.delete('/classes/:classId', asyncHandler(async (req, res) => {
@@ -159,6 +176,7 @@ router.delete('/classes/:classId', asyncHandler(async (req, res) => {
 }));
 
 router.post('/enrollments', validateBody(enrollmentSchema), asyncHandler(async (req, res) => {
+  console.log('Enrollment in progress');
   const enrollment = await repo.enrollStudent(req.body);
   console.log('Enrollment result:', enrollment);
   if (!enrollment) {
@@ -417,10 +435,3 @@ router.post('/marks/bulk', validateBody(bulkMarksSchema), asyncHandler(async (re
 }));
 
 export default router;
-
-const slugify = (value: string) =>
-  value
-    .trim()
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-|-$/g, '');

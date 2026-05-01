@@ -1,6 +1,8 @@
 DROP SCHEMA IF EXISTS public CASCADE;
 CREATE SCHEMA public;
 
+CREATE EXTENSION IF NOT EXISTS pgcrypto;
+
 CREATE TYPE user_role AS ENUM ('student', 'teacher', 'admin', 'super-admin');
 CREATE TYPE exam_type_enum AS ENUM ('term-test', 'day-paper', 'month-test', 'quiz', 'practical');
 CREATE TYPE report_status AS ENUM ('pending', 'sent', 'failed');
@@ -42,25 +44,15 @@ CREATE TABLE grades (
 
 CREATE TABLE classes (
     id TEXT PRIMARY KEY,
+    teacher_id TEXT REFERENCES teachers(id) ON DELETE SET NULL,
     grade VARCHAR(50) NOT NULL,
-    subject_id TEXT,
-    subject_name VARCHAR(100),
+    subject_name VARCHAR(100) NOT NULL,
     name VARCHAR(30) NOT NULL,
     label VARCHAR(100) NOT NULL,
     medium VARCHAR(50) NOT NULL,
     academic_year INTEGER NOT NULL DEFAULT EXTRACT(YEAR FROM CURRENT_DATE)::INTEGER,
     schedule VARCHAR(100),
     fee DECIMAL(10,2),
-    is_active BOOLEAN DEFAULT TRUE,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-
-CREATE TABLE subjects (
-    id TEXT PRIMARY KEY,
-    teacher_id TEXT REFERENCES teachers(id) ON DELETE SET NULL,
-    grade_id TEXT REFERENCES grades(id) ON DELETE SET NULL,
-    subject_name VARCHAR(100),
-    year INTEGER DEFAULT EXTRACT(YEAR FROM CURRENT_DATE)::INTEGER,
     is_active BOOLEAN DEFAULT TRUE,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
@@ -82,7 +74,6 @@ CREATE TABLE student_enrollments (
     id TEXT PRIMARY KEY,
     student_id TEXT REFERENCES students(id) ON DELETE CASCADE,
     class_id TEXT REFERENCES classes(id) ON DELETE CASCADE,
-    subject_id TEXT,
     academic_year INTEGER NOT NULL DEFAULT EXTRACT(YEAR FROM CURRENT_DATE)::INTEGER,
     status enrollment_status DEFAULT 'active',
     enrolled_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -108,7 +99,6 @@ RETURNS TABLE(created_student_id TEXT, created_user_id TEXT)
 LANGUAGE plpgsql
 AS $$
 DECLARE
-    v_subject_id TEXT;
     v_academic_year INTEGER;
 BEGIN
     INSERT INTO students (
@@ -155,47 +145,32 @@ BEGIN
         COALESCE(p_is_active, TRUE)
     );
 
-    SELECT subject_id, academic_year
-    INTO v_subject_id, v_academic_year
+    SELECT academic_year
+    INTO v_academic_year
     FROM classes
     WHERE id = p_class_id;
 
-    IF v_subject_id IS NOT NULL THEN
-        IF EXISTS (
-            SELECT 1
-            FROM student_enrollments
-            WHERE student_id = p_student_id
-              AND class_id = p_class_id
-        ) THEN
-            UPDATE student_enrollments
-            SET
-                subject_id = v_subject_id,
-                academic_year = COALESCE(v_academic_year, EXTRACT(YEAR FROM CURRENT_DATE)::INTEGER),
-                status = 'active',
-                enrolled_at = NOW()
-            WHERE student_id = p_student_id
-              AND class_id = p_class_id;
-        ELSE
-            INSERT INTO student_enrollments (
-                id,
-                student_id,
-                class_id,
-                subject_id,
-                academic_year,
-                status,
-                enrolled_at
-            )
-            VALUES (
-                CONCAT('enr-', p_student_id, '-', p_class_id),
-                p_student_id,
-                p_class_id,
-                v_subject_id,
-                COALESCE(v_academic_year, EXTRACT(YEAR FROM CURRENT_DATE)::INTEGER),
-                'active',
-                NOW()
-            );
-        END IF;
-    END IF;
+    INSERT INTO student_enrollments (
+        id,
+        student_id,
+        class_id,
+        academic_year,
+        status,
+        enrolled_at
+    )
+    VALUES (
+        CONCAT('enr-', p_student_id, '-', p_class_id),
+        p_student_id,
+        p_class_id,
+        COALESCE(v_academic_year, EXTRACT(YEAR FROM CURRENT_DATE)::INTEGER),
+        'active',
+        NOW()
+    )
+    ON CONFLICT (student_id, class_id) DO UPDATE
+    SET
+        academic_year = EXCLUDED.academic_year,
+        status = EXCLUDED.status,
+        enrolled_at = EXCLUDED.enrolled_at;
 
     RETURN QUERY SELECT p_student_id AS created_student_id, p_user_id AS created_user_id;
 END;
@@ -205,7 +180,6 @@ CREATE TABLE teacher_class_assignments (
     id TEXT PRIMARY KEY,
     teacher_id TEXT REFERENCES teachers(id) ON DELETE CASCADE,
     class_id TEXT REFERENCES classes(id) ON DELETE CASCADE,
-    subject_id TEXT,
     role teacher_assignment_role DEFAULT 'primary',
     active_from DATE,
     active_to DATE,
@@ -224,7 +198,6 @@ CREATE TABLE parents (
 
 CREATE TABLE exams (
     id TEXT PRIMARY KEY,
-    subject_id TEXT REFERENCES subjects(id) ON DELETE CASCADE,
     class_id TEXT REFERENCES classes(id) ON DELETE CASCADE,
     exam_type exam_type_enum NOT NULL,
     title VARCHAR(150) NOT NULL,
@@ -268,15 +241,13 @@ CREATE TABLE monthly_reports (
 );
 
 CREATE INDEX idx_students_class ON students(class_id);
-CREATE INDEX idx_subjects_teacher ON subjects(teacher_id);
-CREATE INDEX idx_subjects_grade ON subjects(grade_id);
 CREATE INDEX idx_student_enrollments_student ON student_enrollments(student_id);
 CREATE INDEX idx_student_enrollments_class ON student_enrollments(class_id);
 CREATE INDEX idx_teacher_class_assignments_teacher ON teacher_class_assignments(teacher_id);
 CREATE INDEX idx_teacher_class_assignments_class ON teacher_class_assignments(class_id);
 CREATE INDEX idx_results_exam ON results(exam_id);
 CREATE INDEX idx_results_student ON results(student_id);
-CREATE INDEX idx_exams_subject ON exams(subject_id);
+CREATE INDEX idx_exams_class ON exams(class_id);
 
 ALTER TABLE users
     ADD CONSTRAINT users_student_id_fkey FOREIGN KEY (student_id) REFERENCES students(id) ON DELETE SET NULL;
