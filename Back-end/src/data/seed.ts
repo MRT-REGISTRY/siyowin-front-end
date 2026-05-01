@@ -18,31 +18,39 @@ export const users: Array<AuthUser & { passwordHash: string }> = [
   {
     id: 'user-student-1',
     name: 'Alex Johnson',
+    username: '2026-11-012',
     email: 'student@siyowin.lk',
     role: 'student',
     studentId: 'st-1',
+    isActive: true,
     passwordHash,
   },
   {
     id: 'user-teacher-1',
     name: 'Mr. Silva',
+    username: 'silva',
     email: 'teacher@siyowin.lk',
     role: 'teacher',
     teacherId: 't-1',
+    isActive: true,
     passwordHash,
   },
   {
     id: 'user-admin-1',
     name: 'Admin User',
+    username: 'admin',
     email: 'admin@siyowin.lk',
     role: 'admin',
+    isActive: true,
     passwordHash,
   },
   {
     id: 'user-super-admin-1',
     name: 'Super Admin',
+    username: 'superadmin',
     email: 'superadmin@siyowin.lk',
     role: 'super-admin',
+    isActive: true,
     passwordHash,
   },
 ];
@@ -267,14 +275,14 @@ export const leaderboards: Record<string, LeaderboardEntry[]> = {
 export const grades = ['Grade 9', 'Grade 10', 'Grade 11', 'Grade 12'] as const;
 
 export const classes: AdminClassOption[] = [
-  { id: '9-a', grade: 'Grade 9', name: 'A', label: 'Grade 9 - A' },
-  { id: '9-b', grade: 'Grade 9', name: 'B', label: 'Grade 9 - B' },
-  { id: '10-a', grade: 'Grade 10', name: 'A', label: 'Grade 10 - A' },
-  { id: '10-b', grade: 'Grade 10', name: 'B', label: 'Grade 10 - B' },
-  { id: '11-a', grade: 'Grade 11', name: 'A', label: 'Grade 11 - A' },
-  { id: '11-b', grade: 'Grade 11', name: 'B', label: 'Grade 11 - B' },
-  { id: '12-a', grade: 'Grade 12', name: 'A', label: 'Grade 12 - A' },
-  { id: '12-b', grade: 'Grade 12', name: 'B', label: 'Grade 12 - B' },
+  { id: '9-a-si', grade: 'Grade 9', name: 'A', label: 'Grade 9 - A - Sinhala Medium', medium: 'Sinhala', subjectId: 'math', subjectName: 'Mathematics', academicYear: 2026, schedule: 'Saturday 08:00', fee: 2500, isActive: true },
+  { id: '9-b-en', grade: 'Grade 9', name: 'B', label: 'Grade 9 - B - English Medium', medium: 'English', subjectId: 'sci', subjectName: 'Science', academicYear: 2026, schedule: 'Sunday 10:00', fee: 2500, isActive: true },
+  { id: '10-a-si', grade: 'Grade 10', name: 'A', label: 'Grade 10 - A - Sinhala Medium', medium: 'Sinhala', subjectId: 'math', subjectName: 'Mathematics', academicYear: 2026, schedule: 'Saturday 10:30', fee: 3000, isActive: true },
+  { id: '10-b-en', grade: 'Grade 10', name: 'B', label: 'Grade 10 - B - English Medium', medium: 'English', subjectId: 'sci', subjectName: 'Science', academicYear: 2026, schedule: 'Sunday 13:00', fee: 3000, isActive: true },
+  { id: '11-a-si', grade: 'Grade 11', name: 'A', label: 'Grade 11 - A - Sinhala Medium', medium: 'Sinhala', subjectId: 'math', subjectName: 'Mathematics', academicYear: 2026, schedule: 'Saturday 13:30', fee: 3500, isActive: true },
+  { id: '11-b-en', grade: 'Grade 11', name: 'B', label: 'Grade 11 - B - English Medium', medium: 'English', subjectId: 'math', subjectName: 'Mathematics', academicYear: 2026, schedule: 'Sunday 08:00', fee: 3500, isActive: true },
+  { id: '12-a-si', grade: 'Grade 12', name: 'A', label: 'Grade 12 - A - Sinhala Medium', medium: 'Sinhala', subjectId: 'hist', subjectName: 'History', academicYear: 2026, schedule: 'Friday 16:00', fee: 4000, isActive: true },
+  { id: '12-b-en', grade: 'Grade 12', name: 'B', label: 'Grade 12 - B - English Medium', medium: 'English', subjectId: 'eng', subjectName: 'English', academicYear: 2026, schedule: 'Friday 18:00', fee: 4000, isActive: true },
 ];
 
 export const adminSubjects: AdminSubjectOption[] = subjects.map((subject) => ({
@@ -310,8 +318,9 @@ export const students: AdminStudent[] = [
     id: 'st-1',
     name: 'Alex Johnson',
     index: '2026-11-012',
+    dateOfBirth: '2010-04-18',
     grade: 'Grade 11',
-    classId: '11-a',
+    classId: '11-a-si',
     parentName: 'Mary Johnson',
     parentPhone: '+94 77 111 2222',
     marks: [
@@ -323,8 +332,9 @@ export const students: AdminStudent[] = [
     id: 'st-2',
     name: 'Sara Perera',
     index: '2026-11-045',
+    dateOfBirth: '2010-09-03',
     grade: 'Grade 11',
-    classId: '11-a',
+    classId: '11-a-si',
     marks: [
       { subjectId: 'eng', subjectName: 'English', examType: 'term-test', examName: 'Term Test 2', examDate: '2026-05-14', mark: 78, note: 'Clear writing' },
     ],
@@ -333,8 +343,9 @@ export const students: AdminStudent[] = [
     id: 'st-3',
     name: 'Nimal Fernando',
     index: '2026-10-018',
+    dateOfBirth: '2011-01-22',
     grade: 'Grade 10',
-    classId: '10-b',
+    classId: '10-b-en',
     marks: [
       { subjectId: 'sci', subjectName: 'Science', examType: 'month-test', examName: 'May Benchmark', examDate: '2026-05-16', mark: 84, note: 'Improved lab work' },
     ],
@@ -343,8 +354,9 @@ export const students: AdminStudent[] = [
     id: 'st-4',
     name: 'Sara Perera',
     index: '2026-12-003',
+    dateOfBirth: '2009-11-12',
     grade: 'Grade 12',
-    classId: '12-a',
+    classId: '12-a-si',
     marks: [
       { subjectId: 'hist', subjectName: 'History', examType: 'term-test', examName: 'Term Test 2', examDate: '2026-05-18', mark: 87, note: 'Excellent recall' },
     ],
@@ -359,6 +371,10 @@ export const teachers: AdminTeacher[] = [
     grade: 'Grade 11',
     email: 'silva@siyowin.edu',
     phone: '+94 77 123 4567',
+    assignments: [
+      { subject: 'Mathematics', grade: 'Grade 11', classId: '11-a-si', medium: 'Sinhala' },
+      { subject: 'Mathematics', grade: 'Grade 11', classId: '11-b-en', medium: 'English' },
+    ],
   },
   {
     id: 't-2',
@@ -367,5 +383,9 @@ export const teachers: AdminTeacher[] = [
     grade: 'Grade 11',
     email: 'fernando@siyowin.edu',
     phone: '+94 77 234 5678',
+    assignments: [
+      { subject: 'Science', grade: 'Grade 10', classId: '10-b-en', medium: 'English' },
+      { subject: 'Science', grade: 'Grade 11', classId: '11-a-si', medium: 'Sinhala' },
+    ],
   },
 ];

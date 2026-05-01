@@ -3,10 +3,12 @@ export type UserRole = 'student' | 'teacher' | 'admin' | 'super-admin';
 export type AuthUser = {
   id: string;
   name: string;
+  username: string;
   email: string;
   role: UserRole;
   studentId?: string;
   teacherId?: string;
+  isActive?: boolean;
 };
 
 export type SubjectHistoryItem = {
@@ -65,6 +67,13 @@ export type AdminClassOption = {
   grade: string;
   name: string;
   label: string;
+  medium: string;
+  subjectId?: string;
+  subjectName?: string;
+  academicYear?: number;
+  schedule?: string;
+  fee?: number;
+  isActive?: boolean;
 };
 
 export type AdminSubjectOption = {
@@ -81,6 +90,7 @@ export type AdminExamType = {
 export type AdminStudentMark = {
   subjectId: string;
   subjectName: string;
+  classId?: string;
   examType: string;
   examName: string;
   examDate: string;
@@ -92,8 +102,10 @@ export type AdminStudent = {
   id: string;
   name: string;
   index: string;
+  dateOfBirth?: string;
   grade: string;
   classId: string;
+  enrollments?: StudentEnrollment[];
   parentName?: string;
   parentPhone?: string;
   marks: AdminStudentMark[];
@@ -106,6 +118,41 @@ export type AdminTeacher = {
   grade: string;
   email: string;
   phone: string;
+  assignments: TeacherAssignment[];
+};
+
+export type TeacherAssignment = {
+  subject: string;
+  grade: string;
+  classId: string;
+  medium: string;
+};
+
+export type StudentEnrollment = {
+  id: string;
+  studentId: string;
+  classId: string;
+  subjectId: string;
+  academicYear: number;
+  status: 'active' | 'completed' | 'cancelled';
+  enrolledAt: string;
+};
+
+export type TeacherClassAssignment = {
+  id: string;
+  teacherId: string;
+  classId: string;
+  subjectId: string;
+  role: 'primary' | 'assistant';
+  activeFrom?: string;
+  activeTo?: string;
+  isActive: boolean;
+};
+
+export type RegisteredUser = Omit<AuthUser, 'studentId' | 'teacherId'> & {
+  studentId?: string;
+  teacherId?: string;
+  linkedName?: string;
 };
 
 export type DashboardOverview = {

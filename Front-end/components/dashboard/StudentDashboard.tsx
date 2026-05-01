@@ -44,7 +44,7 @@ export default function StudentDashboard() {
       overview: DashboardOverview;
       profile: StudentProfile;
       subjects: ApiSubjectRecord[];
-      progress: Array<{ month: string; average: number; classAvg?: number }>;
+      progress: Array<{ month: string; score?: number; average?: number; classAvg?: number }>;
       homework: Array<any>;
     }>('/dashboard/student')
       .then((data) => {
@@ -52,7 +52,11 @@ export default function StudentDashboard() {
         setOverview(data.overview);
         setProfile(data.profile);
         setSubjects(normalizeSubjects(data.subjects, data.homework));
-        setProgress(data.progress.map((item) => ({ month: item.month, score: item.average, classAvg: item.classAvg ?? 74 })));
+        setProgress(data.progress.map((item) => ({
+          month: item.month,
+          score: item.score ?? item.average ?? 0,
+          classAvg: item.classAvg ?? 0,
+        })));
         setHomework(data.homework);
         setError('');
       })

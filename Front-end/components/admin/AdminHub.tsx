@@ -33,7 +33,7 @@ export default function AdminHub() {
               </div>
               <h2 className="mt-5 text-2xl font-bold text-slate-900">Students / Teachers</h2>
               <p className="mt-2 text-sm leading-6 text-slate-600">
-                Add students and, for super admins, add teachers too.
+                Create issued logins, view registered users, and assign classes or teacher grade groups.
               </p>
             </Link>
 
@@ -56,7 +56,7 @@ export default function AdminHub() {
 
           <div className="px-6 pb-6 sm:px-8">
             <div className="rounded-3xl border border-slate-200 bg-slate-50 p-5 text-sm text-slate-600">
-              <strong className="text-slate-900">Tip:</strong> Use the people page for onboarding, then open results management to add grades, classes, subjects, and exam metadata.
+              <strong className="text-slate-900">Tip:</strong> Use the people page for accounts and class access, then open results management to add marks and exam metadata.
             </div>
           </div>
         </section>

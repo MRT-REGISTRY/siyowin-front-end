@@ -34,6 +34,12 @@ export type SubjectRecord = {
   homeworkDoneThisMonth: number;
   homeworkTargetThisMonth: number;
   recentHomeworks: SubjectHomeworkItem[];
+  teacherId?: string | null;
+  gradeId?: string | null;
+  subjectName?: string | null;
+  year?: number | null;
+  isActive?: boolean | null;
+  createdAt?: string | null;
 };
 
 export type ApiSubjectRecord = {
@@ -96,12 +102,20 @@ export type StudentProfile = {
 };
 
 export type AdminRole = 'super-admin' | 'admin';
+export type UserRole = 'student' | 'teacher' | 'admin' | 'super-admin';
 
 export type AdminClassOption = {
   id: string;
   grade: string;
   name: string;
   label: string;
+  medium: string;
+  subjectId?: string;
+  subjectName?: string;
+  academicYear?: number;
+  schedule?: string;
+  fee?: number;
+  isActive?: boolean;
 };
 
 export type AdminSubjectOption = {
@@ -118,6 +132,7 @@ export type AdminExamType = {
 export type AdminStudentMark = {
   subjectId: string;
   subjectName: string;
+  classId?: string;
   examType: string;
   examName: string;
   examDate: string;
@@ -129,8 +144,10 @@ export type AdminStudent = {
   id: string;
   name: string;
   index: string;
+  dateOfBirth?: string;
   grade: string;
   classId: string;
+  enrollments?: StudentEnrollment[];
   parentName?: string;
   parentPhone?: string;
   marks: AdminStudentMark[];
@@ -143,4 +160,34 @@ export type AdminTeacher = {
   grade: string;
   email: string;
   phone: string;
+  assignments: TeacherAssignment[];
+};
+
+export type TeacherAssignment = {
+  subject: string;
+  grade: string;
+  classId: string;
+  medium: string;
+};
+
+export type StudentEnrollment = {
+  id: string;
+  studentId: string;
+  classId: string;
+  subjectId: string;
+  academicYear: number;
+  status: 'active' | 'completed' | 'cancelled';
+  enrolledAt: string;
+};
+
+export type RegisteredUser = {
+  id: string;
+  name: string;
+  username: string;
+  email: string;
+  role: UserRole;
+  studentId?: string;
+  teacherId?: string;
+  isActive?: boolean;
+  linkedName?: string;
 };

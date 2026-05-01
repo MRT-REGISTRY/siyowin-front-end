@@ -19,15 +19,20 @@ const toSubjectResponse = (subject: any) => ({
 router.get('/student', requireRoles('student', 'admin', 'super-admin'), async (req, res) => {
   const studentId = req.user?.studentId;
   const subjects = await repo.getEnrolledSubjects(studentId);
+  const profile = await repo.getStudentProfile(studentId);
+  if (!profile) {
+    res.status(404).json({ message: 'Student profile not found.' });
+    return;
+  }
 
   res.json({
     profile: {
-      ...(await repo.getStudentProfile(studentId)),
+      ...profile,
       email: req.user?.email ?? '',
     },
-    overview: await repo.getOverview(),
+    overview: await repo.getOverview(subjects),
     subjects: subjects.map(toSubjectResponse),
-    progress: repo.getProgressSeries(),
+    progress: await repo.getStudentProgressSeries(studentId),
     homework: subjects.flatMap((subject) =>
       subject.recentHomeworks.map((homework) => ({
         ...homework,
@@ -80,7 +85,6 @@ router.get('/subjects/:subjectId/results', requireRoles('student'), async (req, 
     res.status(400).json({ message: 'Student profile is required.' });
     return;
   }
-  console.log('Student ID:', studentId); // Debug log
 
   const enrolledSubjects = await repo.getEnrolledSubjects(studentId);
   if (!enrolledSubjects.some((item) => item.id === subject.id)) {
@@ -89,7 +93,6 @@ router.get('/subjects/:subjectId/results', requireRoles('student'), async (req, 
   }
 
   const results = await repo.getStudentSubjectResults(studentId, subject.id);
-  console.log('Results:', results); // Debug log
 
   if (!results.length) {
     res.json({
@@ -133,7 +136,9 @@ router.get('/subjects/:subjectId/homework', requireRoles('student', 'teacher', '
     summary: {
       completed: subject.homeworkDoneThisMonth,
       target: subject.homeworkTargetThisMonth,
-      percent: Math.round((subject.homeworkDoneThisMonth / subject.homeworkTargetThisMonth) * 100),
+      percent: subject.homeworkTargetThisMonth
+        ? Math.round((subject.homeworkDoneThisMonth / subject.homeworkTargetThisMonth) * 100)
+        : 0,
     },
   });
 });
@@ -146,16 +151,23 @@ router.get('/subjects/:subjectId/leaderboard', requireRoles('student', 'teacher'
   }
 
   const subject = await repo.getSubjectById(subjectId);
-  console.log('Subject:', subject); // Debug log
   
   if (!subject) {
     res.status(404).json({ message: 'Subject not found.' });
     return;
   }
 
+  const classIdFromQuery = typeof req.query.classId === 'string' ? req.query.classId : undefined;
+  const classId = classIdFromQuery ?? (req.user?.studentId ? await repo.getStudentClassId(req.user.studentId) : undefined);
+  if (!classId) {
+    res.status(400).json({ message: 'classId is required for leaderboard lookups.' });
+    return;
+  }
+
   res.json({
     subjectId: subject.id,
-    leaderboard: await repo.getLeaderboardForSubject(subject.id),
+    classId,
+    leaderboard: await repo.getLeaderboardForSubject(subject.id, classId, req.user?.studentId),
   });
 });
 

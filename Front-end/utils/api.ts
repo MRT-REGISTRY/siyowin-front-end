@@ -9,8 +9,10 @@ export async function apiRequest<T>(path: string, options: ApiOptions = {}): Pro
 
   const response = await fetch(`${API_URL}${path}`, {
     ...requestOptions,
+    cache: 'no-store',
     headers: {
       'Content-Type': 'application/json',
+      'Cache-Control': 'no-store',
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
       ...headers,
     },
@@ -32,6 +34,7 @@ export type LoginResponse = {
   user: {
     id: string;
     name: string;
+    username: string;
     email: string;
     role: LoginRole;
     studentId?: string;
