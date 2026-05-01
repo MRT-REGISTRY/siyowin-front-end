@@ -1,0 +1,10 @@
+# to do's after backend implementation
+currently login doesn't linked with any of student or teacher or admin
+link it
+
+admin/ super admin can login via the teacehr login, 
+but db hs to check the role and then redirect him to relavent page (teacher/ super admin/ admin)
+currenlty /admin path will link you to a page where you can select add students or teachers || add marks
+currently both super admin and admin are capable of adding teachers to the system
+after the role based auth, super admins are the only one with the ability of adding teachers
+while the admin cn only add students and marks
