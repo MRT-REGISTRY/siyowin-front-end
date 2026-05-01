@@ -30,7 +30,7 @@ const teachers: Teacher[] = [
     photoBg: "#dfb08f",
     accent: "#1fac74",
     initials: "RK",
-    photo: "/teachers/ruka_maths.webp",
+    photo: "/teachers/rukshan_kulakuamara.webp",
   },
 ];
 
