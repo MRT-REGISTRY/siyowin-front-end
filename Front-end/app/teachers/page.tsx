@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from "react";
-import { ArrowRight, GraduationCap, BookOpen, Award, Search } from "lucide-react";
+import { ArrowRight, Award, BookOpen, GraduationCap, Search, X } from "lucide-react";
 import Navbar from "@/components/Navbar";
 
 type Teacher = {
@@ -10,6 +10,7 @@ type Teacher = {
   subject: string;
   credentials: string;
   experience: string;
+  about: string;
   category: "ol" | "al" | "scholarship";
   photoBg: string;
   accent: string;
@@ -18,7 +19,19 @@ type Teacher = {
 };
 
 const teachers: Teacher[] = [
-  { id: 1, name: "Rukshan Kulakumara", subject: "6-11 Maths", credentials: "", experience: "8+ years", category: "ol", photoBg: "#dfb08f", accent: "#1fac74", initials: "RK", photo: "/teachers/ruka_maths.webp" },
+  {
+    id: 1,
+    name: "Rukashan Kulakumara",
+    subject: "6-11 Maths",
+    credentials: "Mathematics tutor for school students",
+    experience: "8+ years",
+    about: "Dummy description: Rukashan Kulakumara is a dedicated maths tutor who helps students build strong fundamentals, practice exam-style questions, and improve confidence step by step.",
+    category: "ol",
+    photoBg: "#dfb08f",
+    accent: "#1fac74",
+    initials: "RK",
+    photo: "/teachers/ruka_maths.webp",
+  },
 ];
 
 const tabs = [
@@ -31,6 +44,7 @@ const tabs = [
 export default function TeachersPage() {
   const [active, setActive] = useState<(typeof tabs)[number]["id"]>("all");
   const [query, setQuery] = useState("");
+  const [selectedTeacher, setSelectedTeacher] = useState<(typeof teachers)[number] | null>(null);
 
   const filtered = teachers.filter((t) => {
     const matchTab = active === "all" || t.category === active;
@@ -146,7 +160,11 @@ export default function TeachersPage() {
 
                   <div className="mt-4 flex items-center justify-between border-t border-gray-100 pt-3">
                     <span className="text-xs font-medium text-gray-500">{t.experience}</span>
-                    <button className="inline-flex items-center gap-1 text-xs font-bold text-blue-700 transition-colors hover:text-blue-900">
+                    <button
+                      type="button"
+                      onClick={() => setSelectedTeacher(t)}
+                      className="inline-flex items-center gap-1 text-xs font-bold text-blue-700 transition-colors hover:text-blue-900"
+                    >
                       View Profile
                       <ArrowRight className="h-3 w-3 transition-transform group-hover:translate-x-0.5" />
                     </button>
@@ -157,6 +175,90 @@ export default function TeachersPage() {
           </div>
         )}
       </section>
+
+      {selectedTeacher ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 px-4 py-8 backdrop-blur-sm">
+          <div className="relative w-full max-w-3xl overflow-hidden rounded-3xl bg-white shadow-2xl">
+            <button
+              type="button"
+              onClick={() => setSelectedTeacher(null)}
+              className="absolute right-4 top-4 rounded-full bg-white/90 p-2 text-slate-600 shadow-sm transition hover:bg-slate-100 hover:text-slate-900"
+              aria-label="Close profile"
+            >
+              <X className="h-5 w-5" />
+            </button>
+
+            <div className="flex flex-col gap-6 p-6 md:flex-row md:items-start md:p-8">
+              <div
+                className="relative mx-auto h-48 w-48 flex-shrink-0 overflow-hidden rounded-3xl shadow-lg md:mx-0 md:h-56 md:w-56"
+                style={{ backgroundColor: selectedTeacher.photoBg }}
+              >
+                {selectedTeacher.photo ? (
+                  <img
+                    src={selectedTeacher.photo}
+                    alt={selectedTeacher.name}
+                    className="h-full w-full object-cover object-top"
+                  />
+                ) : (
+                  <div
+                    className="flex h-full w-full items-center justify-center text-5xl font-black text-white"
+                    style={{ color: selectedTeacher.accent }}
+                  >
+                    {selectedTeacher.initials}
+                  </div>
+                )}
+              </div>
+
+              <div className="min-w-0 flex-1 md:pt-2">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span
+                    className="rounded-full px-3 py-1 text-xs font-bold uppercase tracking-wider text-white"
+                    style={{ backgroundColor: selectedTeacher.accent }}
+                  >
+                    {selectedTeacher.category === "ol" ? "O/L" : selectedTeacher.category === "al" ? "A/L" : "Scholarship"}
+                  </span>
+                  <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700">
+                    {selectedTeacher.experience}
+                  </span>
+                </div>
+
+                <p className="mt-4 text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">Tutor Profile</p>
+                <h3 className="mt-1 text-3xl font-extrabold text-slate-900">{selectedTeacher.name}</h3>
+                <h2 className="mt-4 text-3xl font-extrabold text-slate-900">{selectedTeacher.subject}</h2>
+                <p className="mt-2 text-sm leading-6 text-slate-600">{selectedTeacher.about}</p>
+
+                <div className="mt-6 grid gap-3 sm:grid-cols-2">
+                  <div className="rounded-2xl bg-slate-50 p-4">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Credentials</p>
+                    <p className="mt-1 text-sm font-medium text-slate-800">{selectedTeacher.credentials}</p>
+                  </div>
+                  <div className="rounded-2xl bg-slate-50 p-4">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Subject</p>
+                    <p className="mt-1 text-sm font-medium text-slate-800">{selectedTeacher.subject}</p>
+                  </div>
+                </div>
+
+                <div className="mt-6 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Teaching Focus</p>
+                  <p className="mt-1 text-sm leading-6 text-slate-700">
+                    {selectedTeacher.name} helps students strengthen fundamentals, improve problem solving, and prepare effectively for exams.
+                  </p>
+                </div>
+
+                <div className="mt-6 flex justify-end">
+                  <button
+                    type="button"
+                    onClick={() => setSelectedTeacher(null)}
+                    className="rounded-full bg-slate-900 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-slate-700"
+                  >
+                    Close Profile
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      ) : null}
 
       {/* CTA */}
       <section className="mx-auto max-w-7xl px-4 pb-20 sm:px-6 lg:px-8">
