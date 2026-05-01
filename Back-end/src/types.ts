@@ -48,6 +48,9 @@ export type SubjectRecord = {
   teacherId?: string | null;
   gradeId?: string | null;
   subjectName?: string | null;
+  medium?: string | null;
+  schedule?: string | null;
+  fee?: number | null;
   year?: number | null;
   isActive?: boolean | null;
   createdAt?: string | null;
@@ -81,6 +84,12 @@ export type AdminSubjectOption = {
   id: string;
   name: string;
   teacher: string;
+  classLabel?: string;
+  grade?: string;
+  medium?: string;
+  schedule?: string;
+  fee?: number;
+  studentCount?: number;
 };
 
 export type AdminExamType = {

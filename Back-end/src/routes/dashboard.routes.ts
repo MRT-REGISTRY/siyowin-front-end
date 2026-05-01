@@ -8,9 +8,19 @@ router.use(requireAuth);
 
 const toSubjectResponse = (subject: any) => ({
   id: subject.id,
+  class_id: subject.id,
+  class_label: subject.classLabel ?? subject.name ?? subject.id,
+  grade: subject.gradeId ?? null,
   teacher_id: subject.teacherId ?? null,
+  teacher_name: subject.teacher ?? null,
   grade_id: subject.gradeId ?? null,
   subject_name: subject.subjectName ?? subject.name ?? null,
+  medium: subject.medium ?? null,
+  schedule: subject.schedule ?? null,
+  fee: subject.fee ?? null,
+  current_mark: subject.currentMark ?? 0,
+  class_avg: subject.classAvg ?? 0,
+  rank: subject.rank ?? 0,
   year: subject.year ?? null,
   is_active: subject.isActive ?? null,
   created_at: subject.createdAt ?? null,
@@ -158,7 +168,7 @@ router.get('/subjects/:subjectId/leaderboard', requireRoles('student', 'teacher'
   }
 
   const classIdFromQuery = typeof req.query.classId === 'string' ? req.query.classId : undefined;
-  const classId = classIdFromQuery ?? (req.user?.studentId ? await repo.getStudentClassId(req.user.studentId) : undefined);
+  const classId = classIdFromQuery ?? subject.id;
   if (!classId) {
     res.status(400).json({ message: 'classId is required for leaderboard lookups.' });
     return;

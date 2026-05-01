@@ -88,26 +88,22 @@ export const repo = {
     if (!studentId) return this.getSubjects();
     
     return withFallback(async () => {
-      const { data: enrollments, error: enrollError } = await supabase!
-        .from('student_enrollments')
-        .select('class_id,status')
-        .eq('student_id', studentId)
-        .eq('status', 'active');
-      
-      if (enrollError) throw enrollError;
-      if (!enrollments || enrollments.length === 0) return [];
-      
-      const classIds = enrollments
-        .map((e: any) => e.class_id)
-        .filter((value: string | null | undefined): value is string => Boolean(value));
+      const classIds = await getActiveClassIdsForStudent(studentId);
       if (classIds.length === 0) return [];
 
       const classes = await this.getClasses();
       const teachers = await this.getTeachers();
       const teacherById = new Map(teachers.map((teacher) => [teacher.id, teacher]));
-      return classes
+      const enrolledClasses = classes
         .filter((classItem) => classIds.includes(classItem.id))
         .map((classItem) => mapClassAsSubject(classItem, classItem.teacherId ? teacherById.get(classItem.teacherId)?.name : undefined));
+
+      const metricsByClassId = await getClassMetricsByClassId(classIds, studentId);
+
+      return enrolledClasses.map((subject) => ({
+        ...subject,
+        ...(metricsByClassId.get(subject.id) ?? emptyClassMetrics()),
+      }));
     }, () => {
       const enrolledSubjectIds = Array.from(new Set(getMemoryStudentEnrollments(studentId).map((item) => item.subjectId)));
       if (enrolledSubjectIds.length === 0) {
@@ -136,23 +132,15 @@ export const repo = {
     if (!studentId) return [];
 
     return withFallback(async () => {
-      const { data: enrollment, error: enrollmentError } = await supabase!
-        .from('student_enrollments')
-        .select('id,class_id')
-        .eq('student_id', studentId)
-        .eq('class_id', subjectId)
-        .eq('status', 'active')
-        .maybeSingle();
-
-      if (enrollmentError) throw enrollmentError;
-      if (!enrollment) {
+      const classIds = await getActiveClassIdsForStudent(studentId);
+      if (!classIds.includes(subjectId)) {
         return [];
       }
 
       const { data: exams, error: examsError } = await supabase!
         .from('exams')
         .select('id,class_id,exam_type,title,exam_date,total_marks,created_at')
-        .eq('class_id', enrollment.class_id)
+        .eq('class_id', subjectId)
         .order('exam_date', { ascending: false });
 
       if (examsError) throw examsError;
@@ -238,17 +226,18 @@ export const repo = {
         .maybeSingle();
       if (error) throw error;
       if (!data) return undefined;
-      const seedStudent = store.students.find((item) => item.id === data.id);
-      const classItem = (await this.getClasses()).find((item) => item.id === data.class_id);
+      const classIds = await this.getStudentClassIds(data.id);
+      const primaryClassId = data.class_id ?? classIds[0];
+      const classItem = (await this.getClasses()).find((item) => item.id === primaryClassId);
       const termInfo = resolveTermInfo(classItem?.academicYear);
       return {
         id: data.id,
         name: data.name,
         index: data.index_number,
-        dateOfBirth: seedStudent?.dateOfBirth ?? data.date_of_birth ?? undefined,
-        grade: seedStudent?.grade ?? classItem?.grade ?? 'Unassigned',
-        classId: data.class_id ?? seedStudent?.classId ?? '',
-        avatar: seedStudent?.name.charAt(0).toUpperCase() ?? data.name.charAt(0).toUpperCase(),
+        dateOfBirth: data.date_of_birth ?? undefined,
+        grade: classItem?.grade ?? 'Unassigned',
+        classId: primaryClassId ?? '',
+        avatar: data.name.charAt(0).toUpperCase(),
         term: termInfo.term,
         year: termInfo.year,
       };
@@ -268,7 +257,15 @@ export const repo = {
 
   async getOverview(subjects?: SubjectRecord[]) {
     const targetSubjects = subjects ?? await this.getSubjects();
-    if (targetSubjects.length === 0) return getMemoryDashboardOverview();
+    if (targetSubjects.length === 0) {
+      return {
+        averageMark: 0,
+        bestSubject: 'N/A',
+        subjectsEnrolled: 0,
+        homeworkCompletion: 0,
+        classRank: 0,
+      };
+    }
     const averageMark = Math.round(targetSubjects.reduce((total, subject) => total + subject.currentMark, 0) / targetSubjects.length);
     const bestSubject = [...targetSubjects].sort((a, b) => b.currentMark - a.currentMark)[0]?.name ?? 'N/A';
     const homeworkDone = targetSubjects.reduce((total, subject) => total + subject.homeworkDoneThisMonth, 0);
@@ -286,13 +283,13 @@ export const repo = {
     if (!studentId) return buildEmptyProgressSeries();
 
     return withFallback(async () => {
-      const classId = await this.getStudentClassId(studentId);
-      if (!classId) return buildEmptyProgressSeries();
+      const classIds = await this.getStudentClassIds(studentId);
+      if (classIds.length === 0) return buildEmptyProgressSeries();
 
       const { data: exams, error: examError } = await supabase!
         .from('exams')
         .select('id,exam_date')
-        .eq('class_id', classId);
+        .in('class_id', classIds);
       if (examError) throw examError;
       const examRows = exams ?? [];
       if (examRows.length === 0) return buildEmptyProgressSeries();
@@ -312,15 +309,15 @@ export const repo = {
     if (!studentId) return buildEmptyPerformanceSummary();
 
     return withFallback(async () => {
-      const classId = await this.getStudentClassId(studentId);
-      if (!classId) return buildEmptyPerformanceSummary();
+      const classIds = await this.getStudentClassIds(studentId);
+      if (classIds.length === 0) return buildEmptyPerformanceSummary();
 
-      const classItem = (await this.getClasses()).find((item) => item.id === classId);
+      const classById = new Map((await this.getClasses()).map((item) => [item.id, item]));
 
       const { data: exams, error: examError } = await supabase!
         .from('exams')
         .select('id,class_id')
-        .eq('class_id', classId);
+        .in('class_id', classIds);
       if (examError) throw examError;
       const examRows = exams ?? [];
       if (examRows.length === 0) return buildEmptyPerformanceSummary();
@@ -333,15 +330,8 @@ export const repo = {
         .in('exam_id', examIds);
       if (resultError) throw resultError;
 
-      const scoredResults = (results ?? []).filter((result) => !result.is_absent && result.marks_obtained !== null);
-      const total = scoredResults.reduce((sum, result) => sum + Number(result.marks_obtained ?? 0), 0);
-
-      return {
-        averageMark: scoredResults.length ? Math.round(total / scoredResults.length) : 0,
-        bestSubject: classItem?.subjectName ?? classItem?.label ?? classId,
-        subjectsCount: 1,
-        examsCount: scoredResults.length,
-      };
+      const summary = buildPerformanceSummary(examRows, results ?? [], classById);
+      return summary;
     }, () => buildPerformanceSummaryFromMemory(studentId));
   },
 
@@ -463,20 +453,27 @@ export const repo = {
 
   async getStudents(params: { grade?: string; classId?: string; query?: string }) {
     return withFallback(async () => {
-      const { data, error } = await supabase!
+      const [{ data, error }, classes, marksByStudentId, enrollmentsByStudentId] = await Promise.all([
+        supabase!
         .from('students')
         .select('id,name,index_number,date_of_birth,class_id,parent_name,parent_phone,created_at')
-        .order('created_at', { ascending: false });
+        .order('created_at', { ascending: false }),
+        this.getClasses(),
+        getMarksByStudentId(),
+        getActiveEnrollmentsByStudentId(),
+      ]);
       if (error) throw error;
-      const students = uniqueBy((data ?? []).map(mapStudent), (student) => student.index.toLowerCase());
-      const normalized = params.query?.trim().toLowerCase();
-      return normalized
-        ? students.filter((student) => student.name.toLowerCase().includes(normalized) || student.index.toLowerCase().includes(normalized))
-        : students.filter((student) => {
-            const matchesGrade = !params.grade || student.grade === params.grade;
-            const matchesClass = !params.classId || student.classId === params.classId;
-            return matchesGrade && matchesClass;
-          });
+      const classById = new Map(classes.map((classItem) => [classItem.id, classItem]));
+      const students = uniqueBy((data ?? []).map((student) =>
+        mapStudentWithData(student, classById, marksByStudentId.get(student.id) ?? [], enrollmentsByStudentId.get(student.id) ?? []),
+      ), (student) => student.index.toLowerCase());
+      const normalized = params.query?.trim().toLowerCase() ?? '';
+      return students.filter((student) => {
+        const matchesGrade = !params.grade || student.grade === params.grade || student.enrollments?.some((enrollment) => classById.get(enrollment.classId)?.grade === params.grade);
+        const matchesClass = !params.classId || student.classId === params.classId || student.enrollments?.some((enrollment) => enrollment.classId === params.classId);
+        const matchesQuery = !normalized || student.name.toLowerCase().includes(normalized) || student.index.toLowerCase().includes(normalized);
+        return matchesGrade && matchesClass && matchesQuery;
+      });
     }, () => uniqueBy(filterMemoryStudents(params), (student) => student.index.toLowerCase()));
   },
 
@@ -831,11 +828,20 @@ export const repo = {
       }, { onConflict: 'student_id,class_id' });
       if (error) throw error;
 
-      const { error: studentUpdateError } = await supabase!
+      const { data: studentRow, error: studentLookupError } = await supabase!
         .from('students')
-        .update({ class_id: enrollment.classId })
-        .eq('id', enrollment.studentId);
-      if (studentUpdateError && !isMissingTable(studentUpdateError)) throw studentUpdateError;
+        .select('class_id')
+        .eq('id', enrollment.studentId)
+        .maybeSingle();
+      if (studentLookupError && !isMissingTable(studentLookupError)) throw studentLookupError;
+
+      if (studentRow && !studentRow.class_id) {
+        const { error: studentUpdateError } = await supabase!
+          .from('students')
+          .update({ class_id: enrollment.classId })
+          .eq('id', enrollment.studentId);
+        if (studentUpdateError && !isMissingTable(studentUpdateError)) throw studentUpdateError;
+      }
 
       return enrollment;
     }, () => {
@@ -877,6 +883,9 @@ export const repo = {
           throw error;
         }
       }
+      await Promise.all(teacher.assignments
+        .filter((assignment) => assignment.classId)
+        .map((assignment) => this.setClassTeacher(assignment.classId, teacher.id)));
       return teacher;
     }, () => createMemoryTeacher(input));
   },
@@ -1013,19 +1022,44 @@ export const repo = {
         .eq('student_id', params.studentId)
         .eq('class_id', params.classId);
       if (error) throw error;
+
+      const { data: studentRow, error: studentLookupError } = await supabase!
+        .from('students')
+        .select('class_id')
+        .eq('id', params.studentId)
+        .maybeSingle();
+      if (studentLookupError && !isMissingTable(studentLookupError)) throw studentLookupError;
+      if (studentRow?.class_id === params.classId) {
+        const nextClassId = (await getActiveClassIdsForStudent(params.studentId)).find((classId) => classId !== params.classId) ?? null;
+        const { error: studentUpdateError } = await supabase!
+          .from('students')
+          .update({ class_id: nextClassId })
+          .eq('id', params.studentId);
+        if (studentUpdateError && !isMissingTable(studentUpdateError)) throw studentUpdateError;
+      }
       return true;
     }, () => deleteMemoryStudentEnrollment(params));
   },
 
   async upsertMark(studentId: string, mark: AdminStudentMark) {
     return withFallback(async () => {
-      const result = upsertMemoryMark(studentId, mark);
-      if (!result) return null;
+      const student = await findStudentForMark(studentId);
+      if (!student) return null;
       const classId = mark.classId ?? mark.subjectId;
-      const examId = `${classId ?? 'class'}-${slugify(mark.examType)}-${slugify(mark.examName)}`;
+      if (!classId) return null;
+      const examId = `${classId}-${slugify(mark.examType)}-${slugify(mark.examName)}-${slugify(mark.examDate)}`;
+      const resultId = `${examId}-${student.id}`;
+      const { data: existingResult, error: existingError } = await supabase!
+        .from('results')
+        .select('id')
+        .eq('exam_id', examId)
+        .eq('student_id', student.id)
+        .maybeSingle();
+      if (existingError && !isMissingTable(existingError)) throw existingError;
+
       const { error: examError } = await supabase!.from('exams').upsert({
         id: examId,
-        class_id: classId ?? result.student.classId,
+        class_id: classId,
         exam_type: mark.examType,
         title: mark.examName,
         exam_date: mark.examDate,
@@ -1033,37 +1067,54 @@ export const repo = {
       });
       if (examError) throw examError;
       const { error: resultError } = await supabase!.from('results').upsert({
-        id: `${examId}-${result.student.id}`,
+        id: resultId,
         exam_id: examId,
-        student_id: result.student.id,
+        student_id: student.id,
         marks_obtained: mark.mark,
         is_absent: false,
       }, { onConflict: 'exam_id,student_id' });
       if (resultError) throw resultError;
-      return result;
+
+      return {
+        student: mapStudentWithData(student, new Map((await this.getClasses()).map((classItem) => [classItem.id, classItem])), [mark], []),
+        mark,
+        action: existingResult ? ('updated' as const) : ('created' as const),
+      };
     }, () => upsertMemoryMark(studentId, mark));
   },
 
-  async deleteMark(params: { studentId: string; subjectId: string; examType: string; examName: string }) {
+  async deleteMark(params: { studentId: string; subjectId: string; examType: string; examName: string; examDate?: string }) {
     return withFallback(async () => {
-      const result = deleteMemoryMark(params);
-      if (!result) return null;
-      const { data: exams, error: examLookupError } = await supabase!
+      const student = await findStudentForMark(params.studentId);
+      if (!student) return null;
+      let examQuery = supabase!
         .from('exams')
         .select('id')
         .eq('class_id', params.subjectId)
         .eq('exam_type', params.examType)
-        .eq('title', params.examName)
+        .eq('title', params.examName);
+      if (params.examDate) {
+        examQuery = examQuery.eq('exam_date', params.examDate);
+      }
+      const { data: exams, error: examLookupError } = await examQuery;
       if (examLookupError) throw examLookupError;
       const examIds = (exams ?? []).map((exam) => exam.id);
-      if (examIds.length === 0) return result;
+      if (examIds.length === 0) {
+        return {
+          student: mapStudentWithData(student, new Map((await this.getClasses()).map((classItem) => [classItem.id, classItem])), [], []),
+          deleted: false,
+        };
+      }
       const { error } = await supabase!
         .from('results')
         .delete()
-        .eq('student_id', result.student.id)
+        .eq('student_id', student.id)
         .in('exam_id', examIds);
       if (error) throw error;
-      return result;
+      return {
+        student: mapStudentWithData(student, new Map((await this.getClasses()).map((classItem) => [classItem.id, classItem])), [], []),
+        deleted: true,
+      };
     }, () => deleteMemoryMark(params));
   },
 
@@ -1099,6 +1150,16 @@ export const repo = {
       return data?.class_id ?? undefined;
     }, () => store.students.find((item) => item.id === studentId)?.classId);
   },
+
+  async getStudentClassIds(studentId: string) {
+    return withFallback(async () => getActiveClassIdsForStudent(studentId), () => {
+      const student = store.students.find((item) => item.id === studentId);
+      return Array.from(new Set([
+        ...(student?.classId ? [student.classId] : []),
+        ...getMemoryStudentEnrollments(studentId).map((item) => item.classId),
+      ]));
+    });
+  },
 };
 
 const mapUser = (data: any): DbUser => ({
@@ -1131,19 +1192,27 @@ const mapSubject = (data: any): SubjectRecord => {
   };
 };
 
-const mapStudent = (data: any): AdminStudent => {
-  const memoryStudent = store.students.find((item) => item.id === data.id);
+const mapStudent = (data: any): AdminStudent => mapStudentWithData(data, new Map(), [], []);
+
+const mapStudentWithData = (
+  data: any,
+  classById: Map<string, import('../types.js').AdminClassOption>,
+  marks: AdminStudentMark[],
+  enrollments: import('../types.js').StudentEnrollment[],
+): AdminStudent => {
+  const primaryClass = classById.get(data.class_id ?? '') ?? classById.get(enrollments[0]?.classId ?? '');
 
   return {
     id: data.id,
-    name: memoryStudent?.name ?? data.name,
-    index: memoryStudent?.index ?? data.index_number,
-    dateOfBirth: memoryStudent?.dateOfBirth ?? data.date_of_birth ?? undefined,
-    grade: memoryStudent?.grade ?? store.classes.find((item) => item.id === data.class_id)?.grade ?? 'Unassigned',
-    classId: memoryStudent?.classId ?? data.class_id ?? '',
-    parentName: memoryStudent?.parentName ?? data.parent_name ?? undefined,
-    parentPhone: memoryStudent?.parentPhone ?? data.parent_phone ?? undefined,
-    marks: memoryStudent?.marks ?? [],
+    name: data.name,
+    index: data.index_number,
+    dateOfBirth: data.date_of_birth ?? undefined,
+    grade: primaryClass?.grade ?? 'Unassigned',
+    classId: data.class_id ?? enrollments[0]?.classId ?? '',
+    enrollments,
+    parentName: data.parent_name ?? undefined,
+    parentPhone: data.parent_phone ?? undefined,
+    marks,
   };
 };
 
@@ -1164,6 +1233,7 @@ const mapClass = (data: any): import('../types.js').AdminClassOption => ({
   name: data.name,
   label: data.label,
   medium: data.medium,
+  subjectId: data.id,
   subjectName: data.subject_name ?? undefined,
   academicYear: data.academic_year ?? undefined,
   schedule: data.schedule ?? undefined,
@@ -1185,8 +1255,11 @@ const mapClassAsSubject = (classItem: import('../types.js').AdminClassOption, te
     teacher: teacherName ?? memorySubject?.teacher ?? 'Unassigned',
     classLabel: classItem.label,
     teacherId: classItem.teacherId ?? null,
-    gradeId: null,
+    gradeId: classItem.grade,
     subjectName: classItem.subjectName ?? null,
+    medium: classItem.medium,
+    schedule: classItem.schedule ?? null,
+    fee: classItem.fee ?? null,
     year: classItem.academicYear ?? null,
     isActive: classItem.isActive ?? true,
     createdAt: null,
@@ -1296,6 +1369,166 @@ const resolveTermInfo = (academicYear?: number) => {
   };
 };
 
+const getActiveClassIdsForStudent = async (studentId: string) => {
+  const { data: enrollments, error: enrollmentError } = await supabase!
+    .from('student_enrollments')
+    .select('class_id,status')
+    .eq('student_id', studentId);
+  if (enrollmentError) throw enrollmentError;
+
+  const { data: student, error: studentError } = await supabase!
+    .from('students')
+    .select('class_id')
+    .eq('id', studentId)
+    .maybeSingle();
+  if (studentError) throw studentError;
+
+  return Array.from(new Set([
+    ...(student?.class_id ? [student.class_id] : []),
+    ...((enrollments ?? [])
+      .filter((item) => !item.status || item.status === 'active')
+      .map((item) => item.class_id)
+      .filter(Boolean) as string[]),
+  ]));
+};
+
+const getActiveEnrollmentsByStudentId = async () => {
+  const { data, error } = await supabase!
+    .from('student_enrollments')
+    .select('id,student_id,class_id,academic_year,status,enrolled_at');
+  if (error) throw error;
+
+  const map = new Map<string, import('../types.js').StudentEnrollment[]>();
+  (data ?? []).forEach((row) => {
+    if (row.status && row.status !== 'active') return;
+    const enrollment = {
+      id: row.id,
+      studentId: row.student_id,
+      classId: row.class_id,
+      academicYear: row.academic_year,
+      status: row.status ?? 'active',
+      enrolledAt: row.enrolled_at,
+    } as import('../types.js').StudentEnrollment;
+    map.set(row.student_id, [enrollment, ...(map.get(row.student_id) ?? [])]);
+  });
+  return map;
+};
+
+const getMarksByStudentId = async () => {
+  const [{ data: exams, error: examError }, { data: classes, error: classError }] = await Promise.all([
+    supabase!
+      .from('exams')
+      .select('id,class_id,exam_type,title,exam_date'),
+    supabase!
+      .from('classes')
+      .select('id,subject_name,label'),
+  ]);
+  if (examError) throw examError;
+  if (classError) throw classError;
+
+  const examById = new Map((exams ?? []).map((exam) => [exam.id, exam]));
+  const classById = new Map((classes ?? []).map((classItem) => [classItem.id, classItem]));
+  if (examById.size === 0) return new Map<string, AdminStudentMark[]>();
+
+  const { data: results, error: resultError } = await supabase!
+    .from('results')
+    .select('exam_id,student_id,marks_obtained,is_absent');
+  if (resultError) throw resultError;
+
+  const map = new Map<string, AdminStudentMark[]>();
+  (results ?? []).forEach((result) => {
+    if (result.is_absent || result.marks_obtained === null) return;
+    const exam = examById.get(result.exam_id);
+    if (!exam) return;
+    const classItem = classById.get(exam.class_id);
+    const mark: AdminStudentMark = {
+      subjectId: exam.class_id,
+      subjectName: classItem?.subject_name ?? classItem?.label ?? exam.class_id,
+      classId: exam.class_id,
+      examType: exam.exam_type,
+      examName: exam.title,
+      examDate: exam.exam_date,
+      mark: Number(result.marks_obtained),
+    };
+    map.set(result.student_id, [mark, ...(map.get(result.student_id) ?? [])]);
+  });
+  return map;
+};
+
+const findStudentForMark = async (studentIdOrIndex: string) => {
+  const normalized = studentIdOrIndex.trim();
+  const { data, error } = await supabase!
+    .from('students')
+    .select('id,name,index_number,date_of_birth,class_id,parent_name,parent_phone')
+    .or(`id.eq.${normalized},index_number.eq.${normalized}`)
+    .maybeSingle();
+  if (error) throw error;
+  return data;
+};
+
+const emptyClassMetrics = (): Partial<SubjectRecord> => ({
+  currentMark: 0,
+  classAvg: 0,
+  rank: 0,
+  trend: 'neutral',
+});
+
+const getClassMetricsByClassId = async (classIds: string[], studentId: string): Promise<Map<string, Partial<SubjectRecord>>> => {
+  const metricsByClassId = new Map<string, Partial<SubjectRecord>>();
+  classIds.forEach((classId) => metricsByClassId.set(classId, emptyClassMetrics()));
+  if (classIds.length === 0) return metricsByClassId;
+
+  const { data: exams, error: examError } = await supabase!
+    .from('exams')
+    .select('id,class_id,exam_type,exam_date')
+    .in('class_id', classIds);
+  if (examError) throw examError;
+  const examRows = exams ?? [];
+  if (examRows.length === 0) return metricsByClassId;
+
+  const examIds = examRows.map((exam) => exam.id);
+  const { data: results, error: resultError } = await supabase!
+    .from('results')
+    .select('exam_id,student_id,marks_obtained,is_absent')
+    .in('exam_id', examIds);
+  if (resultError) throw resultError;
+
+  const classIdByExamId = new Map(examRows.map((exam) => [exam.id, exam.class_id]));
+  const scoredResults = (results ?? []).filter((result) => !result.is_absent && result.marks_obtained !== null);
+
+  classIds.forEach((classId) => {
+    const classResults = scoredResults.filter((result) => classIdByExamId.get(result.exam_id) === classId);
+    const studentResults = classResults.filter((result) => result.student_id === studentId);
+    const studentAverage = studentResults.length
+      ? Math.round(studentResults.reduce((sum, result) => sum + Number(result.marks_obtained ?? 0), 0) / studentResults.length)
+      : 0;
+    const classAverage = classResults.length
+      ? Math.round(classResults.reduce((sum, result) => sum + Number(result.marks_obtained ?? 0), 0) / classResults.length)
+      : 0;
+    const totalsByStudent = new Map<string, { total: number; count: number }>();
+    classResults.forEach((result) => {
+      const stats = totalsByStudent.get(result.student_id) ?? { total: 0, count: 0 };
+      stats.total += Number(result.marks_obtained ?? 0);
+      stats.count += 1;
+      totalsByStudent.set(result.student_id, stats);
+    });
+    const rankedStudentIds = Array.from(totalsByStudent.entries())
+      .map(([id, stats]) => ({ id, average: stats.count ? stats.total / stats.count : 0 }))
+      .sort((a, b) => b.average - a.average)
+      .map((entry) => entry.id);
+    const rank = rankedStudentIds.indexOf(studentId) + 1;
+
+    metricsByClassId.set(classId, {
+      currentMark: studentAverage,
+      classAvg: classAverage,
+      rank,
+      trend: studentAverage >= classAverage ? 'up' : studentAverage > 0 ? 'down' : 'neutral',
+    });
+  });
+
+  return metricsByClassId;
+};
+
 const buildMonthKey = (value: string) => {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return null;
@@ -1398,6 +1631,7 @@ const buildEmptyPerformanceSummary = () => ({
 const buildPerformanceSummary = (
   exams: Array<{ id: string; class_id: string }>,
   results: Array<{ exam_id: string; student_id: string; marks_obtained: number | null; is_absent: boolean | null }>,
+  classById = new Map<string, import('../types.js').AdminClassOption>(),
 ) => {
   const examClassById = new Map(exams.map((exam) => [exam.id, exam.class_id]));
   const classTotals = new Map<string, { total: number; count: number }>();
@@ -1425,7 +1659,7 @@ const buildPerformanceSummary = (
 
   return {
     averageMark: overallCount ? Math.round(overallTotal / overallCount) : 0,
-    bestSubject: bestClass ? (store.classes.find((item) => item.id === bestClass.classId)?.label ?? bestClass.classId) : 'N/A',
+    bestSubject: bestClass ? (classById.get(bestClass.classId)?.subjectName ?? classById.get(bestClass.classId)?.label ?? bestClass.classId) : 'N/A',
     subjectsCount: classAverages.length,
     examsCount: overallCount,
   };
