@@ -82,7 +82,9 @@ router.get('/meta', asyncHandler(async (req, res) => {
   res.json({
     grades: store.grades,
     classes: grade ? classes.filter((classItem) => classItem.grade === grade) : classes,
-    subjects: classId ? repo.getSubjectsForClass(classId) : subjects.map((subject) => ({ id: subject.id, name: subject.name, teacher: subject.teacher })),
+    subjects: classId
+      ? await repo.getSubjectsForClass(classId)
+      : subjects.map((subject) => ({ id: subject.id, name: subject.name, teacher: subject.teacher })),
     examTypes: store.examTypes,
     csvColumns: store.csvColumns,
   });

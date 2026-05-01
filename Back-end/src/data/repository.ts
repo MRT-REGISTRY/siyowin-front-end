@@ -99,7 +99,10 @@ export const repo = {
       if (enrollError) throw enrollError;
       if (!enrollments || enrollments.length === 0) return [];
       
-      const subjectIds = enrollments.map((e: any) => e.subject_id);
+      const subjectIds = enrollments
+        .map((e: any) => e.subject_id)
+        .filter((value: string | null | undefined): value is string => Boolean(value));
+      if (subjectIds.length === 0) return [];
       
       // Fetch only those subjects
       const { data, error } = await supabase!
@@ -523,15 +526,22 @@ export const repo = {
       }
       const classItem = (await this.getClasses()).find((item) => item.id === student.classId);
       if (classItem?.subjectId) {
+        const enrollment = buildEnrollment({
+          studentId: student.id,
+          classId: classItem.id,
+          subjectId: classItem.subjectId,
+          academicYear: classItem.academicYear ?? new Date().getFullYear(),
+        });
         try {
           const { error: enrollmentError } = await supabase!.from('student_enrollments').upsert({
-            id: `${student.id}-${classItem.id}`,
-            student_id: student.id,
-            class_id: classItem.id,
-            subject_id: classItem.subjectId,
-            academic_year: classItem.academicYear ?? new Date().getFullYear(),
-            status: 'active',
-          }, { onConflict: 'id' });
+            id: enrollment.id,
+            student_id: enrollment.studentId,
+            class_id: enrollment.classId,
+            subject_id: enrollment.subjectId,
+            academic_year: enrollment.academicYear,
+            status: enrollment.status,
+            enrolled_at: enrollment.enrolledAt,
+          }, { onConflict: 'student_id,class_id' });
           if (enrollmentError) throw enrollmentError;
         } catch (enrollmentError) {
           if (!isMissingTable(enrollmentError)) throw enrollmentError;
@@ -559,8 +569,15 @@ export const repo = {
         academic_year: enrollment.academicYear,
         status: enrollment.status,
         enrolled_at: enrollment.enrolledAt,
-      }, { onConflict: 'id' });
+      }, { onConflict: 'student_id,class_id' });
       if (error) throw error;
+
+      const { error: studentUpdateError } = await supabase!
+        .from('students')
+        .update({ class_id: enrollment.classId })
+        .eq('id', enrollment.studentId);
+      if (studentUpdateError && !isMissingTable(studentUpdateError)) throw studentUpdateError;
+
       return enrollment;
     }, () => {
       const classItem = store.classes.find((item) => item.id === input.classId);
