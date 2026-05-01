@@ -2,6 +2,18 @@ import { createClient } from '@/utils/supabase/server';
 import { SiteContent, SiteLecturerSection } from '@/types/siteContent';
 import { lecturerSections } from '@/data/teachers';
 
+const localHeroImages = [
+  { id: 'hero-1', src: '/photos/bggrund (1).jpg', alt: 'Siyowin academy classroom event', width: 2048, height: 2048 },
+  { id: 'hero-2', src: '/photos/bggrund (3).jpg', alt: 'Siyowin higher education institute', width: 2048, height: 1542 },
+  { id: 'hero-3', src: '/photos/bggrund (6).jpg', alt: 'Siyowin academy lecture hall', width: 2048, height: 1366 },
+  { id: 'hero-4', src: '/photos/bggrund (8).jpg', alt: 'Siyowin academy campus moment', width: 2048, height: 1536 },
+];
+
+const localMobileHeroImages = [
+  { id: 'mobile-hero-1', src: '/photos/mobile/bggrund (3).jpg', alt: 'Siyowin higher education institute mobile view', width: 2048, height: 1542 },
+  { id: 'mobile-hero-2', src: '/photos/mobile/bggrund (8).jpg', alt: 'Siyowin academy campus mobile view', width: 2048, height: 1536 },
+];
+
 const localGalleryImages = [
   {
     id: 1,
@@ -30,16 +42,8 @@ const localGalleryImages = [
 ];
 
 const fallbackSiteContent: SiteContent = {
-  heroImages: [
-    { id: 'hero-1', src: '/photos/bggrund (1).jpg', alt: 'Siyowin academy classroom event', width: 2048, height: 2048 },
-    { id: 'hero-2', src: '/photos/bggrund (2).jpg', alt: 'Siyowin academy student program', width: 2048, height: 1542 },
-    { id: 'hero-3', src: '/photos/bggrund (3).jpg', alt: 'Siyowin higher education institute', width: 2048, height: 1542 },
-    { id: 'hero-4', src: '/photos/bggrund (4).jpg', alt: 'Siyowin academy learning session', width: 2048, height: 1536 },
-    { id: 'hero-5', src: '/photos/bggrund (5).jpg', alt: 'Siyowin academy event crowd', width: 2048, height: 1366 },
-    { id: 'hero-6', src: '/photos/bggrund (6).jpg', alt: 'Siyowin academy lecture hall', width: 2048, height: 1366 },
-    { id: 'hero-7', src: '/photos/bggrund (7).jpg', alt: 'Siyowin academy student gathering', width: 2048, height: 1414 },
-    { id: 'hero-8', src: '/photos/bggrund (8).jpg', alt: 'Siyowin academy campus moment', width: 2048, height: 1536 },
-  ],
+  heroImages: localHeroImages,
+  mobileHeroImages: localMobileHeroImages,
   aboutFeatures: [
     { id: 'feature-1', text: 'Classes from Grade 1 to 13, including O/L and A/L' },
     { id: 'feature-2', text: 'Open courses for practical, continued learning' },
@@ -127,14 +131,12 @@ const getFallbackRows = (table: string) => {
 
 export async function getSiteContent(): Promise<SiteContent> {
   const [
-    heroImages,
     aboutFeatures,
     aboutStats,
     lecturerSections,
     lecturers,
     articles,
   ] = await Promise.all([
-    getRows<any>('site_hero_images'),
     getRows<any>('site_about_features'),
     getRows<any>('site_about_stats'),
     getRows<any>('site_lecturer_sections'),
@@ -163,7 +165,14 @@ export async function getSiteContent(): Promise<SiteContent> {
   }));
 
   return {
-    heroImages: heroImages.map((image) => ({
+    heroImages: localHeroImages.map((image) => ({
+      id: image.id,
+      src: image.src,
+      alt: image.alt,
+      width: image.width,
+      height: image.height,
+    })),
+    mobileHeroImages: localMobileHeroImages.map((image) => ({
       id: image.id,
       src: image.src,
       alt: image.alt,

@@ -5,10 +5,17 @@ import Image from 'next/image'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { SiteHeroImage } from '@/types/siteContent'
 
-export default function HeroSection({ images }: { images: SiteHeroImage[] }) {
-  const bgImages = images
+export default function HeroSection({
+  images,
+  mobileImages = [],
+}: {
+  images: SiteHeroImage[]
+  mobileImages?: SiteHeroImage[]
+}) {
+  const [isMobile, setIsMobile] = useState(false)
+  const bgImages = isMobile && mobileImages.length > 0 ? mobileImages : images
   const [currentImageIndex, setCurrentImageIndex] = useState(0)
-  const selectedImage = bgImages[currentImageIndex]
+  const selectedImage = bgImages.length > 0 ? bgImages[currentImageIndex % bgImages.length] : undefined
 
   const handlePrevious = () => {
     setCurrentImageIndex((prev) => (prev === 0 ? bgImages.length - 1 : prev - 1))
@@ -26,6 +33,20 @@ export default function HeroSection({ images }: { images: SiteHeroImage[] }) {
     }, 5000)
 
     return () => window.clearInterval(imageTimer)
+  }, [bgImages.length])
+
+  useEffect(() => {
+    const query = window.matchMedia('(max-width: 767px)')
+    const updateMatch = () => setIsMobile(query.matches)
+
+    updateMatch()
+    query.addEventListener('change', updateMatch)
+
+    return () => query.removeEventListener('change', updateMatch)
+  }, [])
+
+  useEffect(() => {
+    setCurrentImageIndex((current) => (bgImages.length > 0 ? current % bgImages.length : 0))
   }, [bgImages.length])
 
   if (!selectedImage) return null

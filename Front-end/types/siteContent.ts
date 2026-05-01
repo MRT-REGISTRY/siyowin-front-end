@@ -57,6 +57,7 @@ export type SiteArticle = {
 
 export type SiteContent = {
   heroImages: SiteHeroImage[];
+  mobileHeroImages: SiteHeroImage[];
   aboutFeatures: SiteAboutFeature[];
   aboutStats: SiteAboutStat[];
   lecturerSections: SiteLecturerSection[];

@@ -16,7 +16,7 @@ export default async function Home() {
   return (
     <main className="min-h-screen bg-white">
       <Navbar />
-      <HeroSection images={content.heroImages} />
+      <HeroSection images={content.heroImages} mobileImages={content.mobileHeroImages} />
       <AcademyInfo features={content.aboutFeatures} stats={content.aboutStats} />
       <div id="teachers" className="scroll-mt-20">
         {content.lecturerSections.map((section, index) => (
