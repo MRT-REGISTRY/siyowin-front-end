@@ -12,7 +12,7 @@ import { validateBody } from '../middleware/validate.js';
 const router = Router();
 
 const loginSchema = z.object({
-  email: z.string().email(),
+  email: z.string().min(1),
   password: z.string().min(1),
   role: z.enum(['student', 'teacher', 'admin', 'super-admin']).optional(),
 });
@@ -21,7 +21,7 @@ router.post('/login', validateBody(loginSchema), async (req, res) => {
   const { email, password, role } = req.body as z.infer<typeof loginSchema>;
   const user = await repo.findUserByEmail(email);
 
-  if (!user || !bcrypt.compareSync(password, user.passwordHash)) {
+  if (!user || user.isActive === false || !bcrypt.compareSync(password, user.passwordHash)) {
     res.status(401).json({ message: 'Invalid email or password.' });
     return;
   }

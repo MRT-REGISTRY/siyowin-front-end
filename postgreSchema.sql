@@ -5,10 +5,13 @@ CREATE TYPE user_role AS ENUM ('student', 'teacher', 'admin', 'super-admin');
 CREATE TYPE exam_type_enum AS ENUM ('term-test', 'day-paper', 'month-test', 'quiz', 'practical');
 CREATE TYPE report_status AS ENUM ('pending', 'sent', 'failed');
 CREATE TYPE report_channel AS ENUM ('whatsapp', 'email', 'both');
+CREATE TYPE enrollment_status AS ENUM ('active', 'completed', 'cancelled');
+CREATE TYPE teacher_assignment_role AS ENUM ('primary', 'assistant');
 
 CREATE TABLE users (
     id TEXT PRIMARY KEY,
     name VARCHAR(100) NOT NULL,
+    username VARCHAR(80) UNIQUE NOT NULL,
     email VARCHAR(150) UNIQUE NOT NULL,
     password_hash VARCHAR(255) NOT NULL,
     role user_role NOT NULL,
@@ -23,6 +26,8 @@ CREATE TABLE teachers (
     name VARCHAR(100) NOT NULL,
     password_hash VARCHAR(255) NOT NULL,
     subject VARCHAR(100),
+    grade VARCHAR(50),
+    assigned_subjects JSONB DEFAULT '[]'::jsonb,
     phone VARCHAR(20),
     email VARCHAR(150) UNIQUE,
     is_active BOOLEAN DEFAULT TRUE,
@@ -33,6 +38,21 @@ CREATE TABLE grades (
     id TEXT PRIMARY KEY,
     grade_name VARCHAR(50) UNIQUE NOT NULL,
     display_order INTEGER
+);
+
+CREATE TABLE classes (
+    id TEXT PRIMARY KEY,
+    grade VARCHAR(50) NOT NULL,
+    subject_id TEXT,
+    subject_name VARCHAR(100),
+    name VARCHAR(30) NOT NULL,
+    label VARCHAR(100) NOT NULL,
+    medium VARCHAR(50) NOT NULL,
+    academic_year INTEGER NOT NULL DEFAULT EXTRACT(YEAR FROM CURRENT_DATE)::INTEGER,
+    schedule VARCHAR(100),
+    fee DECIMAL(10,2),
+    is_active BOOLEAN DEFAULT TRUE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE TABLE subjects (
@@ -50,8 +70,7 @@ CREATE TABLE students (
     index_number VARCHAR(30) UNIQUE NOT NULL,
     name VARCHAR(100) NOT NULL,
     password_hash VARCHAR(255) NOT NULL,
-    grade_id TEXT REFERENCES grades(id) ON DELETE SET NULL,
-    class_id TEXT,
+    class_id TEXT REFERENCES classes(id) ON DELETE SET NULL,
     parent_name VARCHAR(100),
     parent_phone VARCHAR(20),
     date_of_birth DATE,
@@ -62,10 +81,25 @@ CREATE TABLE students (
 CREATE TABLE student_enrollments (
     id TEXT PRIMARY KEY,
     student_id TEXT REFERENCES students(id) ON DELETE CASCADE,
-    subject_id TEXT REFERENCES subjects(id) ON DELETE CASCADE,
+    class_id TEXT REFERENCES classes(id) ON DELETE CASCADE,
+    subject_id TEXT,
+    academic_year INTEGER NOT NULL DEFAULT EXTRACT(YEAR FROM CURRENT_DATE)::INTEGER,
+    status enrollment_status DEFAULT 'active',
     enrolled_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE (student_id, class_id)
+);
+
+CREATE TABLE teacher_class_assignments (
+    id TEXT PRIMARY KEY,
+    teacher_id TEXT REFERENCES teachers(id) ON DELETE CASCADE,
+    class_id TEXT REFERENCES classes(id) ON DELETE CASCADE,
+    subject_id TEXT,
+    role teacher_assignment_role DEFAULT 'primary',
+    active_from DATE,
+    active_to DATE,
     is_active BOOLEAN DEFAULT TRUE,
-    UNIQUE (student_id, subject_id)
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE (teacher_id, class_id)
 );
 
 CREATE TABLE parents (
@@ -79,6 +113,7 @@ CREATE TABLE parents (
 CREATE TABLE exams (
     id TEXT PRIMARY KEY,
     subject_id TEXT REFERENCES subjects(id) ON DELETE CASCADE,
+    class_id TEXT REFERENCES classes(id) ON DELETE CASCADE,
     exam_type exam_type_enum NOT NULL,
     title VARCHAR(150) NOT NULL,
     exam_date DATE NOT NULL,
@@ -120,9 +155,13 @@ CREATE TABLE monthly_reports (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE INDEX idx_students_grade ON students(grade_id);
+CREATE INDEX idx_students_class ON students(class_id);
 CREATE INDEX idx_subjects_teacher ON subjects(teacher_id);
 CREATE INDEX idx_subjects_grade ON subjects(grade_id);
+CREATE INDEX idx_student_enrollments_student ON student_enrollments(student_id);
+CREATE INDEX idx_student_enrollments_class ON student_enrollments(class_id);
+CREATE INDEX idx_teacher_class_assignments_teacher ON teacher_class_assignments(teacher_id);
+CREATE INDEX idx_teacher_class_assignments_class ON teacher_class_assignments(class_id);
 CREATE INDEX idx_results_exam ON results(exam_id);
 CREATE INDEX idx_results_student ON results(student_id);
 CREATE INDEX idx_exams_subject ON exams(subject_id);

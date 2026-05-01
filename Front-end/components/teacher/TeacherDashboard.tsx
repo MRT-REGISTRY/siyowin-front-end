@@ -2,8 +2,9 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { BookOpenCheck, LogOut, Search, Users } from 'lucide-react';
-import { AdminExamType, AdminStudent, AdminSubjectOption, AdminTeacher } from '@/types';
+import { AdminExamType, AdminStudent, AdminSubjectOption, AdminTeacher, TeacherAssignment } from '@/types';
 import { apiGet, apiPost, clearSession } from '@/utils/api';
+import ProgressChart from '@/components/dashboard/ProgressChart';
 
 type TeacherOverview = {
   studentsCount: number;
@@ -25,10 +26,38 @@ type RecentMark = {
   note?: string;
 };
 
+type StudentProgressOverview = {
+  averageMark: number;
+  bestSubject: string;
+  subjectsCount: number;
+  examsCount: number;
+};
+
+type StudentProgressPoint = {
+  month: string;
+  score: number;
+  classAvg: number;
+};
+
+type StudentProgressResponse = {
+  student: {
+    id: string;
+    name: string;
+    index: string;
+    grade: string;
+    classId: string;
+    term: string;
+    year: number;
+  };
+  overview: StudentProgressOverview;
+  progress: StudentProgressPoint[];
+};
+
 export default function TeacherDashboard() {
   const [teacher, setTeacher] = useState<AdminTeacher | null>(null);
   const [overview, setOverview] = useState<TeacherOverview | null>(null);
   const [subjects, setSubjects] = useState<AdminSubjectOption[]>([]);
+  const [assignments, setAssignments] = useState<TeacherAssignment[]>([]);
   const [students, setStudents] = useState<AdminStudent[]>([]);
   const [examTypes, setExamTypes] = useState<AdminExamType[]>([]);
   const [recentMarks, setRecentMarks] = useState<RecentMark[]>([]);
@@ -42,6 +71,8 @@ export default function TeacherDashboard() {
   const [query, setQuery] = useState('');
   const [notice, setNotice] = useState('');
   const [loading, setLoading] = useState(true);
+  const [studentProgress, setStudentProgress] = useState<StudentProgressResponse | null>(null);
+  const [progressLoading, setProgressLoading] = useState(false);
 
   const filteredStudents = useMemo(() => {
     const normalized = query.trim().toLowerCase();
@@ -59,6 +90,7 @@ export default function TeacherDashboard() {
     setLoading(true);
     apiGet<{
       teacher: AdminTeacher;
+      assignments: TeacherAssignment[];
       subjects: AdminSubjectOption[];
       students: AdminStudent[];
       examTypes: AdminExamType[];
@@ -67,6 +99,7 @@ export default function TeacherDashboard() {
     }>('/teacher/dashboard')
       .then((data) => {
         setTeacher(data.teacher);
+        setAssignments(data.assignments ?? data.teacher.assignments ?? []);
         setSubjects(data.subjects);
         setStudents(data.students);
         setExamTypes(data.examTypes);
@@ -83,6 +116,15 @@ export default function TeacherDashboard() {
   useEffect(() => {
     loadDashboard();
   }, []);
+
+  useEffect(() => {
+    if (!selectedStudentId) return;
+    setProgressLoading(true);
+    apiGet<StudentProgressResponse>(`/teacher/students/${selectedStudentId}/progress`)
+      .then((data) => setStudentProgress(data))
+      .catch((error) => setNotice(error instanceof Error ? error.message : 'Student progress could not be loaded.'))
+      .finally(() => setProgressLoading(false));
+  }, [selectedStudentId]);
 
   const saveMark = () => {
     const mark = Number(markValue);
@@ -130,7 +172,11 @@ export default function TeacherDashboard() {
           <div>
             <p className="text-xs font-semibold uppercase tracking-[0.2em] text-sky-700">Teacher dashboard</p>
             <h1 className="mt-2 text-3xl font-black tracking-tight">Welcome, {teacher?.name}</h1>
-            <p className="mt-1 text-sm text-slate-600">{teacher?.subject} - {teacher?.grade}</p>
+            <p className="mt-1 text-sm text-slate-600">
+              {assignments.length > 0
+                ? assignments.map((assignment) => `${assignment.subject} - ${assignment.grade} - ${assignment.classId.toUpperCase()} - ${assignment.medium}`).join(', ')
+                : `${teacher?.subject} - ${teacher?.grade}`}
+            </p>
           </div>
           <button onClick={logout} className="inline-flex items-center justify-center gap-2 rounded-2xl border border-slate-200 px-4 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-100">
             <LogOut className="h-4 w-4" />
@@ -235,6 +281,51 @@ export default function TeacherDashboard() {
                   )}
                 </tbody>
               </table>
+            </div>
+          </div>
+        </section>
+
+        <section className="mt-6 grid gap-6 lg:grid-cols-[0.4fr_0.6fr]">
+          <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
+            <h2 className="text-xl font-bold">Student progress</h2>
+            <p className="mt-1 text-sm text-slate-500">
+              {selectedStudent?.name ? `Showing insights for ${selectedStudent.name}.` : 'Select a student to view progress.'}
+            </p>
+            {progressLoading && (
+              <p className="mt-4 text-sm text-slate-500">Loading progress...</p>
+            )}
+            {!progressLoading && studentProgress && (
+              <div className="mt-4 space-y-3">
+                <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
+                  <p className="text-xs uppercase tracking-[0.18em] text-slate-500">Average mark</p>
+                  <p className="mt-1 text-2xl font-black text-slate-900">{studentProgress.overview.averageMark}%</p>
+                </div>
+                <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
+                  <p className="text-xs uppercase tracking-[0.18em] text-slate-500">Best subject</p>
+                  <p className="mt-1 text-base font-semibold text-slate-900">{studentProgress.overview.bestSubject}</p>
+                </div>
+                <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
+                  <p className="text-xs uppercase tracking-[0.18em] text-slate-500">Exams tracked</p>
+                  <p className="mt-1 text-base font-semibold text-slate-900">{studentProgress.overview.examsCount}</p>
+                </div>
+                <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
+                  <p className="text-xs uppercase tracking-[0.18em] text-slate-500">Subjects tracked</p>
+                  <p className="mt-1 text-base font-semibold text-slate-900">{studentProgress.overview.subjectsCount}</p>
+                </div>
+              </div>
+            )}
+          </div>
+
+          <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
+            <h2 className="text-xl font-bold">Progress tracker</h2>
+            <div className="mt-4">
+              {studentProgress?.progress?.length ? (
+                <ProgressChart data={studentProgress.progress} />
+              ) : (
+                <div className="rounded-2xl border border-dashed border-slate-200 px-4 py-8 text-center text-sm text-slate-500">
+                  No progress data yet.
+                </div>
+              )}
             </div>
           </div>
         </section>

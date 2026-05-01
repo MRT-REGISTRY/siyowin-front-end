@@ -66,7 +66,7 @@ export default function ProgressPage({
             <LineChart data={progress} margin={{ top: 5, right: 20, left: -10, bottom: 5 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="#F0F0F0" vertical={false} />
               <XAxis dataKey="month" tick={{ fontSize: 12, fill: '#9CA3AF' }} axisLine={false} tickLine={false} />
-              <YAxis domain={[60, 100]} tick={{ fontSize: 12, fill: '#9CA3AF' }} axisLine={false} tickLine={false} tickFormatter={v => `${v}%`} />
+              <YAxis domain={[0, 100]} tick={{ fontSize: 12, fill: '#9CA3AF' }} axisLine={false} tickLine={false} tickFormatter={v => `${v}%`} />
               <Tooltip content={<CustomTooltip />} />
               <Legend iconType="circle" iconSize={8} wrapperStyle={{ fontSize: 12 }} />
               <Line type="monotone" dataKey="score" name="Your Score" stroke="#D9232D" strokeWidth={3} dot={{ r: 5, fill: '#D9232D', strokeWidth: 0 }} activeDot={{ r: 7 }} />

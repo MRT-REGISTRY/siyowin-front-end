@@ -31,6 +31,9 @@ const CustomTooltip = ({ active, payload, label }: any) => {
 
 export default function ProgressChart({ data }: { data: ProgressPoint[] }) {
   const chartData = data;
+  const rangeLabel = chartData.length
+    ? `${chartData[0]?.month} – ${chartData[chartData.length - 1]?.month}`
+    : 'Recent months';
   const latest = chartData[chartData.length - 1]?.score ?? 0;
   const first = chartData[0]?.score ?? latest;
   const diff = latest - first;
@@ -42,7 +45,7 @@ export default function ProgressChart({ data }: { data: ProgressPoint[] }) {
       <div className="sd-section-header">
         <div>
           <h2 className="sd-section-title">📈 Progress Trend</h2>
-          <p className="sd-section-sub">Jan – Apr 2026</p>
+          <p className="sd-section-sub">{rangeLabel}</p>
         </div>
         <div className="sd-trend-pill" style={{ backgroundColor: `${trendColor}18`, color: trendColor }}>
           {diff >= 0 ? '↑' : '↓'} {trend} · {diff > 0 ? '+' : ''}{diff}%
@@ -60,7 +63,7 @@ export default function ProgressChart({ data }: { data: ProgressPoint[] }) {
               tickLine={false}
             />
             <YAxis
-              domain={[60, 100]}
+              domain={[0, 100]}
               tick={{ fontSize: 12, fill: '#9CA3AF' }}
               axisLine={false}
               tickLine={false}

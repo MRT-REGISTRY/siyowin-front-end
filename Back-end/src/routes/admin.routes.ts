@@ -1,8 +1,10 @@
 import { Router } from 'express';
+import bcrypt from 'bcryptjs';
 import { z } from 'zod';
 import { requireAuth, requireRoles } from '../middleware/auth.js';
+import { asyncHandler } from '../middleware/asyncHandler.js';
 import { validateBody } from '../middleware/validate.js';
-import { getClassesForGrade, store } from '../data/store.js';
+import { store } from '../data/store.js';
 import { repo } from '../data/repository.js';
 import { parseCsv } from '../utils/csv.js';
 
@@ -13,24 +15,53 @@ router.use(requireAuth, requireRoles('admin', 'super-admin'));
 const studentSchema = z.object({
   name: z.string().min(1),
   index: z.string().min(1),
-  grade: z.string().min(1),
   classId: z.string().min(1),
+  dateOfBirth: z.string().optional(),
+  username: z.string().min(1),
+  password: z.string().min(6),
+  email: z.string().email().optional().or(z.literal('')),
   parentName: z.string().optional(),
   parentPhone: z.string().optional(),
+});
+
+const classSchema = z.object({
+  grade: z.string().min(1),
+  name: z.string().min(1),
+  medium: z.string().min(1),
+  subjectName: z.string().min(1),
+  academicYear: z.number().int().min(2000).max(2100).optional(),
+  schedule: z.string().optional(),
+  fee: z.number().min(0).optional(),
+});
+
+const enrollmentSchema = z.object({
+  studentId: z.string().min(1),
+  classId: z.string().min(1),
+});
+
+const teacherAssignmentSchema = z.object({
+  subject: z.string().min(1),
+  grade: z.string().min(1),
+  classId: z.string().min(1),
+  medium: z.string().min(1),
 });
 
 const teacherSchema = z.object({
   name: z.string().min(1),
   subject: z.string().min(1),
   grade: z.string().min(1),
+  username: z.string().min(1),
+  password: z.string().min(6),
   email: z.string().email(),
   phone: z.string().min(1),
+  assignments: z.array(teacherAssignmentSchema).min(1),
 });
 
 const markSchema = z.object({
   studentId: z.string().min(1),
   subjectId: z.string().min(1),
   subjectName: z.string().min(1),
+  classId: z.string().optional(),
   examType: z.string().min(1),
   examName: z.string().min(1),
   examDate: z.string().min(1),
@@ -42,7 +73,7 @@ const bulkMarksSchema = z.object({
   csvText: z.string().min(1),
 });
 
-router.get('/meta', async (req, res) => {
+router.get('/meta', asyncHandler(async (req, res) => {
   const grade = typeof req.query.grade === 'string' ? req.query.grade : '';
   const classId = typeof req.query.classId === 'string' ? req.query.classId : '';
   const classes = await repo.getClasses();
@@ -55,9 +86,9 @@ router.get('/meta', async (req, res) => {
     examTypes: store.examTypes,
     csvColumns: store.csvColumns,
   });
-});
+}));
 
-router.get('/students', async (req, res) => {
+router.get('/students', asyncHandler(async (req, res) => {
   res.json({
     students: await repo.getStudents({
       grade: typeof req.query.grade === 'string' ? req.query.grade : undefined,
@@ -65,37 +96,171 @@ router.get('/students', async (req, res) => {
       query: typeof req.query.query === 'string' ? req.query.query : undefined,
     }),
   });
-});
+}));
 
-router.post('/students', validateBody(studentSchema), async (req, res) => {
-  const existing = (await repo.getStudents({})).find((student) => student.index === req.body.index);
+router.get('/users', asyncHandler(async (_req, res) => {
+  res.json({ users: await repo.getRegisteredUsers() });
+}));
+
+router.delete('/users/:userId', asyncHandler(async (req, res) => {
+  const userId = String(req.params.userId ?? '');
+  const deleted = await repo.deleteUser(userId);
+  if (!deleted) {
+    res.status(404).json({ message: 'User not found.' });
+    return;
+  }
+  res.json({ deleted: true });
+}));
+
+router.post('/classes', validateBody(classSchema), asyncHandler(async (req, res) => {
+  const existing = (await repo.getClasses()).find((classItem) =>
+    classItem.grade.toLowerCase() === req.body.grade.trim().toLowerCase() &&
+    classItem.name.toLowerCase() === req.body.name.trim().toLowerCase() &&
+    classItem.medium.toLowerCase() === req.body.medium.trim().toLowerCase() &&
+    classItem.subjectName?.toLowerCase() === req.body.subjectName.trim().toLowerCase(),
+  );
 
   if (existing) {
+    res.status(409).json({ message: 'This class/batch already exists.' });
+    return;
+  }
+
+  const grade = req.body.grade.trim();
+  const name = req.body.name.trim();
+  const medium = req.body.medium.trim();
+  const subjectName = req.body.subjectName.trim();
+  const classItem = await repo.createClass({
+    grade,
+    name,
+    medium,
+    subjectName,
+    subjectId: slugify(subjectName),
+    academicYear: req.body.academicYear ?? new Date().getFullYear(),
+    schedule: req.body.schedule?.trim(),
+    fee: req.body.fee,
+    label: `${grade} - ${subjectName} - ${name} - ${medium} Medium`,
+  });
+
+  res.status(201).json({ class: classItem });
+}));
+
+router.delete('/classes/:classId', asyncHandler(async (req, res) => {
+  const classId = String(req.params.classId ?? '');
+  const deleted = await repo.deleteClass(classId);
+  if (!deleted) {
+    res.status(404).json({ message: 'Class not found.' });
+    return;
+  }
+  res.json({ deleted: true });
+}));
+
+router.post('/enrollments', validateBody(enrollmentSchema), asyncHandler(async (req, res) => {
+  const enrollment = await repo.enrollStudent(req.body);
+  if (!enrollment) {
+    res.status(404).json({ message: 'Class or subject not found for enrollment.' });
+    return;
+  }
+  res.status(201).json({ enrollment });
+}));
+
+router.delete('/enrollments', asyncHandler(async (req, res) => {
+  const studentId = String(req.query.studentId ?? '');
+  const classId = String(req.query.classId ?? '');
+
+  if (!studentId || !classId) {
+    res.status(400).json({ message: 'studentId and classId are required.' });
+    return;
+  }
+
+  const deleted = await repo.deleteEnrollment({ studentId, classId });
+  if (!deleted) {
+    res.status(404).json({ message: 'Enrollment not found.' });
+    return;
+  }
+  res.json({ deleted: true });
+}));
+
+router.post('/students', validateBody(studentSchema), asyncHandler(async (req, res) => {
+  const existing = (await repo.getStudents({})).find((student) => student.index === req.body.index);
+  const existingUser = await repo.findUserByEmail(req.body.username);
+
+  if (existing && existingUser) {
     res.status(409).json({ message: 'A student with this index already exists.' });
     return;
   }
 
-  const student = await repo.createStudent(req.body);
-  res.status(201).json({ student });
-});
+  if (existingUser) {
+    res.status(409).json({ message: 'A user with this username already exists.' });
+    return;
+  }
 
-router.get('/teachers', async (_req, res) => {
+  const { username, password, email, ...studentInput } = req.body as z.infer<typeof studentSchema>;
+  const student = existing ?? await repo.createStudent(studentInput);
+  const user = await repo.createUser({
+    name: student.name,
+    username: username.trim().toLowerCase(),
+    email: email?.trim().toLowerCase() || `${username.trim().toLowerCase()}@siyowin.local`,
+    role: 'student',
+    studentId: student.id,
+    passwordHash: bcrypt.hashSync(password, 10),
+  });
+
+  res.status(existing ? 200 : 201).json({ student, user });
+}));
+
+router.delete('/students/:studentId', asyncHandler(async (req, res) => {
+  const studentId = String(req.params.studentId ?? '');
+  const deleted = await repo.deleteStudent(studentId);
+  if (!deleted) {
+    res.status(404).json({ message: 'Student not found.' });
+    return;
+  }
+  res.json({ deleted: true });
+}));
+
+router.get('/teachers', asyncHandler(async (_req, res) => {
   res.json({ teachers: await repo.getTeachers() });
-});
+}));
 
-router.post('/teachers', requireRoles('super-admin'), validateBody(teacherSchema), async (req, res) => {
+router.post('/teachers', validateBody(teacherSchema), asyncHandler(async (req, res) => {
   const existing = (await repo.getTeachers()).find((teacher) => teacher.email.toLowerCase() === req.body.email.toLowerCase());
+  const existingUser = await repo.findUserByEmail(req.body.username);
 
-  if (existing) {
+  if (existing && existingUser) {
     res.status(409).json({ message: 'A teacher with this email already exists.' });
     return;
   }
 
-  const teacher = await repo.createTeacher(req.body);
-  res.status(201).json({ teacher });
-});
+  if (existingUser) {
+    res.status(409).json({ message: 'A user with this username already exists.' });
+    return;
+  }
 
-router.get('/marks', async (req, res) => {
+  const { username, password, ...teacherInput } = req.body as z.infer<typeof teacherSchema>;
+  const teacher = existing ?? await repo.createTeacher(teacherInput);
+  const user = await repo.createUser({
+    name: teacher.name,
+    username: username.trim().toLowerCase(),
+    email: teacher.email.trim().toLowerCase(),
+    role: 'teacher',
+    teacherId: teacher.id,
+    passwordHash: bcrypt.hashSync(password, 10),
+  });
+
+  res.status(existing ? 200 : 201).json({ teacher, user });
+}));
+
+router.delete('/teachers/:teacherId', asyncHandler(async (req, res) => {
+  const teacherId = String(req.params.teacherId ?? '');
+  const deleted = await repo.deleteTeacher(teacherId);
+  if (!deleted) {
+    res.status(404).json({ message: 'Teacher not found.' });
+    return;
+  }
+  res.json({ deleted: true });
+}));
+
+router.get('/marks', asyncHandler(async (req, res) => {
   const studentId = typeof req.query.studentId === 'string' ? req.query.studentId : '';
   const students = await repo.getStudents({});
   const student = students.find((item) => item.id === studentId || item.index === studentId);
@@ -108,9 +273,9 @@ router.get('/marks', async (req, res) => {
   res.json({
     marks: student ? student.marks : students.flatMap((item) => item.marks.map((mark) => ({ ...mark, studentId: item.id }))),
   });
-});
+}));
 
-router.post('/marks', validateBody(markSchema), async (req, res) => {
+router.post('/marks', validateBody(markSchema), asyncHandler(async (req, res) => {
   const { studentId, ...mark } = req.body as z.infer<typeof markSchema>;
   const result = await repo.upsertMark(studentId, mark);
 
@@ -120,9 +285,9 @@ router.post('/marks', validateBody(markSchema), async (req, res) => {
   }
 
   res.status(result.action === 'created' ? 201 : 200).json(result);
-});
+}));
 
-router.delete('/marks', async (req, res) => {
+router.delete('/marks', asyncHandler(async (req, res) => {
   const params = {
     studentId: String(req.query.studentId ?? ''),
     subjectId: String(req.query.subjectId ?? ''),
@@ -143,9 +308,9 @@ router.delete('/marks', async (req, res) => {
   }
 
   res.json(result);
-});
+}));
 
-router.post('/marks/bulk', validateBody(bulkMarksSchema), async (req, res) => {
+router.post('/marks/bulk', validateBody(bulkMarksSchema), asyncHandler(async (req, res) => {
   const rows = parseCsv(req.body.csvText);
   const results = await Promise.all(rows.map(async (row) => {
     const markValue = Number(row.mark);
@@ -177,6 +342,13 @@ router.post('/marks/bulk', validateBody(bulkMarksSchema), async (req, res) => {
     skipped: results.filter((item) => item.status === 'skipped').length,
     results,
   });
-});
+}));
 
 export default router;
+
+const slugify = (value: string) =>
+  value
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-|-$/g, '');

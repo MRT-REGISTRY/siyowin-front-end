@@ -258,13 +258,13 @@ export default function LmsLoginModal({ isOpen, onClose }: LmsLoginModalProps) {
                 </p>
               )}
 
-              {/* Email */}
+              {/* Username */}
               <div>
-                <label className="mb-1.5 block text-xs font-semibold text-gray-600">Email Address</label>
+                <label className="mb-1.5 block text-xs font-semibold text-gray-600">Username or Email</label>
                 <input
                   ref={emailRef}
-                  type="email" value={email} onChange={(e) => setEmail(e.target.value)}
-                  required placeholder="you@siyowin.lk"
+                  type="text" value={email} onChange={(e) => setEmail(e.target.value)}
+                  required placeholder="username or you@siyowin.lk"
                   className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-800 outline-none transition-all duration-200 placeholder:text-gray-400 focus:border-transparent focus:bg-white"
                   style={{ boxShadow: `0 0 0 0px ${roleRing}`, outline: 'none' }}
                   onFocus={(e) => { e.target.style.boxShadow = `0 0 0 3px ${roleRing}` }}

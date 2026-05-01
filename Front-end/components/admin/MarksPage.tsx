@@ -54,7 +54,14 @@ export default function MarksPage() {
   const [csvText, setCsvText] = useState(CSV_TEMPLATE);
 
   const classesForSelectedGrade = useMemo(() => classes.filter((classItem) => classItem.grade === selectedGrade), [classes, selectedGrade]);
-  const subjectsForSelectedClass = useMemo(() => subjects, [subjects]);
+  const selectedClass = classes.find((classItem) => classItem.id === selectedClassId);
+  const subjectsForSelectedClass = useMemo(() => {
+    if (!selectedClass?.subjectId) return subjects;
+    const matchedSubject = subjects.find((subject) => subject.id === selectedClass.subjectId);
+    return matchedSubject
+      ? [matchedSubject]
+      : [{ id: selectedClass.subjectId, name: selectedClass.subjectName ?? selectedClass.subjectId, teacher: 'Unassigned' }];
+  }, [selectedClass, subjects]);
 
   useEffect(() => {
     apiGet<{ grades: string[]; classes: AdminClassOption[]; subjects: AdminSubjectOption[]; examTypes: AdminExamType[]; csvColumns: string[] }>('/admin/meta')
@@ -133,6 +140,7 @@ export default function MarksPage() {
     const nextMark: AdminStudentMark = {
       subjectId: currentSubject.id,
       subjectName: currentSubject.name,
+      classId: selectedClassId,
       examType: selectedExamType,
       examName: examName.trim() || 'Untitled Exam',
       examDate,
@@ -242,7 +250,7 @@ export default function MarksPage() {
             </div>
             <div className="rounded-3xl border border-slate-200 bg-slate-50 p-5">
               <p className="text-xs uppercase tracking-[0.18em] text-slate-500">Current class</p>
-              <p className="mt-2 text-2xl font-bold text-slate-900">{classesForSelectedGrade.find((item) => item.id === selectedClassId)?.label ?? 'No class selected'}</p>
+              <p className="mt-2 text-2xl font-bold text-slate-900">{selectedClass?.label ?? 'No class selected'}</p>
             </div>
             <div className="rounded-3xl border border-slate-200 bg-slate-50 p-5">
               <p className="text-xs uppercase tracking-[0.18em] text-slate-500">Current subject</p>

@@ -11,6 +11,7 @@ import teacherRoutes from './routes/teacher.routes.js';
 import { errorHandler, notFoundHandler } from './middleware/errorHandler.js';
 
 export const app = express();
+app.set('etag', false);
 
 const allowedOrigins = env.corsOrigin.split(',').map((origin) => origin.trim());
 
@@ -30,6 +31,10 @@ app.use(
 );
 app.use(express.json({ limit: '2mb' }));
 app.use(express.urlencoded({ extended: true }));
+app.use('/api', (_req, res, next) => {
+  res.setHeader('Cache-Control', 'no-store');
+  next();
+});
 app.use(morgan(env.nodeEnv === 'production' ? 'combined' : 'dev'));
 
 app.use('/api/health', healthRoutes);
