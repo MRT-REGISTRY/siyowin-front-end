@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import Image from 'next/image'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { SiteHeroImage } from '@/types/siteContent'
+import { useLanguage } from './LanguageProvider'
 
 export default function HeroSection({
   images,
@@ -13,6 +14,7 @@ export default function HeroSection({
   mobileImages?: SiteHeroImage[]
 }) {
   const [isMobile, setIsMobile] = useState(false)
+  const { isSinhala } = useLanguage()
   const bgImages = isMobile && mobileImages.length > 0 ? mobileImages : images
   const [currentImageIndex, setCurrentImageIndex] = useState(0)
   const selectedImage = bgImages.length > 0 ? bgImages[currentImageIndex % bgImages.length] : undefined
@@ -70,18 +72,18 @@ export default function HeroSection({
       {/* Content */}
       <div className="absolute inset-0 z-10 flex flex-col items-center justify-center text-center px-4">
         <h1 className="text-4xl md:text-6xl font-bold text-white mb-4 drop-shadow-lg">
-          WELCOME TO{' '}
+          {isSinhala ? 'සාදරයෙන් පිළිගනිමු' : 'WELCOME TO'}{' '}
           <span className="text-red" style={{ color: 'red' , fontWeight: 'bold' }}>SIYOWIN</span>
         </h1>
         <p className="text-lg md:text-xl text-gray-100 mb-8 drop-shadow-md">
-          Inspiring Minds Through Excellence in Education
+          {isSinhala ? 'උසස් අධ්‍යාපනයෙන් දරුවන්ගේ අනාගතය දිරිමත් කරමින්' : 'Inspiring Minds Through Excellence in Education'}
         </p>
         <button
           onClick={() => window.dispatchEvent(new CustomEvent('open-lms-login'))}
           className="group relative overflow-hidden rounded-md bg-gradient-to-r from-[#D9232D] to-[#F47920] px-8 py-3.5 text-sm font-bold text-white shadow-lg shadow-orange-400/40 transition-all duration-300 hover:-translate-y-0.5 hover:shadow-xl hover:shadow-orange-400/50 active:scale-95 cursor-pointer"
         >
           <span className="relative z-10 flex items-center gap-2">
-            LMS Login
+            {isSinhala ? 'LMS පිවිසුම' : 'LMS Login'}
           </span>
           <span className="absolute inset-0 translate-x-full bg-white/20 transition-transform duration-500 group-hover:translate-x-0" />
         </button>

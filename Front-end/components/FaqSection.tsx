@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { ChevronDown, HelpCircle } from 'lucide-react'
+import { useLanguage } from './LanguageProvider'
 
 const faqs = [
   {
@@ -23,6 +24,23 @@ const faqs = [
 
 export default function FaqSection() {
   const [openIndex, setOpenIndex] = useState<number | null>(0)
+  const { isSinhala } = useLanguage()
+  const visibleFaqs = isSinhala
+    ? [
+        {
+          question: 'Siyowin හි තිබෙන පන්ති මොනවාද?',
+          answer: 'Siyowin හි Grade 1 සිට Grade 13 දක්වා පන්ති, O/L, A/L, revision classes, paper classes සහ තෝරාගත් open courses පැවැත්වේ.',
+        },
+        {
+          question: 'Siyowin පිහිටා තිබෙන්නේ කොහේද?',
+          answer: 'Siyowin කෑගල්ලේ පිහිටා ඇත. ශාඛා Palladeniya Road, Kegalle සහ Commercial Bank පිටුපස, Kegalle යන ස්ථානවල ඇත.',
+        },
+        {
+          question: 'වෙබ් අඩවිය සම්බන්ධ තාක්ෂණික ගැටළු සඳහා කාට සම්බන්ධ විය යුතුද?',
+          answer: 'වෙබ් අඩවිය, login ගැටළු, පිටු load වීමේ ගැටළු හෝ online support සඳහා +94 77 159 5616 අංකයෙන් තාක්ෂණික සහාය කණ්ඩායම අමතන්න.',
+        },
+      ]
+    : faqs
 
   return (
     <section id="faq" className="scroll-mt-20 bg-gradient-to-b from-white to-slate-50 py-16">
@@ -30,18 +48,18 @@ export default function FaqSection() {
         <div className="text-center">
           <span className="inline-flex items-center gap-2 rounded-full bg-blue-100 px-4 py-1 text-xs font-semibold uppercase tracking-widest text-blue-600">
             <HelpCircle className="h-3.5 w-3.5" />
-            FAQ
+            {isSinhala ? 'නිතර අසන ප්‍රශ්න' : 'FAQ'}
           </span>
           <h2 className="mt-3 text-4xl font-extrabold tracking-tight text-gray-900 sm:text-5xl">
-            Common{' '}
+            {isSinhala ? 'සාමාන්‍ය' : 'Common'}{' '}
             <span className="bg-gradient-to-r from-red-500 to-orange-400 bg-clip-text text-transparent">
-              Questions
+              {isSinhala ? 'ප්‍රශ්න' : 'Questions'}
             </span>
           </h2>
         </div>
 
         <div className="mt-10 space-y-4">
-          {faqs.map((faq, index) => {
+          {visibleFaqs.map((faq, index) => {
             const isOpen = openIndex === index
 
             return (

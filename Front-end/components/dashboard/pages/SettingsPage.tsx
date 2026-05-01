@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { User, Bell, Lock, Palette, Globe, ChevronRight, Camera } from 'lucide-react';
 import { StudentProfile } from '@/types';
+import { useLanguage } from '@/components/LanguageProvider';
 
 const SECTIONS = [
   { id: 'profile', label: 'Profile', icon: User },
@@ -13,6 +14,7 @@ const SECTIONS = [
 ];
 
 export default function SettingsPage({ profile }: { profile: StudentProfile | null }) {
+  const { isSinhala } = useLanguage();
   const [activeSection, setActiveSection] = useState('profile');
   const [name, setName] = useState(profile?.name ?? '');
   const [email, setEmail] = useState(profile?.email ?? '');
@@ -82,7 +84,7 @@ export default function SettingsPage({ profile }: { profile: StudentProfile | nu
     <div className="sdp-wrap">
       <div className="sdp-header">
         <div>
-          <h1 className="sdp-title">Settings</h1>
+          <h1 className="sdp-title">{isSinhala ? 'සැකසුම්' : 'Settings'}</h1>
           <p className="sdp-sub">Manage your account and preferences</p>
         </div>
       </div>
@@ -112,7 +114,7 @@ export default function SettingsPage({ profile }: { profile: StudentProfile | nu
           {activeSection === 'profile' && (
             <div className="stg-section">
               <h2 className="stg-section-title">Profile Information</h2>
-              <p className="stg-section-sub">Student profile data is managed by the institute.</p>
+              <p className="stg-section-sub">{isSinhala ? 'සිසුන්ගේ පැතිකඩ තොරතුරු ආයතනය විසින් කළමනාකරණය කෙරේ.' : 'Student profile data is managed by the institute.'}</p>
 
               <div className="stg-avatar-row">
                 <div className="stg-avatar">{profile?.avatar ?? ''}</div>
@@ -131,7 +133,7 @@ export default function SettingsPage({ profile }: { profile: StudentProfile | nu
                   <input className="stg-input" value={email} onChange={(e) => setEmail(e.target.value)} type="email" readOnly />
                 </div>
                 <div className="stg-field">
-                  <label className="stg-label">Grade</label>
+                  <label className="stg-label">{isSinhala ? 'ශ්‍රේණිය' : 'Grade'}</label>
                   <select className="stg-input" value={grade} onChange={(e) => setGrade(e.target.value)} disabled>
                     {grade && <option>{grade}</option>}
                   </select>

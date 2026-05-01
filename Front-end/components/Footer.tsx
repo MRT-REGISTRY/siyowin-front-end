@@ -2,16 +2,17 @@
 
 import Link from 'next/link'
 import Image from 'next/image'
+import { useLanguage } from './LanguageProvider'
 
 const quickLinks = [
-  { label: 'Home',      href: '/' },
-  { label: 'About Us',  href: '/#about' },
-  { label: 'Teachers',  href: '/#teachers' },
-  { label: 'Timetable', href: '/#timetable' },
-  { label: 'Gallery',   href: '/#gallery' },
-  { label: 'News',      href: '/#news' },
-  { label: 'FAQ',       href: '/#faq' },
-  { label: 'Contact',   href: '/#contact' },
+  { label: 'Home', sinhalaLabel: 'මුල් පිටුව', href: '/' },
+  { label: 'About Us', sinhalaLabel: 'අප ගැන', href: '/#about' },
+  { label: 'Teachers', sinhalaLabel: 'ගුරුවරු', href: '/#teachers' },
+  { label: 'Timetable', sinhalaLabel: 'කාලසටහන්', href: '/#timetable' },
+  { label: 'Gallery', sinhalaLabel: 'ගැලරිය', href: '/#gallery' },
+  { label: 'News', sinhalaLabel: 'පුවත්', href: '/#news' },
+  { label: 'FAQ', sinhalaLabel: 'ප්‍රශ්න', href: '/#faq' },
+  { label: 'Contact', sinhalaLabel: 'සම්බන්ධ වන්න', href: '/#contact' },
 ]
 
 const locations = [
@@ -42,6 +43,8 @@ const socials = [
 ]
 
 export default function Footer() {
+  const { isSinhala } = useLanguage()
+
   return (
     <footer className="relative bg-[#0d1117] text-white">
       {/* Top accent bar — brand gradient */}
@@ -68,9 +71,9 @@ export default function Footer() {
               />
             </div>
             <p className="mb-6 text-sm leading-relaxed text-gray-400">
-              Empowering students to achieve their academic goals through excellence in education,
-              experienced faculty, and modern learning facilities. Branches: Palladeniya Road,
-              Kegalle and Behind Commercial Bank, Kegalle.
+              {isSinhala
+                ? 'විශේෂඥ ගුරු මණ්ඩලය, සැලසුම්ගත ඉගෙනුම් පහසුකම් සහ ගුණාත්මක අධ්‍යාපනය තුළින් සිසුන්ගේ අධ්‍යාපනික අරමුණු සාර්ථක කර ගැනීමට සහාය වෙමු.'
+                : 'Empowering students to achieve their academic goals through excellence in education, experienced faculty, and modern learning facilities. Branches: Palladeniya Road, Kegalle and Behind Commercial Bank, Kegalle.'}
             </p>
 
             <div className="flex justify-center gap-3 sm:justify-start">
@@ -91,7 +94,7 @@ export default function Footer() {
           {/* Quick Links */}
           <div className="flex flex-col items-center text-center sm:items-start sm:text-left">
             <h4 className="mb-5 text-sm font-bold uppercase tracking-widest text-white">
-              Quick Links
+              {isSinhala ? 'ඉක්මන් සබැඳි' : 'Quick Links'}
             </h4>
             <ul className="flex flex-col items-center space-y-2.5 sm:items-start">
               {quickLinks.map((link) => (
@@ -104,7 +107,7 @@ export default function Footer() {
                       className="h-1.5 w-1.5 flex-shrink-0 rounded-full transition-colors duration-200 group-hover:bg-[#F47920]"
                       style={{ backgroundColor: 'rgba(255,255,255,0.2)' }}
                     />
-                    {link.label}
+                    {isSinhala ? link.sinhalaLabel : link.label}
                   </Link>
                 </li>
               ))}
@@ -115,7 +118,7 @@ export default function Footer() {
           <div className="flex flex-col items-center text-center sm:items-start sm:text-left">
             <div className="w-full">
               <h4 className="mb-5 text-sm font-bold uppercase tracking-widest text-white">
-                Find Us
+                {isSinhala ? 'අපගේ ස්ථාන' : 'Find Us'}
               </h4>
               <ul className="flex flex-col items-center space-y-4 sm:items-start">
                 {locations.map((loc) => (

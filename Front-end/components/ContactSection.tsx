@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { Mail, MapPin, Phone, Send } from 'lucide-react'
+import { useLanguage } from './LanguageProvider'
 
 type FormState = {
   name: string
@@ -21,6 +22,7 @@ export default function ContactSection() {
   const [form, setForm] = useState<FormState>(initialForm)
   const [status, setStatus] = useState<'idle' | 'sending' | 'success' | 'error'>('idle')
   const [notice, setNotice] = useState('')
+  const { isSinhala } = useLanguage()
 
   const updateField = (field: keyof FormState, value: string) => {
     setForm((current) => ({ ...current, [field]: value }))
@@ -58,16 +60,18 @@ export default function ContactSection() {
         <div className="grid gap-8 lg:grid-cols-[0.9fr_1.1fr] lg:items-start">
           <div>
             <span className="inline-flex items-center rounded-full bg-red-50 px-4 py-1 text-xs font-semibold uppercase tracking-widest text-red-600">
-              Contact
+              {isSinhala ? 'සම්බන්ධ වන්න' : 'Contact'}
             </span>
             <h2 className="mt-4 text-4xl font-extrabold tracking-tight text-gray-900 sm:text-5xl">
-              Talk to{' '}
+              {isSinhala ? 'Siyowin සමඟ' : 'Talk to'}{' '}
               <span className="bg-gradient-to-r from-[#D9232D] to-[#F47920] bg-clip-text text-transparent">
-                Siyowin
+                {isSinhala ? 'සම්බන්ධ වන්න' : 'Siyowin'}
               </span>
             </h2>
             <p className="mt-4 max-w-xl text-base leading-7 text-gray-600">
-              Send your question about classes, timetables, admissions, or LMS access. The message will be delivered to our office email.
+              {isSinhala
+                ? 'පන්ති, කාලසටහන්, ලියාපදිංචි වීම හෝ LMS පිවිසුම පිළිබඳ ඔබගේ ප්‍රශ්නය අපට යොමු කරන්න.'
+                : 'Send your question about classes, timetables, admissions, or LMS access. The message will be delivered to our office email.'}
             </p>
 
             <div className="mt-8 space-y-4">
@@ -79,7 +83,7 @@ export default function ContactSection() {
                   <Phone className="h-5 w-5" />
                 </span>
                 <span>
-                  <span className="block text-xs font-semibold uppercase tracking-wider text-slate-500">Phone</span>
+                  <span className="block text-xs font-semibold uppercase tracking-wider text-slate-500">{isSinhala ? 'දුරකථන' : 'Phone'}</span>
                   <span className="font-bold text-slate-900">070 528 1466</span>
                 </span>
               </a>
@@ -92,7 +96,7 @@ export default function ContactSection() {
                   <Mail className="h-5 w-5" />
                 </span>
                 <span>
-                  <span className="block text-xs font-semibold uppercase tracking-wider text-slate-500">Email</span>
+                  <span className="block text-xs font-semibold uppercase tracking-wider text-slate-500">{isSinhala ? 'ඊමේල්' : 'Email'}</span>
                   <span className="font-bold text-slate-900">info@siyowin.lk</span>
                 </span>
               </a>
@@ -102,7 +106,7 @@ export default function ContactSection() {
                   <MapPin className="h-5 w-5" />
                 </span>
                 <span>
-                  <span className="block text-xs font-semibold uppercase tracking-wider text-slate-500">Branches</span>
+                  <span className="block text-xs font-semibold uppercase tracking-wider text-slate-500">{isSinhala ? 'ශාඛා' : 'Branches'}</span>
                   <span className="font-bold text-slate-900">Palladeniya Road & Behind Commercial Bank, Kegalle</span>
                 </span>
               </div>
@@ -112,17 +116,17 @@ export default function ContactSection() {
           <form onSubmit={handleSubmit} className="rounded-3xl border border-slate-200 bg-white p-6 shadow-xl shadow-slate-900/5 sm:p-8">
             <div className="grid gap-4 sm:grid-cols-2">
               <label className="block">
-                <span className="text-sm font-semibold text-slate-700">Name</span>
+                <span className="text-sm font-semibold text-slate-700">{isSinhala ? 'නම' : 'Name'}</span>
                 <input
                   value={form.name}
                   onChange={(event) => updateField('name', event.target.value)}
                   required
                   className="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-blue-400 focus:bg-white focus:ring-4 focus:ring-blue-100"
-                  placeholder="Your name"
+                  placeholder={isSinhala ? 'ඔබගේ නම' : 'Your name'}
                 />
               </label>
               <label className="block">
-                <span className="text-sm font-semibold text-slate-700">Email</span>
+                <span className="text-sm font-semibold text-slate-700">{isSinhala ? 'ඊමේල්' : 'Email'}</span>
                 <input
                   type="email"
                   value={form.email}
@@ -135,24 +139,24 @@ export default function ContactSection() {
             </div>
 
             <label className="mt-4 block">
-              <span className="text-sm font-semibold text-slate-700">Phone</span>
+              <span className="text-sm font-semibold text-slate-700">{isSinhala ? 'දුරකථන' : 'Phone'}</span>
               <input
                 value={form.phone}
                 onChange={(event) => updateField('phone', event.target.value)}
                 className="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-blue-400 focus:bg-white focus:ring-4 focus:ring-blue-100"
-                placeholder="Optional"
+                placeholder={isSinhala ? 'අවශ්‍ය නම්' : 'Optional'}
               />
             </label>
 
             <label className="mt-4 block">
-              <span className="text-sm font-semibold text-slate-700">Message</span>
+              <span className="text-sm font-semibold text-slate-700">{isSinhala ? 'පණිවිඩය' : 'Message'}</span>
               <textarea
                 value={form.message}
                 onChange={(event) => updateField('message', event.target.value)}
                 required
                 rows={5}
                 className="mt-2 w-full resize-none rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-blue-400 focus:bg-white focus:ring-4 focus:ring-blue-100"
-                placeholder="Tell us what you need..."
+                placeholder={isSinhala ? 'ඔබට අවශ්‍ය දේ ලියන්න...' : 'Tell us what you need...'}
               />
             </label>
 
@@ -167,7 +171,7 @@ export default function ContactSection() {
               disabled={status === 'sending'}
               className="mt-6 inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-[#D9232D] to-[#F47920] px-6 py-3.5 text-sm font-bold text-white shadow-lg shadow-orange-300/30 transition hover:-translate-y-0.5 hover:shadow-xl disabled:cursor-not-allowed disabled:opacity-70"
             >
-              {status === 'sending' ? 'Sending...' : 'Send Message'}
+              {status === 'sending' ? (isSinhala ? 'යවමින්...' : 'Sending...') : (isSinhala ? 'පණිවිඩය යවන්න' : 'Send Message')}
               <Send className="h-4 w-4" />
             </button>
           </form>

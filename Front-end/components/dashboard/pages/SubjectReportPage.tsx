@@ -5,6 +5,7 @@ import { ArrowLeft, CalendarDays, CheckCircle2, Circle, NotebookPen } from 'luci
 import { SubjectExamResult, SubjectRecord, SubjectResultsResponse } from '@/types';
 import { apiGet } from '@/utils/api';
 import LeaderboardForSubject from '../LeaderboardForSubject';
+import { useLanguage } from '@/components/LanguageProvider';
 
 interface Props {
   subject: SubjectRecord;
@@ -37,6 +38,7 @@ const renderScore = (result: SubjectExamResult) => {
 };
 
 export default function SubjectReportPage({ subject, onBack }: Props) {
+  const { isSinhala } = useLanguage();
   const [report, setReport] = useState<SubjectResultsResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -86,7 +88,7 @@ export default function SubjectReportPage({ subject, onBack }: Props) {
         <div className="sdr-hero-main">
           <div className="sdr-emoji" aria-hidden="true">{subject.emoji}</div>
           <div>
-            <p className="sdr-subtitle">Student exam results</p>
+            <p className="sdr-subtitle">{isSinhala ? 'සිසුන්ගේ විභාග ප්‍රතිඵල' : 'Student exam results'}</p>
             <h1 className="sdr-title">{subject.name}</h1>
             <p className="sdr-teacher">Teacher: {subject.teacher}</p>
           </div>
@@ -105,8 +107,8 @@ export default function SubjectReportPage({ subject, onBack }: Props) {
 
       <section className="sdr-metric-grid">
         {[
-          ['Class', subject.classLabel],
-          ['Grade', subject.gradeId ?? 'Not set'],
+          [isSinhala ? 'පන්තිය' : 'Class', subject.classLabel],
+          [isSinhala ? 'ශ්‍රේණිය' : 'Grade', subject.gradeId ?? (isSinhala ? 'සකසා නැත' : 'Not set')],
           ['Medium', subject.medium ?? 'Not set'],
           ['Schedule', subject.schedule ?? 'Not set'],
           ['Fee', subject.fee !== null && subject.fee !== undefined ? `Rs. ${subject.fee}` : 'Not set'],

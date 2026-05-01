@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
 import { Geist, Geist_Mono } from 'next/font/google'
 import { Analytics } from '@vercel/analytics/next'
+import { LanguageProvider } from '@/components/LanguageProvider'
 import './globals.css'
 
 const _geist = Geist({ subsets: ["latin"] });
@@ -28,7 +29,7 @@ export default function RootLayout({
   return (
     <html lang="en" className="bg-white">
       <body className="font-sans antialiased">
-        {children}
+        <LanguageProvider>{children}</LanguageProvider>
         {process.env.NODE_ENV === 'production' && <Analytics />}
       </body>
     </html>
