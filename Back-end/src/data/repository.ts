@@ -16,6 +16,7 @@ import {
   store,
   upsertMark as upsertMemoryMark,
 } from './store.js';
+import { demoPasswordHash } from './seed.js';
 
 type DbUser = AuthUser & { passwordHash: string; password_hash?: string };
 
@@ -42,7 +43,7 @@ export const repo = {
   async findUserByEmail(email: string) {
     return withFallback(async () => {
       const { data, error } = await supabase!
-        .from('app_users')
+        .from('users')
         .select('id,name,email,role,student_id,teacher_id,password_hash')
         .eq('email', email.trim().toLowerCase())
         .maybeSingle();
@@ -55,7 +56,7 @@ export const repo = {
   async findUserById(id: string) {
     return withFallback(async () => {
       const { data, error } = await supabase!
-        .from('app_users')
+        .from('users')
         .select('id,name,email,role,student_id,teacher_id,password_hash')
         .eq('id', id)
         .maybeSingle();
@@ -69,18 +70,155 @@ export const repo = {
     return withFallback(async () => {
       const { data, error } = await supabase!
         .from('subjects')
-        .select('*, subject_history(*), homeworks(*)')
-        .order('display_order', { ascending: true })
-        .order('display_order', { referencedTable: 'subject_history', ascending: true })
-        .order('display_order', { referencedTable: 'homeworks', ascending: true });
+        .select('id,teacher_id,grade_id,subject_name,year,is_active,created_at')
+        .order('subject_name', { ascending: true });
       if (error) throw error;
       return (data ?? []).map(mapSubject);
     }, () => store.subjects);
   },
 
+  async getEnrolledSubjects(studentId?: string) {
+    if (!studentId) return this.getSubjects();
+    
+    return withFallback(async () => {
+      // Get subject_ids from student_enrollments where is_active = true
+      const { data: enrollments, error: enrollError } = await supabase!
+        .from('student_enrollments')
+        .select('subject_id')
+        .eq('student_id', studentId)
+        .eq('is_active', true);
+      
+      if (enrollError) throw enrollError;
+      if (!enrollments || enrollments.length === 0) return [];
+      
+      const subjectIds = enrollments.map((e: any) => e.subject_id);
+      
+      // Fetch only those subjects
+      const { data, error } = await supabase!
+        .from('subjects')
+        .select('id,teacher_id,grade_id,subject_name,year,is_active,created_at')
+        .in('id', subjectIds)
+        .order('subject_name', { ascending: true });
+      
+      if (error) throw error;
+      return (data ?? []).map(mapSubject);
+    }, () => {
+      // Fallback: infer enrolled subjects from the student's recorded marks.
+      const student = store.students.find((item) => item.id === studentId);
+      if (!student) return [];
+
+      const enrolledSubjectIds = Array.from(new Set(student.marks.map((mark) => mark.subjectId)));
+      if (enrolledSubjectIds.length === 0) return store.subjects;
+
+      return store.subjects.filter((subject) => enrolledSubjectIds.includes(subject.id));
+    });
+  },
+
   async getSubjectById(subjectId: string) {
     const subjects = await this.getSubjects();
+    console.log('=======================================');
+    console.log('All Subjects:', subjects);
+    console.log('=======================================');
     return subjects.find((subject) => subject.id === subjectId);
+  },
+
+  async getStudentSubjectResults(studentId: string | undefined, subjectId: string) {
+    if (!studentId) return [];
+
+    return withFallback(async () => {
+      const { data: enrollment, error: enrollmentError } = await supabase!
+        .from('student_enrollments')
+        .select('id')
+        .eq('student_id', studentId)
+        .eq('subject_id', subjectId)
+        .eq('is_active', true)
+        .maybeSingle();
+
+      if (enrollmentError) throw enrollmentError;
+      if (!enrollment) {
+        console.log(`No active enrollment found for student ${studentId} in subject ${subjectId}`);
+        return [];
+      }
+
+      const { data: exams, error: examsError } = await supabase!
+        .from('exams')
+        .select('id,subject_id,exam_type,title,exam_date,total_marks,created_at')
+        .eq('subject_id', subjectId)
+        .order('exam_date', { ascending: false });
+
+      if (examsError) throw examsError;
+      const examRows = exams ?? [];
+      if (examRows.length === 0) {
+        console.log(`No exams found for subject ${subjectId}`);
+        return [];
+      }
+
+      const examIds = examRows.map((exam) => exam.id);
+      const { data: results, error: resultsError } = await supabase!
+        .from('results')
+        .select('id,exam_id,student_id,marks_obtained,is_absent,created_at,updated_at')
+        .eq('student_id', studentId)
+        .in('exam_id', examIds);
+
+      if (resultsError) throw resultsError;
+
+      const resultByExamId = new Map((results ?? []).map((result) => [result.exam_id, result]));
+      
+
+      return examRows
+        .map((exam) => {
+          const result = resultByExamId.get(exam.id);
+          if (!result) return null;
+
+          return {
+            examId: exam.id,
+            examTitle: exam.title,
+            examType: exam.exam_type,
+            examDate: exam.exam_date,
+            totalMarks: exam.total_marks ?? null,
+            marksObtained: result.is_absent ? null : result.marks_obtained ?? null,
+            isAbsent: Boolean(result.is_absent),
+            status: result.is_absent ? 'absent' : 'present',
+            createdAt: result.created_at ?? exam.created_at ?? null,
+            updatedAt: result.updated_at ?? null,
+          };
+        })
+        .filter((item): item is {
+          examId: string;
+          examTitle: string;
+          examType: string;
+          examDate: string;
+          totalMarks: number | null;
+          marksObtained: number | null;
+          isAbsent: boolean;
+          status: 'present' | 'absent';
+          createdAt: string | null;
+          updatedAt: string | null;
+        } => item !== null)
+        .sort((a, b) => String(b.examDate).localeCompare(String(a.examDate)));
+    }, () => {
+      const student = store.students.find((item) => item.id === studentId);
+      if (!student) return [];
+
+      const enrolledSubjectIds = new Set(student.marks.map((mark) => mark.subjectId));
+      if (!enrolledSubjectIds.has(subjectId)) return [];
+
+      return student.marks
+        .filter((mark) => mark.subjectId === subjectId)
+        .map((mark) => ({
+          examId: `${subjectId}-${mark.examType}-${mark.examName}`,
+          examTitle: mark.examName,
+          examType: mark.examType,
+          examDate: mark.examDate,
+          totalMarks: 100,
+          marksObtained: mark.mark,
+          isAbsent: false,
+          status: 'present' as const,
+          createdAt: null,
+          updatedAt: null,
+        }))
+        .sort((a, b) => String(b.examDate).localeCompare(String(a.examDate)));
+    });
   },
 
   async getStudentProfile(studentId?: string) {
@@ -88,27 +226,26 @@ export const repo = {
       if (!studentId) return getMemoryStudentProfile(studentId);
       const { data, error } = await supabase!
         .from('students')
-        .select('id,name,index,grade,class_id')
+        .select('id,name,index_number,grade_id,class_id,parent_name,parent_phone')
         .eq('id', studentId)
         .maybeSingle();
       if (error) throw error;
       if (!data) return getMemoryStudentProfile(studentId);
+      const seedStudent = store.students.find((item) => item.id === data.id);
       return {
         id: data.id,
         name: data.name,
-        index: data.index,
-        grade: data.grade,
-        classId: data.class_id,
-        term: 'Term 2',
-        year: 2026,
-        avatar: data.name.charAt(0).toUpperCase(),
+        index: data.index_number,
+        grade: seedStudent?.grade ?? getGradeName(data.grade_id),
+        classId: data.class_id ?? seedStudent?.classId ?? '',
+        avatar: seedStudent?.name.charAt(0).toUpperCase() ?? data.name.charAt(0).toUpperCase(),
       };
     }, () => getMemoryStudentProfile(studentId));
   },
 
   async getOverview() {
     const subjects = await this.getSubjects();
-    if (subjects.length === 0) return getMemoryDashboardOverview();
+    if (subjects.length === 0) return getMemoryDashboardOverview(); // fallback handling for empty subjects case to avoid division by zero
     const averageMark = Math.round(subjects.reduce((total, subject) => total + subject.currentMark, 0) / subjects.length);
     const bestSubject = [...subjects].sort((a, b) => b.currentMark - a.currentMark)[0]?.name ?? 'N/A';
     const homeworkDone = subjects.reduce((total, subject) => total + subject.homeworkDoneThisMonth, 0);
@@ -153,16 +290,20 @@ export const repo = {
 
   async getStudents(params: { grade?: string; classId?: string; query?: string }) {
     return withFallback(async () => {
-      let query = supabase!.from('students').select('*, marks(*)').order('created_at', { ascending: false });
-      if (params.grade) query = query.eq('grade', params.grade);
-      if (params.classId) query = query.eq('class_id', params.classId);
-      const { data, error } = await query;
+      const { data, error } = await supabase!
+        .from('students')
+        .select('id,name,index_number,grade_id,class_id,parent_name,parent_phone,created_at')
+        .order('created_at', { ascending: false });
       if (error) throw error;
       const students = (data ?? []).map(mapStudent);
       const normalized = params.query?.trim().toLowerCase();
       return normalized
         ? students.filter((student) => student.name.toLowerCase().includes(normalized) || student.index.toLowerCase().includes(normalized))
-        : students;
+        : students.filter((student) => {
+            const matchesGrade = !params.grade || student.grade === params.grade;
+            const matchesClass = !params.classId || student.classId === params.classId;
+            return matchesGrade && matchesClass;
+          });
     }, () => filterMemoryStudents(params));
   },
 
@@ -186,11 +327,12 @@ export const repo = {
       const { error } = await supabase!.from('students').upsert({
         id: student.id,
         name: student.name,
-        index: student.index,
-        grade: student.grade,
+        index_number: student.index,
+        grade_id: resolveGradeId(student.grade),
         class_id: student.classId,
         parent_name: student.parentName,
         parent_phone: student.parentPhone,
+        password_hash: demoPasswordHash,
       });
       if (error) throw error;
       return student;
@@ -200,7 +342,10 @@ export const repo = {
   async createTeacher(input: Omit<AdminTeacher, 'id'>) {
     return withFallback(async () => {
       const teacher = createMemoryTeacher(input);
-      const { error } = await supabase!.from('teachers').upsert(teacher);
+      const { error } = await supabase!.from('teachers').upsert({
+        ...teacher,
+        password_hash: demoPasswordHash,
+      });
       if (error) throw error;
       return teacher;
     }, () => createMemoryTeacher(input));
@@ -258,55 +403,38 @@ const mapUser = (data: any): DbUser => ({
 });
 
 const mapSubject = (data: any): SubjectRecord => ({
+  ...getMemorySubjectById(data.id)!,
   id: data.id,
-  name: data.name,
-  emoji: data.emoji,
-  color: data.color,
-  teacher: data.teacher,
-  classLabel: data.class_label,
-  rank: data.rank,
-  trend: data.trend,
-  currentMark: data.current_mark,
-  classAvg: data.class_avg,
-  nextExam: data.next_exam,
-  termTest: data.term_test,
-  dayPaper: data.day_paper,
-  monthTest: data.month_test,
-  history: (data.subject_history ?? []).map((item: any) => ({
-    label: item.label,
-    date: item.date,
-    mark: item.mark,
-    note: item.note,
-  })),
-  homeworkDoneThisMonth: data.homework_done_this_month,
-  homeworkTargetThisMonth: data.homework_target_this_month,
-  recentHomeworks: (data.homeworks ?? []).map((item: any) => ({
-    id: item.id,
-    title: item.title,
-    dueDate: item.due_date,
-    completedDate: item.completed_date ?? undefined,
-    status: item.status,
-  })),
+  name: getMemorySubjectById(data.id)?.name ?? data.subject_name ?? data.id,
+  teacherId: data.teacher_id ?? null,
+  gradeId: data.grade_id ?? null,
+  subjectName: data.subject_name ?? null,
+  year: data.year ?? null,
+  isActive: data.is_active ?? null,
+  createdAt: data.created_at ?? null,
+} as SubjectRecord & {
+  teacherId?: string | null;
+  gradeId?: string | null;
+  subjectName?: string | null;
+  year?: number | null;
+  isActive?: boolean | null;
+  createdAt?: string | null;
 });
 
-const mapStudent = (data: any): AdminStudent => ({
-  id: data.id,
-  name: data.name,
-  index: data.index,
-  grade: data.grade,
-  classId: data.class_id,
-  parentName: data.parent_name ?? undefined,
-  parentPhone: data.parent_phone ?? undefined,
-  marks: (data.marks ?? []).map((mark: any) => ({
-    subjectId: mark.subject_id,
-    subjectName: mark.subject_name,
-    examType: mark.exam_type,
-    examName: mark.exam_name,
-    examDate: mark.exam_date,
-    mark: mark.mark,
-    note: mark.note ?? undefined,
-  })),
-});
+const mapStudent = (data: any): AdminStudent => {
+  const memoryStudent = store.students.find((item) => item.id === data.id);
+
+  return {
+    id: data.id,
+    name: memoryStudent?.name ?? data.name,
+    index: memoryStudent?.index ?? data.index_number,
+    grade: memoryStudent?.grade ?? getGradeName(data.grade_id),
+    classId: memoryStudent?.classId ?? data.class_id ?? '',
+    parentName: memoryStudent?.parentName ?? data.parent_name ?? undefined,
+    parentPhone: memoryStudent?.parentPhone ?? data.parent_phone ?? undefined,
+    marks: memoryStudent?.marks ?? [],
+  };
+};
 
 const mapTeacher = (data: any): AdminTeacher => ({
   id: data.id,
@@ -316,3 +444,25 @@ const mapTeacher = (data: any): AdminTeacher => ({
   email: data.email,
   phone: data.phone,
 });
+
+const getGradeName = (gradeId?: string | null) => {
+  if (!gradeId) return 'Grade 11';
+  const index = Number(gradeId.replace('grade-', '')) - 9;
+  return Number.isNaN(index) || index < 0 || index >= store.grades.length ? 'Grade 11' : store.grades[index] ?? 'Grade 11';
+};
+
+const resolveGradeId = (gradeName: string) => {
+  const normalized = gradeName.trim().toLowerCase();
+  switch (normalized) {
+    case 'grade 9':
+      return 'grade-9';
+    case 'grade 10':
+      return 'grade-10';
+    case 'grade 11':
+      return 'grade-11';
+    case 'grade 12':
+      return 'grade-12';
+    default:
+      return 'grade-11';
+  }
+};

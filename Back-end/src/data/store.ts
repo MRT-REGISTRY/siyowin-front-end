@@ -49,8 +49,8 @@ export const getStudentProfile = (studentId = 'st-1') => {
     index: student?.index ?? '2026-11-012',
     grade: student?.grade ?? 'Grade 11',
     classId: student?.classId ?? '11-a',
-    term: 'Term 2',
-    year: 2026,
+    // term: 'Term 2',
+    // year: 2026,
     avatar: student?.name.charAt(0).toUpperCase() ?? 'A',
   };
 };

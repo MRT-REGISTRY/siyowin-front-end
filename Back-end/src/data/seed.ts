@@ -12,6 +12,7 @@ import {
 
 export const demoPassword = 'password123';
 const passwordHash = bcrypt.hashSync(demoPassword, 10);
+export const demoPasswordHash = passwordHash;
 
 export const users: Array<AuthUser & { passwordHash: string }> = [
   {

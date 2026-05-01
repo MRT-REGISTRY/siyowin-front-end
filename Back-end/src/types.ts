@@ -43,6 +43,12 @@ export type SubjectRecord = {
   homeworkDoneThisMonth: number;
   homeworkTargetThisMonth: number;
   recentHomeworks: SubjectHomeworkItem[];
+  teacherId?: string | null;
+  gradeId?: string | null;
+  subjectName?: string | null;
+  year?: number | null;
+  isActive?: boolean | null;
+  createdAt?: string | null;
 };
 
 export type LeaderboardEntry = {

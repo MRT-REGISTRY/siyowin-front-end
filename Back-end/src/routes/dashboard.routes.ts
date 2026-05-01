@@ -6,9 +6,19 @@ const router = Router();
 
 router.use(requireAuth);
 
+const toSubjectResponse = (subject: any) => ({
+  id: subject.id,
+  teacher_id: subject.teacherId ?? null,
+  grade_id: subject.gradeId ?? null,
+  subject_name: subject.subjectName ?? subject.name ?? null,
+  year: subject.year ?? null,
+  is_active: subject.isActive ?? null,
+  created_at: subject.createdAt ?? null,
+});
+
 router.get('/student', requireRoles('student', 'admin', 'super-admin'), async (req, res) => {
   const studentId = req.user?.studentId;
-  const subjects = await repo.getSubjects();
+  const subjects = await repo.getEnrolledSubjects(studentId);
 
   res.json({
     profile: {
@@ -16,7 +26,7 @@ router.get('/student', requireRoles('student', 'admin', 'super-admin'), async (r
       email: req.user?.email ?? '',
     },
     overview: await repo.getOverview(),
-    subjects,
+    subjects: subjects.map(toSubjectResponse),
     progress: repo.getProgressSeries(),
     homework: subjects.flatMap((subject) =>
       subject.recentHomeworks.map((homework) => ({
@@ -26,15 +36,12 @@ router.get('/student', requireRoles('student', 'admin', 'super-admin'), async (r
         color: subject.color,
       })),
     ),
-    announcements: [
-      { id: 'ann-1', title: 'Term test schedule published', date: '2026-05-01' },
-      { id: 'ann-2', title: 'Bring corrected papers to the next class', date: '2026-05-03' },
-    ],
   });
 });
 
-router.get('/subjects', requireRoles('student', 'teacher', 'admin', 'super-admin'), async (_req, res) => {
-  res.json({ subjects: await repo.getSubjects() });
+router.get('/subjects', requireRoles('student', 'teacher', 'admin', 'super-admin'), async (req, res) => {
+  const subjects = await repo.getEnrolledSubjects(req.user?.studentId);
+  res.json({ subjects: subjects.map(toSubjectResponse) });
 });
 
 router.get('/subjects/:subjectId', requireRoles('student', 'teacher', 'admin', 'super-admin'), async (req, res) => {
@@ -51,7 +58,58 @@ router.get('/subjects/:subjectId', requireRoles('student', 'teacher', 'admin', '
     return;
   }
 
-  res.json({ subject });
+  res.json({ subject: toSubjectResponse(subject) });
+});
+
+router.get('/subjects/:subjectId/results', requireRoles('student'), async (req, res) => {
+  const subjectId = req.params.subjectId;
+  if (typeof subjectId !== 'string') {
+    res.status(400).json({ message: 'subjectId is required.' });
+    return;
+  }
+
+  const subject = await repo.getSubjectById(subjectId);
+
+  if (!subject) {
+    res.status(404).json({ message: 'Subject not found.' });
+    return;
+  }
+
+  const studentId = req.user?.studentId;
+  if (!studentId) {
+    res.status(400).json({ message: 'Student profile is required.' });
+    return;
+  }
+  console.log('Student ID:', studentId); // Debug log
+
+  const enrolledSubjects = await repo.getEnrolledSubjects(studentId);
+  if (!enrolledSubjects.some((item) => item.id === subject.id)) {
+    res.status(403).json({ message: 'You are not enrolled in this subject.' });
+    return;
+  }
+
+  const results = await repo.getStudentSubjectResults(studentId, subject.id);
+  console.log('Results:', results); // Debug log
+
+  if (!results.length) {
+    res.json({
+      subject: toSubjectResponse(subject),
+      results: [],
+      recentResults: [],
+      previousResults: [],
+    });
+    return;
+  }
+
+  const recentResults = results.slice(0, 3);
+  const previousResults = results.slice(3);
+
+  res.json({
+    subject: toSubjectResponse(subject),
+    results,
+    recentResults,
+    previousResults,
+  });
 });
 
 router.get('/subjects/:subjectId/homework', requireRoles('student', 'teacher', 'admin', 'super-admin'), async (req, res) => {
@@ -88,7 +146,8 @@ router.get('/subjects/:subjectId/leaderboard', requireRoles('student', 'teacher'
   }
 
   const subject = await repo.getSubjectById(subjectId);
-
+  console.log('Subject:', subject); // Debug log
+  
   if (!subject) {
     res.status(404).json({ message: 'Subject not found.' });
     return;

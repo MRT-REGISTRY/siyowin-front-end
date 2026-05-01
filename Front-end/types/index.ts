@@ -36,6 +36,36 @@ export type SubjectRecord = {
   recentHomeworks: SubjectHomeworkItem[];
 };
 
+export type ApiSubjectRecord = {
+  id: string;
+  teacher_id: string | null;
+  grade_id: string | null;
+  subject_name: string | null;
+  year: number | null;
+  is_active: boolean | null;
+  created_at: string | null;
+};
+
+export type SubjectExamResult = {
+  examId: string;
+  examTitle: string;
+  examType: string;
+  examDate: string;
+  totalMarks: number | null;
+  marksObtained: number | null;
+  isAbsent: boolean;
+  status: 'present' | 'absent';
+  createdAt: string | null;
+  updatedAt: string | null;
+};
+
+export type SubjectResultsResponse = {
+  subject: ApiSubjectRecord;
+  results: SubjectExamResult[];
+  recentResults: SubjectExamResult[];
+  previousResults: SubjectExamResult[];
+};
+
 export type LeaderboardEntry = {
   rank: number;
   name: string;

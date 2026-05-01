@@ -1,7 +1,9 @@
 'use client';
 
-import { ArrowLeft, CalendarDays, CheckCircle2, Circle, FileText, GraduationCap, NotebookPen } from 'lucide-react';
-import { SubjectRecord } from '@/types';
+import { useEffect, useState } from 'react';
+import { ArrowLeft, CalendarDays, CheckCircle2, Circle, NotebookPen } from 'lucide-react';
+import { SubjectExamResult, SubjectRecord, SubjectResultsResponse } from '@/types';
+import { apiGet } from '@/utils/api';
 import LeaderboardForSubject from '../LeaderboardForSubject';
 
 interface Props {
@@ -9,15 +11,67 @@ interface Props {
   onBack: () => void;
 }
 
-const getOverallPerformance = (subject: SubjectRecord) => {
-  return Math.round((subject.termTest + subject.dayPaper + subject.monthTest) / 3);
+const formatDate = (value: string) => {
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return value;
+
+  return parsed.toLocaleDateString('en-GB', {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+  });
+};
+
+const formatExamType = (value: string) =>
+  value
+    .split('-')
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(' ');
+
+const renderScore = (result: SubjectExamResult) => {
+  if (result.isAbsent) return 'Absent';
+
+  const obtained = result.marksObtained ?? 0;
+  const total = result.totalMarks ?? 100;
+  return `${obtained}/${total}`;
 };
 
 export default function SubjectReportPage({ subject, onBack }: Props) {
-  const overall = getOverallPerformance(subject);
-  const homeworkPercent = Math.round((subject.homeworkDoneThisMonth / subject.homeworkTargetThisMonth) * 100);
-  const remainingHomework = Math.max(subject.homeworkTargetThisMonth - subject.homeworkDoneThisMonth, 0);
-  const recentHomeworks = subject.recentHomeworks.slice(0, 5);
+  const [report, setReport] = useState<SubjectResultsResponse | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    let mounted = true;
+    setLoading(true);
+    setError('');
+
+    apiGet<SubjectResultsResponse>(`/dashboard/subjects/${subject.id}/results`)
+      .then((data) => {
+        if (!mounted) return;
+        setReport(data);
+      })
+      .catch((err) => {
+        if (!mounted) return;
+        setError(err instanceof Error ? err.message : 'Unable to load subject results.');
+      })
+      .finally(() => {
+        if (mounted) setLoading(false);
+      });
+
+    return () => {
+      mounted = false;
+    };
+  }, [subject.id]);
+
+  const results = report?.results ?? [];
+  const recentResults = report?.recentResults ?? [];
+  const previousResults = report?.previousResults ?? [];
+  const scoredResults = results.filter((item) => !item.isAbsent && item.marksObtained !== null);
+  const averageMark = scoredResults.length
+    ? Math.round(scoredResults.reduce((total, item) => total + (item.marksObtained ?? 0), 0) / scoredResults.length)
+    : null;
+  const absentCount = results.filter((item) => item.isAbsent).length;
 
   return (
     <div className="sdr-wrap">
@@ -32,156 +86,177 @@ export default function SubjectReportPage({ subject, onBack }: Props) {
         <div className="sdr-hero-main">
           <div className="sdr-emoji" aria-hidden="true">{subject.emoji}</div>
           <div>
-            <p className="sdr-subtitle">Overall report card</p>
+            <p className="sdr-subtitle">Student exam results</p>
             <h1 className="sdr-title">{subject.name}</h1>
             <p className="sdr-teacher">Teacher: {subject.teacher}</p>
           </div>
         </div>
 
         <div className="sdr-overall-box" style={{ borderColor: subject.color }}>
-          <span className="sdr-overall-label">Overall performance</span>
-          <strong className="sdr-overall-mark" style={{ color: subject.color }}>{overall}%</strong>
-          <span className="sdr-overall-sub">Rank #{subject.rank} · {subject.currentMark}% current subject mark</span>
+          <span className="sdr-overall-label">Recent average</span>
+          <strong className="sdr-overall-mark" style={{ color: subject.color }}>
+            {averageMark !== null ? `${averageMark}%` : 'No marks yet'}
+          </strong>
+          <span className="sdr-overall-sub">
+            {results.length} exam{results.length === 1 ? '' : 's'} · {absentCount} absent
+          </span>
         </div>
       </section>
 
-      <section className="sdr-metric-grid">
-        <article className="sdr-metric-card sdp-card">
-          <div className="sdr-metric-head">
-            <span className="sdr-metric-icon sdr-icon-red"><GraduationCap size={18} /></span>
-            <span className="sdr-metric-label">Recent term test</span>
-          </div>
-          <strong className="sdr-metric-value">{subject.termTest}%</strong>
-          <p className="sdr-metric-note">Latest term test result</p>
-        </article>
+      {loading && <p className="sdp-card">Loading exam results...</p>}
+      {!loading && error && <p className="sdp-card text-red-600">{error}</p>}
 
-        <article className="sdr-metric-card sdp-card">
-          <div className="sdr-metric-head">
-            <span className="sdr-metric-icon sdr-icon-orange"><FileText size={18} /></span>
-            <span className="sdr-metric-label">Day paper marks</span>
-          </div>
-          <strong className="sdr-metric-value">{subject.dayPaper}%</strong>
-          <p className="sdr-metric-note">Fast-response exam performance</p>
-        </article>
-
-        <article className="sdr-metric-card sdp-card">
-          <div className="sdr-metric-head">
-            <span className="sdr-metric-icon sdr-icon-navy"><CalendarDays size={18} /></span>
-            <span className="sdr-metric-label">Month test marks</span>
-          </div>
-          <strong className="sdr-metric-value">{subject.monthTest}%</strong>
-          <p className="sdr-metric-note">Current month benchmark</p>
-        </article>
-      </section>
-
-      <section className="sdr-main-grid">
-        <article className="sdr-history-card sdp-card">
-          <div className="sd-section-header">
-            <div>
-              <h2 className="sd-section-title">Previous results</h2>
-              <p className="sd-section-sub">Recent exam history, limited to the latest entries</p>
-            </div>
-          </div>
-
-          <div className="sdr-history-list">
-            {subject.history.map((item) => (
-              <div key={`${item.label}-${item.date}`} className="sdr-history-item">
-                <div className="sdr-history-icon">
-                  <NotebookPen size={16} />
+      {!loading && !error && (
+        <>
+          <section className="sdr-metric-grid">
+            {recentResults.map((result) => (
+              <article key={result.examId} className="sdr-metric-card sdp-card">
+                <div className="sdr-metric-head">
+                  <span className="sdr-metric-icon sdr-icon-red"><NotebookPen size={18} /></span>
+                  <span className="sdr-metric-label">{formatExamType(result.examType)}</span>
                 </div>
-                <div className="sdr-history-body">
-                  <div className="sdr-history-top">
-                    <strong>{item.label}</strong>
-                    <span>{item.date}</span>
-                  </div>
-                  <p className="sdr-history-note">{item.note}</p>
-                </div>
-                <div className="sdr-history-mark" style={{ color: subject.color }}>{item.mark}%</div>
-              </div>
+                <strong className="sdr-metric-value" style={{ color: subject.color }}>
+                  {renderScore(result)}
+                </strong>
+                <p className="sdr-metric-note">{result.examTitle}</p>
+                <p className="sdr-metric-note">
+                  <CalendarDays size={14} style={{ display: 'inline', marginRight: 6 }} />
+                  {formatDate(result.examDate)}
+                </p>
+                <p className="sdr-metric-note">{result.isAbsent ? 'Absent' : 'Present'}</p>
+              </article>
             ))}
-          </div>
-        </article>
 
-        <article className="sdr-homework-card sdp-card">
-          <div className="sd-section-header">
-            <div>
-              <h2 className="sd-section-title">Homework completed</h2>
-              <p className="sd-section-sub">Current month progress</p>
-            </div>
-          </div>
+            {recentResults.length === 0 && (
+              <article className="sdr-metric-card sdp-card">
+                <div className="sdr-metric-head">
+                  <span className="sdr-metric-icon sdr-icon-red"><NotebookPen size={18} /></span>
+                  <span className="sdr-metric-label">Recent exams</span>
+                </div>
+                <strong className="sdr-metric-value">No results</strong>
+                <p className="sdr-metric-note">No exam result rows are available for this subject yet.</p>
+              </article>
+            )}
+          </section>
 
-          <div className="sdr-homework-ring">
-            <div className="sdr-ring-inner" style={{ background: `conic-gradient(${subject.color} ${homeworkPercent}%, #EEF2F7 ${homeworkPercent}% 100%)` }}>
-              <div className="sdr-ring-center">
-                <strong>{subject.homeworkDoneThisMonth}</strong>
-                <span>done</span>
+          <section className="sdr-main-grid">
+            <article className="sdr-history-card sdp-card">
+              <div className="sd-section-header">
+                <div>
+                  <h2 className="sd-section-title">Previous exams</h2>
+                  <p className="sd-section-sub">Older results for this subject</p>
+                </div>
               </div>
-            </div>
-          </div>
 
-          <div className="sdr-homework-stats">
-            <div>
-              <span className="sdr-homework-label">Completed</span>
-              <strong>{subject.homeworkDoneThisMonth}/{subject.homeworkTargetThisMonth}</strong>
-            </div>
-            <div>
-              <span className="sdr-homework-label">Remaining</span>
-              <strong>{remainingHomework}</strong>
-            </div>
-          </div>
+              {previousResults.length > 0 ? (
+                <div className="sdr-history-list">
+                  {previousResults.map((result) => (
+                    <div key={result.examId} className="sdr-history-item">
+                      <div className="sdr-history-icon">
+                        <NotebookPen size={16} />
+                      </div>
+                      <div className="sdr-history-body">
+                        <div className="sdr-history-top">
+                          <strong>{result.examTitle}</strong>
+                          <span>{formatDate(result.examDate)}</span>
+                        </div>
+                        <p className="sdr-history-note">
+                          {formatExamType(result.examType)} · {result.isAbsent ? 'Absent for this exam' : `Scored ${renderScore(result)}`}
+                        </p>
+                      </div>
+                      <div className="sdr-history-mark" style={{ color: subject.color }}>
+                        {result.isAbsent ? 'Absent' : renderScore(result)}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="sdr-history-note" style={{ margin: 0 }}>
+                  There are no older exams to show for this subject.
+                </p>
+              )}
+            </article>
 
-          <div className="sdr-homework-bar">
-            <div className="sdr-homework-bar-fill" style={{ width: `${homeworkPercent}%`, background: subject.color }} />
-          </div>
+            <article className="sdr-homework-card sdp-card">
+              <div className="sd-section-header">
+                <div>
+                  <h2 className="sd-section-title">Result summary</h2>
+                  <p className="sd-section-sub">Present versus absent status</p>
+                </div>
+              </div>
 
-          <p className="sdr-homework-note">
-            {homeworkPercent >= 100 ? 'Homework target completed for the month.' : `${remainingHomework} assignment${remainingHomework === 1 ? '' : 's'} still pending this month.`}
-          </p>
+              <div className="sdr-homework-stats" style={{ marginTop: 0 }}>
+                <div>
+                  <span className="sdr-homework-label">Present</span>
+                  <strong>{results.length - absentCount}</strong>
+                </div>
+                <div>
+                  <span className="sdr-homework-label">Absent</span>
+                  <strong>{absentCount}</strong>
+                </div>
+              </div>
 
-          <div className="sdr-recent-homework">
-            <div className="sdr-recent-homework-head">
-              <h3>Recent 5 homeworks</h3>
-              <span>{recentHomeworks.filter((item) => item.status === 'completed').length}/5 completed</span>
-            </div>
+              <div className="sdr-homework-bar">
+                <div
+                  className="sdr-homework-bar-fill"
+                  style={{
+                    width: `${results.length ? Math.round(((results.length - absentCount) / results.length) * 100) : 0}%`,
+                    background: subject.color,
+                  }}
+                />
+              </div>
 
-            <ul className="sdr-recent-homework-list">
-              {recentHomeworks.map((homework) => {
-                const isCompleted = homework.status === 'completed';
+              <p className="sdr-homework-note">
+                {results.length === 0
+                  ? 'No subject results have been recorded yet.'
+                  : `${results.length - absentCount} exam${results.length - absentCount === 1 ? '' : 's'} were attended by the student.`}
+              </p>
 
-                return (
-                  <li key={homework.id} className={`sdr-recent-homework-item ${isCompleted ? 'sdr-recent-homework-done' : ''}`}>
-                    <span className="sdr-recent-homework-status">
-                      {isCompleted ? <CheckCircle2 size={16} /> : <Circle size={16} />}
-                    </span>
-                    <span className="sdr-recent-homework-body">
-                      <strong>{homework.title}</strong>
-                      <small>
-                        Due {homework.dueDate}
-                        {homework.completedDate ? ` - Completed ${homework.completedDate}` : ''}
-                      </small>
-                    </span>
-                    <span className={`sdr-recent-homework-badge ${isCompleted ? 'sdr-rh-badge-done' : 'sdr-rh-badge-pending'}`}>
-                      {isCompleted ? 'Done' : 'Pending'}
-                    </span>
-                  </li>
-                );
-              })}
-            </ul>
-          </div>
-        </article>
-      </section>
-      
-      <section className="sdr-main-grid">
-        <article className="sdr-leaderboard-card sdp-card">
-          <div className="sd-section-header">
-            <div>
-              <h2 className="sd-section-title">Class Leaderboard</h2>
-              <p className="sd-section-sub">Performance within this class / subject</p>
-            </div>
-          </div>
-          <LeaderboardForSubject subjectId={subject.id} />
-        </article>
-      </section>
+              <div className="sdr-recent-homework">
+                <div className="sdr-recent-homework-head">
+                  <h3>Result status</h3>
+                  <span>{results.length} total records</span>
+                </div>
+
+                <ul className="sdr-recent-homework-list">
+                  {results.slice(0, 5).map((result) => {
+                    const isAbsent = result.isAbsent;
+
+                    return (
+                      <li key={result.examId} className={`sdr-recent-homework-item ${isAbsent ? '' : 'sdr-recent-homework-done'}`}>
+                        <span className="sdr-recent-homework-status">
+                          {isAbsent ? <Circle size={16} /> : <CheckCircle2 size={16} />}
+                        </span>
+                        <span className="sdr-recent-homework-body">
+                          <strong>{result.examTitle}</strong>
+                          <small>
+                            {formatDate(result.examDate)} · {isAbsent ? 'Absent' : `Scored ${renderScore(result)}`}
+                          </small>
+                        </span>
+                        <span className={`sdr-recent-homework-badge ${isAbsent ? 'sdr-rh-badge-pending' : 'sdr-rh-badge-done'}`}>
+                          {isAbsent ? 'Absent' : 'Present'}
+                        </span>
+                      </li>
+                    );
+                  })}
+                </ul>
+              </div>
+            </article>
+          </section>
+
+          <section className="sdr-main-grid">
+            <article className="sdr-leaderboard-card sdp-card">
+              <div className="sd-section-header">
+                <div>
+                  <h2 className="sd-section-title">Class Leaderboard</h2>
+                  <p className="sd-section-sub">Performance within this class / subject</p>
+                </div>
+              </div>
+              <LeaderboardForSubject subjectId={subject.id} />
+            </article>
+          </section>
+        </>
+      )}
     </div>
   );
 }

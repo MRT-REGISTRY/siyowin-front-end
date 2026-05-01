@@ -14,19 +14,19 @@ if (!dbUrl) {
   process.exit(1);
 }
 
-const sqlDir = path.resolve('supabase/sql');
-const files = ['001_schema.sql', '002_seed.sql'];
+const schemaFile = path.resolve('..', 'postgreSchema.sql');
+const seedFile = path.resolve('supabase/sql/002_seed.sql');
 const client = new pg.Client({
-  connectionString: dbUrl,
+  connectionString: dbUrl.replace(/#/g, '%23'),
   ssl: { rejectUnauthorized: false },
 });
 
 await client.connect();
 
 try {
-  for (const file of files) {
-    const sql = await fs.readFile(path.join(sqlDir, file), 'utf8');
-    console.log(`Running ${file}`);
+  for (const file of [schemaFile, seedFile]) {
+    const sql = await fs.readFile(file, 'utf8');
+    console.log(`Running ${path.basename(file)}`);
     await client.query(sql);
   }
   console.log('Supabase schema and seed completed.');

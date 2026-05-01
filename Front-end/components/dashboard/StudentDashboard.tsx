@@ -13,7 +13,8 @@ import SubjectReportPage from './pages/SubjectReportPage';
 import ProgressPage from './pages/ProgressPage';
 import SettingsPage from './pages/SettingsPage';
 import { apiGet } from '@/utils/api';
-import { DashboardOverview, StudentProfile, SubjectRecord } from '@/types';
+import { ApiSubjectRecord, DashboardOverview, StudentProfile, SubjectRecord } from '@/types';
+import { normalizeSubjects } from '@/utils/subjects';
 
 const NAV_ITEMS = [
   { id: 'dashboard',   label: 'Dashboard',   icon: 'layout-dashboard' },
@@ -42,7 +43,7 @@ export default function StudentDashboard() {
     apiGet<{
       overview: DashboardOverview;
       profile: StudentProfile;
-      subjects: SubjectRecord[];
+      subjects: ApiSubjectRecord[];
       progress: Array<{ month: string; average: number; classAvg?: number }>;
       homework: Array<any>;
     }>('/dashboard/student')
@@ -50,7 +51,7 @@ export default function StudentDashboard() {
         if (!mounted) return;
         setOverview(data.overview);
         setProfile(data.profile);
-        setSubjects(data.subjects);
+        setSubjects(normalizeSubjects(data.subjects, data.homework));
         setProgress(data.progress.map((item) => ({ month: item.month, score: item.average, classAvg: item.classAvg ?? 74 })));
         setHomework(data.homework);
         setError('');

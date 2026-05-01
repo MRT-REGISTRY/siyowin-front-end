@@ -10,7 +10,6 @@ type AuthGateProps = {
 
 export default function AuthGate({ allowedRoles, children }: AuthGateProps) {
   const [status, setStatus] = useState<'checking' | 'allowed' | 'denied'>('checking');
-  const allowedRoleKey = allowedRoles.join(',');
 
   useEffect(() => {
     const token = getStoredToken();
@@ -22,21 +21,15 @@ export default function AuthGate({ allowedRoles, children }: AuthGateProps) {
       return;
     }
 
-    apiGet<{ user: { role: LoginRole } }>('/auth/me')
-      .then(({ user }) => {
-        if (!allowedRoles.includes(user.role)) {
-          window.location.replace(getDashboardPathForRole(user.role));
-          setStatus('denied');
-          return;
-        }
+    // Check role from stored user (already has role from login)
+    if (!allowedRoles.includes(storedUser.role)) {
+      window.location.replace(getDashboardPathForRole(storedUser.role));
+      setStatus('denied');
+      return;
+    }
 
-        setStatus('allowed');
-      })
-      .catch(() => {
-        clearSession();
-        window.location.replace('/');
-      });
-  }, [allowedRoleKey]);
+    setStatus('allowed');
+  }, [allowedRoles.join(',')]);
 
   if (status !== 'allowed') {
     return (
