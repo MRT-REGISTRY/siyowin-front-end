@@ -91,6 +91,13 @@ export const apiPost = <T>(path: string, body: unknown) =>
     body: JSON.stringify(body),
   });
 
+export const apiPatch = <T>(path: string, body: unknown) =>
+  apiRequest<T>(path, {
+    method: 'PATCH',
+    token: getStoredToken(),
+    body: JSON.stringify(body),
+  });
+
 export const apiDelete = <T>(path: string) =>
   apiRequest<T>(path, {
     method: 'DELETE',

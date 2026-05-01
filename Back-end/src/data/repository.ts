@@ -61,7 +61,7 @@ export const repo = {
       return mapUser(data);
     }, () => findMemoryUserByEmail(email));
   },
-
+  
   async findUserById(id: string) {
     return withFallback(async () => {
       const { data, error } = await supabase!
@@ -77,12 +77,10 @@ export const repo = {
 
   async getSubjects() {
     return withFallback(async () => {
-      const { data, error } = await supabase!
-        .from('subjects')
-        .select('id,teacher_id,grade_id,subject_name,year,is_active,created_at')
-        .order('subject_name', { ascending: true });
-      if (error) throw error;
-      return (data ?? []).map(mapSubject);
+      const [classes, teachers] = await Promise.all([this.getClasses(), this.getTeachers()]);
+      const teacherById = new Map(teachers.map((teacher) => [teacher.id, teacher]));
+
+      return classes.map((classItem) => mapClassAsSubject(classItem, classItem.teacherId ? teacherById.get(classItem.teacherId)?.name : undefined));
     }, () => store.subjects);
   },
 
@@ -92,27 +90,24 @@ export const repo = {
     return withFallback(async () => {
       const { data: enrollments, error: enrollError } = await supabase!
         .from('student_enrollments')
-        .select('subject_id,class_id,status')
+        .select('class_id,status')
         .eq('student_id', studentId)
         .eq('status', 'active');
       
       if (enrollError) throw enrollError;
       if (!enrollments || enrollments.length === 0) return [];
       
-      const subjectIds = enrollments
-        .map((e: any) => e.subject_id)
+      const classIds = enrollments
+        .map((e: any) => e.class_id)
         .filter((value: string | null | undefined): value is string => Boolean(value));
-      if (subjectIds.length === 0) return [];
-      
-      // Fetch only those subjects
-      const { data, error } = await supabase!
-        .from('subjects')
-        .select('id,teacher_id,grade_id,subject_name,year,is_active,created_at')
-        .in('id', subjectIds)
-        .order('subject_name', { ascending: true });
-      
-      if (error) throw error;
-      return (data ?? []).map(mapSubject);
+      if (classIds.length === 0) return [];
+
+      const classes = await this.getClasses();
+      const teachers = await this.getTeachers();
+      const teacherById = new Map(teachers.map((teacher) => [teacher.id, teacher]));
+      return classes
+        .filter((classItem) => classIds.includes(classItem.id))
+        .map((classItem) => mapClassAsSubject(classItem, classItem.teacherId ? teacherById.get(classItem.teacherId)?.name : undefined));
     }, () => {
       const enrolledSubjectIds = Array.from(new Set(getMemoryStudentEnrollments(studentId).map((item) => item.subjectId)));
       if (enrolledSubjectIds.length === 0) {
@@ -145,7 +140,7 @@ export const repo = {
         .from('student_enrollments')
         .select('id,class_id')
         .eq('student_id', studentId)
-        .eq('subject_id', subjectId)
+        .eq('class_id', subjectId)
         .eq('status', 'active')
         .maybeSingle();
 
@@ -156,8 +151,7 @@ export const repo = {
 
       const { data: exams, error: examsError } = await supabase!
         .from('exams')
-        .select('id,subject_id,class_id,exam_type,title,exam_date,total_marks,created_at')
-        .eq('subject_id', subjectId)
+        .select('id,class_id,exam_type,title,exam_date,total_marks,created_at')
         .eq('class_id', enrollment.class_id)
         .order('exam_date', { ascending: false });
 
@@ -265,6 +259,7 @@ export const repo = {
       const termInfo = resolveTermInfo(classItem?.academicYear);
       return {
         ...memoryProfile,
+        dateOfBirth: undefined,
         term: termInfo.term,
         year: termInfo.year,
       };
@@ -320,9 +315,11 @@ export const repo = {
       const classId = await this.getStudentClassId(studentId);
       if (!classId) return buildEmptyPerformanceSummary();
 
+      const classItem = (await this.getClasses()).find((item) => item.id === classId);
+
       const { data: exams, error: examError } = await supabase!
         .from('exams')
-        .select('id,subject_id')
+        .select('id,class_id')
         .eq('class_id', classId);
       if (examError) throw examError;
       const examRows = exams ?? [];
@@ -336,7 +333,15 @@ export const repo = {
         .in('exam_id', examIds);
       if (resultError) throw resultError;
 
-      return buildPerformanceSummary(examRows, results ?? []);
+      const scoredResults = (results ?? []).filter((result) => !result.is_absent && result.marks_obtained !== null);
+      const total = scoredResults.reduce((sum, result) => sum + Number(result.marks_obtained ?? 0), 0);
+
+      return {
+        averageMark: scoredResults.length ? Math.round(total / scoredResults.length) : 0,
+        bestSubject: classItem?.subjectName ?? classItem?.label ?? classId,
+        subjectsCount: 1,
+        examsCount: scoredResults.length,
+      };
     }, () => buildPerformanceSummaryFromMemory(studentId));
   },
 
@@ -347,7 +352,6 @@ export const repo = {
       const { data: exams, error: examError } = await supabase!
         .from('exams')
         .select('id')
-        .eq('subject_id', subjectId)
         .eq('class_id', classId);
       if (examError) throw examError;
       const examRows = exams ?? [];
@@ -377,11 +381,53 @@ export const repo = {
     return withFallback(async () => {
       const { data, error } = await supabase!
         .from('classes')
-        .select('id,grade,name,label,medium,subject_id,subject_name,academic_year,schedule,fee,is_active')
+        .select('id,teacher_id,grade,name,label,medium,subject_name,academic_year,schedule,fee,is_active,created_at')
         .order('id');
       if (error) throw error;
       return (data ?? []).map(mapClass);
     }, () => store.classes);
+  },
+
+  async getStudentEnrollmentOptions() {
+    return withFallback(async () => {
+      const [classes, teachers] = await Promise.all([
+        this.getClasses(),
+        this.getTeachers(),
+      ]);
+
+      const teacherById = new Map(teachers.map((teacher) => [teacher.id, teacher]));
+
+      return classes
+        .map((classItem) => {
+          const teacherName = classItem.teacherId ? teacherById.get(classItem.teacherId)?.name : undefined;
+          const subjectName = classItem.subjectName ?? classItem.label;
+          
+          return {
+            id: classItem.id,
+            grade: classItem.grade,
+            medium: classItem.medium,
+            subjectId: classItem.id,
+            subjectName,
+            teacherName: teacherName ?? 'Unassigned teacher',
+          };
+        })
+        .filter((option) => Boolean(option.subjectId));
+    }, () => {
+      const teacherByName = new Map(store.teachers.map((teacher) => [teacher.id, teacher.name]));
+      return store.classes
+        .map((classItem) => {
+          const teacherName = classItem.teacherId ? teacherByName.get(classItem.teacherId) : undefined;
+          return {
+            id: classItem.id,
+            grade: classItem.grade,
+            medium: classItem.medium,
+            subjectId: classItem.id,
+            subjectName: classItem.subjectName ?? classItem.label,
+            teacherName: teacherName ?? 'Unassigned teacher',
+          };
+        })
+        .filter((option) => Boolean(option.subjectId));
+    });
   },
 
   async getRegisteredUsers(): Promise<RegisteredUser[]> {
@@ -448,16 +494,16 @@ export const repo = {
     return teachers.find((teacher) => teacher.id === teacherId);
   },
 
-  async createClass(input: { grade: string; name: string; label: string; medium: string; subjectId?: string; subjectName?: string; academicYear?: number; schedule?: string; fee?: number }) {
+  async createClass(input: { grade: string; name: string; label: string; medium: string; teacherId?: string | null; subjectName?: string; academicYear?: number; schedule?: string; fee?: number }) {
     return withFallback(async () => {
       const classItem = buildClass(input);
       const { error } = await supabase!.from('classes').upsert({
         id: classItem.id,
+        teacher_id: classItem.teacherId ?? null,
         grade: classItem.grade,
         name: classItem.name,
         label: classItem.label,
         medium: classItem.medium,
-        subject_id: classItem.subjectId ?? null,
         subject_name: classItem.subjectName ?? null,
         academic_year: classItem.academicYear ?? new Date().getFullYear(),
         schedule: classItem.schedule ?? null,
@@ -478,22 +524,146 @@ export const repo = {
           throw error;
         }
       }
-      if (classItem.subjectId && classItem.subjectName) {
-        try {
-          const { error: subjectError } = await supabase!.from('subjects').upsert({
-            id: classItem.subjectId,
-            subject_name: classItem.subjectName,
-            year: classItem.academicYear ?? new Date().getFullYear(),
-            is_active: true,
-          });
-          if (subjectError) throw subjectError;
-        } catch (subjectError) {
-          if (!isMissingTable(subjectError)) throw subjectError;
-        }
+        return classItem.teacherId ? (await this.setClassTeacher(classItem.id, classItem.teacherId)) ?? classItem : classItem;
+    }, async () => {
+      const classItem = createMemoryClass(input);
+      if (classItem.teacherId) {
+        await this.setClassTeacher(classItem.id, classItem.teacherId);
       }
       return classItem;
-    }, () => createMemoryClass(input));
+    });
   },
+
+    async setClassTeacher(classId: string, teacherId?: string | null) {
+      return withFallback(async () => {
+        const nextTeacherId = teacherId?.trim() || null;
+        const { data: classRow, error: classError } = await supabase!
+          .from('classes')
+          .select('id,teacher_id,grade,name,label,medium,subject_name,academic_year,schedule,fee,is_active')
+          .eq('id', classId)
+          .maybeSingle();
+
+        if (classError) throw classError;
+        if (!classRow) return null;
+      const previousTeacherId = classRow.teacher_id ?? null;
+
+        if (nextTeacherId) {
+          const teacher = await this.getTeacherById(nextTeacherId);
+          if (!teacher) return null;
+        }
+
+        const { error: updateError } = await supabase!
+          .from('classes')
+          .update({ teacher_id: nextTeacherId })
+          .eq('id', classId);
+        if (updateError) throw updateError;
+
+        const { error: cleanupError } = await supabase!.from('teacher_class_assignments').delete().eq('class_id', classId);
+        if (cleanupError && !isMissingTable(cleanupError)) throw cleanupError;
+
+        const classAssignment = {
+          subject: classRow.subject_name ?? classRow.label ?? classRow.name,
+          grade: classRow.grade ?? '',
+          classId: classRow.id,
+          medium: classRow.medium ?? '',
+        };
+
+        if (nextTeacherId) {
+          const { error: assignmentError } = await supabase!.from('teacher_class_assignments').upsert({
+            id: `${nextTeacherId}-${classId}`,
+            teacher_id: nextTeacherId,
+            class_id: classId,
+            role: 'primary',
+            is_active: true,
+          }, { onConflict: 'teacher_id,class_id' });
+          if (assignmentError) throw assignmentError;
+
+          const { data: teacherRow, error: teacherLookupError } = await supabase!
+            .from('teachers')
+            .select('id,assigned_subjects,subject,grade')
+            .eq('id', nextTeacherId)
+            .maybeSingle();
+          if (teacherLookupError) throw teacherLookupError;
+          if (teacherRow) {
+            const assignments = normalizeAssignments(teacherRow.assigned_subjects, teacherRow.subject ?? '', teacherRow.grade ?? '');
+            const mergedAssignments = [
+              ...assignments.filter((assignment) => assignment.classId !== classId),
+              classAssignment,
+            ];
+            const { error: teacherUpdateError } = await supabase!
+              .from('teachers')
+              .update({ assigned_subjects: mergedAssignments })
+              .eq('id', nextTeacherId);
+            if (teacherUpdateError) throw teacherUpdateError;
+          }
+        }
+
+        if (previousTeacherId && previousTeacherId !== nextTeacherId) {
+          const { data: previousTeacher, error: previousTeacherError } = await supabase!
+            .from('teachers')
+            .select('id,assigned_subjects,subject,grade')
+            .eq('id', previousTeacherId)
+            .maybeSingle();
+          if (previousTeacherError) throw previousTeacherError;
+          if (previousTeacher) {
+            const assignments = normalizeAssignments(previousTeacher.assigned_subjects, previousTeacher.subject ?? '', previousTeacher.grade ?? '')
+              .filter((assignment) => assignment.classId !== classId);
+            const { error: previousTeacherUpdateError } = await supabase!
+              .from('teachers')
+              .update({ assigned_subjects: assignments })
+              .eq('id', previousTeacherId);
+            if (previousTeacherUpdateError) throw previousTeacherUpdateError;
+          }
+        }
+
+        const { data: updatedClass, error: reloadError } = await supabase!
+          .from('classes')
+          .select('*')
+          .eq('id', classId)
+          .maybeSingle();
+        if (reloadError) throw reloadError;
+        return updatedClass ? mapClass(updatedClass) : null;
+      }, () => {
+        const classItem = store.classes.find((item) => item.id === classId);
+        if (!classItem) return null;
+        const previousTeacherId = classItem.teacherId ?? null;
+        const nextTeacherId = teacherId?.trim() || null;
+
+        classItem.teacherId = nextTeacherId;
+        const assignment = {
+          subject: classItem.subjectName ?? classItem.label ?? classItem.name,
+          grade: classItem.grade,
+          classId: classItem.id,
+          medium: classItem.medium,
+        };
+
+        store.teachers = store.teachers.map((teacher) => {
+          if (teacher.id !== nextTeacherId && teacher.id !== previousTeacherId) {
+            return {
+              ...teacher,
+              assignments: teacher.assignments.filter((item) => item.classId !== classId),
+            };
+          }
+
+          if (teacher.id === previousTeacherId && teacher.id !== nextTeacherId) {
+            return {
+              ...teacher,
+              assignments: teacher.assignments.filter((item) => item.classId !== classId),
+            };
+          }
+
+          return {
+            ...teacher,
+            assignments: [
+              ...teacher.assignments.filter((item) => item.classId !== classId),
+              assignment,
+            ],
+          };
+        });
+
+        return classItem;
+      });
+    },
 
   async createStudent(input: Omit<AdminStudent, 'id' | 'marks' | 'grade'> & { grade?: string }) {
     return withFallback(async () => {
@@ -525,11 +695,10 @@ export const repo = {
         }
       }
       const classItem = (await this.getClasses()).find((item) => item.id === student.classId);
-      if (classItem?.subjectId) {
+      if (classItem) {
         const enrollment = buildEnrollment({
           studentId: student.id,
           classId: classItem.id,
-          subjectId: classItem.subjectId,
           academicYear: classItem.academicYear ?? new Date().getFullYear(),
         });
         try {
@@ -537,7 +706,6 @@ export const repo = {
             id: enrollment.id,
             student_id: enrollment.studentId,
             class_id: enrollment.classId,
-            subject_id: enrollment.subjectId,
             academic_year: enrollment.academicYear,
             status: enrollment.status,
             enrolled_at: enrollment.enrolledAt,
@@ -551,21 +719,112 @@ export const repo = {
     }, () => createMemoryStudent(input));
   },
 
+  async createStudentWithUser(input: {
+    student: Omit<AdminStudent, 'id' | 'marks' | 'grade'> & { grade?: string };
+    user: {
+      username: string;
+      email: string;
+      passwordHash: string;
+      isActive?: boolean;
+    };
+  }) {
+    return withFallback(async () => {
+      const student = buildStudent(input.student);
+      const normalizedDateOfBirth = typeof student.dateOfBirth === 'string' && student.dateOfBirth.trim()
+        ? student.dateOfBirth.trim()
+        : null;
+      const user = buildUser({
+        name: student.name,
+        username: input.user.username.trim().toLowerCase(),
+        email: input.user.email.trim().toLowerCase(),
+        role: 'student',
+        studentId: student.id,
+        passwordHash: input.user.passwordHash,
+        isActive: input.user.isActive ?? true,
+      });
+
+      const { error } = await supabase!.rpc('create_student_with_user', {
+        p_student_id: student.id,
+        p_student_name: student.name,
+        p_index_number: student.index,
+        p_date_of_birth: normalizedDateOfBirth,
+        p_class_id: student.classId,
+        p_parent_name: student.parentName ?? null,
+        p_parent_phone: student.parentPhone ?? null,
+        p_student_password_hash: demoPasswordHash,
+        p_user_id: user.id,
+        p_username: user.username,
+        p_email: user.email,
+        p_user_password_hash: user.passwordHash,
+        p_is_active: user.isActive ?? true,
+      });
+
+      if (error) {
+        const code = String((error as { code?: string }).code ?? '');
+        const message = String((error as { message?: string }).message ?? '').toLowerCase();
+
+        // Fall back to non-RPC flow if the function is not deployed yet.
+        if (code === 'PGRST202' || message.includes('create_student_with_user')) {
+          const fallbackStudent = await this.createStudent(input.student);
+          const fallbackUser = await this.createUser({
+            name: fallbackStudent.name,
+            username: input.user.username.trim().toLowerCase(),
+            email: input.user.email.trim().toLowerCase(),
+            role: 'student',
+            studentId: fallbackStudent.id,
+            passwordHash: input.user.passwordHash,
+            isActive: input.user.isActive ?? true,
+          });
+
+          return { student: fallbackStudent, user: fallbackUser };
+        }
+
+        throw error;
+      }
+
+      return {
+        student,
+        user: mapUser({
+          id: user.id,
+          name: user.name,
+          username: user.username,
+          email: user.email,
+          role: user.role,
+          student_id: user.studentId,
+          teacher_id: null,
+          password_hash: user.passwordHash,
+          is_active: user.isActive,
+        }),
+      };
+    }, () => {
+      const student = createMemoryStudent(input.student);
+      const user = createMemoryUser({
+        name: student.name,
+        username: input.user.username.trim().toLowerCase(),
+        email: input.user.email.trim().toLowerCase(),
+        role: 'student',
+        studentId: student.id,
+        passwordHash: input.user.passwordHash,
+        isActive: input.user.isActive ?? true,
+      });
+
+      return { student, user };
+    });
+  },
+
   async enrollStudent(input: { studentId: string; classId: string }) {
     return withFallback(async () => {
       const classItem = (await this.getClasses()).find((item) => item.id === input.classId);
-      if (!classItem?.subjectId) return null;
+      if (!classItem) return null;
       const enrollment = buildEnrollment({
         studentId: input.studentId,
         classId: input.classId,
-        subjectId: classItem.subjectId,
         academicYear: classItem.academicYear ?? new Date().getFullYear(),
       });
       const { error } = await supabase!.from('student_enrollments').upsert({
         id: enrollment.id,
         student_id: enrollment.studentId,
         class_id: enrollment.classId,
-        subject_id: enrollment.subjectId,
         academic_year: enrollment.academicYear,
         status: enrollment.status,
         enrolled_at: enrollment.enrolledAt,
@@ -581,17 +840,16 @@ export const repo = {
       return enrollment;
     }, () => {
       const classItem = store.classes.find((item) => item.id === input.classId);
-      if (!classItem?.subjectId) return null;
+      if (!classItem) return null;
       return createMemoryStudentEnrollment({
         studentId: input.studentId,
         classId: input.classId,
-        subjectId: classItem.subjectId,
         academicYear: classItem.academicYear ?? new Date().getFullYear(),
       });
     });
   },
 
-  async createTeacher(input: Omit<AdminTeacher, 'id'>) {
+  async createTeacher(input: { name: string; subject?: string; grade?: string; email: string; phone: string; assignments?: TeacherAssignment[] }) {
     return withFallback(async () => {
       const teacher = buildTeacher(input);
       const { error } = await supabase!.from('teachers').upsert({
@@ -617,26 +875,6 @@ export const repo = {
           if (retryError) throw retryError;
         } else {
           throw error;
-        }
-      }
-      const classAssignments = teacher.assignments
-        .filter((assignment) => assignment.classId)
-        .map((assignment) => ({
-          id: `${teacher.id}-${assignment.classId}`,
-          teacher_id: teacher.id,
-          class_id: assignment.classId,
-          subject_id: slugify(assignment.subject),
-          role: 'primary',
-          is_active: true,
-        }));
-      if (classAssignments.length > 0) {
-        try {
-          const { error: assignmentError } = await supabase!
-            .from('teacher_class_assignments')
-            .upsert(classAssignments, { onConflict: 'teacher_id,class_id' });
-          if (assignmentError) throw assignmentError;
-        } catch (assignmentError) {
-          if (!isMissingTable(assignmentError)) throw assignmentError;
         }
       }
       return teacher;
@@ -783,11 +1021,11 @@ export const repo = {
     return withFallback(async () => {
       const result = upsertMemoryMark(studentId, mark);
       if (!result) return null;
-      const examId = `${mark.classId ?? 'class'}-${mark.subjectId}-${slugify(mark.examType)}-${slugify(mark.examName)}`;
+      const classId = mark.classId ?? mark.subjectId;
+      const examId = `${classId ?? 'class'}-${slugify(mark.examType)}-${slugify(mark.examName)}`;
       const { error: examError } = await supabase!.from('exams').upsert({
         id: examId,
-        class_id: mark.classId ?? result.student.classId,
-        subject_id: mark.subjectId,
+        class_id: classId ?? result.student.classId,
         exam_type: mark.examType,
         title: mark.examName,
         exam_date: mark.examDate,
@@ -810,14 +1048,12 @@ export const repo = {
     return withFallback(async () => {
       const result = deleteMemoryMark(params);
       if (!result) return null;
-      const examIdPattern = `%-${params.subjectId}-${slugify(params.examType)}-${slugify(params.examName)}`;
       const { data: exams, error: examLookupError } = await supabase!
         .from('exams')
         .select('id')
-        .eq('subject_id', params.subjectId)
+        .eq('class_id', params.subjectId)
         .eq('exam_type', params.examType)
         .eq('title', params.examName)
-        .like('id', examIdPattern);
       if (examLookupError) throw examLookupError;
       const examIds = (exams ?? []).map((exam) => exam.id);
       if (examIds.length === 0) return result;
@@ -835,24 +1071,19 @@ export const repo = {
     return withFallback(async () => {
       const { data: classRow, error } = await supabase!
         .from('classes')
-        .select('subject_id,subject_name')
+        .select('id,teacher_id,subject_name,label')
         .eq('id', classId)
         .maybeSingle();
       if (error) throw error;
-      if (!classRow?.subject_id) return [];
+      if (!classRow) return [];
 
-      const { data: subjectRow, error: subjectError } = await supabase!
-        .from('subjects')
-        .select('id,subject_name,teacher_id')
-        .eq('id', classRow.subject_id)
-        .maybeSingle();
-      if (subjectError && !isMissingTable(subjectError)) throw subjectError;
+      const teacher = classRow.teacher_id ? await this.getTeacherById(classRow.teacher_id) : undefined;
 
       return [
         {
-          id: classRow.subject_id,
-          name: subjectRow?.subject_name ?? classRow.subject_name ?? classRow.subject_id,
-          teacher: subjectRow?.teacher_id ? `Teacher ${subjectRow.teacher_id}` : 'Unassigned',
+          id: classRow.id,
+          name: classRow.subject_name ?? classRow.label ?? classRow.id,
+          teacher: teacher?.name ?? 'Unassigned',
         },
       ];
     }, () => getMemorySubjectsForClass(classId));
@@ -928,17 +1159,39 @@ const mapTeacher = (data: any): AdminTeacher => ({
 
 const mapClass = (data: any): import('../types.js').AdminClassOption => ({
   id: data.id,
+  teacherId: data.teacher_id ?? null,
   grade: data.grade,
   name: data.name,
   label: data.label,
   medium: data.medium,
-  subjectId: data.subject_id ?? undefined,
   subjectName: data.subject_name ?? undefined,
   academicYear: data.academic_year ?? undefined,
   schedule: data.schedule ?? undefined,
   fee: data.fee ?? undefined,
   isActive: data.is_active ?? true,
 });
+
+const mapClassAsSubject = (classItem: import('../types.js').AdminClassOption, teacherName?: string): SubjectRecord => {
+  const memorySubject = getMemorySubjectById(classItem.id);
+  const fallbackSubject = memorySubject ?? buildSubjectDefaults({
+    id: classItem.id,
+    subject_name: classItem.subjectName ?? classItem.label,
+  });
+
+  return {
+    ...fallbackSubject,
+    id: classItem.id,
+    name: classItem.subjectName ?? classItem.label ?? classItem.id,
+    teacher: teacherName ?? memorySubject?.teacher ?? 'Unassigned',
+    classLabel: classItem.label,
+    teacherId: classItem.teacherId ?? null,
+    gradeId: null,
+    subjectName: classItem.subjectName ?? null,
+    year: classItem.academicYear ?? null,
+    isActive: classItem.isActive ?? true,
+    createdAt: null,
+  };
+};
 
 const normalizeAssignments = (value: unknown, subject: string, grade: string): TeacherAssignment[] => {
   if (Array.isArray(value) && value.length > 0) {
@@ -952,21 +1205,21 @@ const normalizeAssignments = (value: unknown, subject: string, grade: string): T
       .filter((item) => item.subject && item.grade);
   }
 
-  return [{ subject, grade, classId: '', medium: '' }];
+  return [];
 };
 
-const buildClass = (input: { grade: string; name: string; label: string; medium: string; subjectId?: string; subjectName?: string; academicYear?: number; schedule?: string; fee?: number }) => {
+const buildClass = (input: { grade: string; name: string; label: string; medium: string; teacherId?: string | null; subjectName?: string; academicYear?: number; schedule?: string; fee?: number }) => {
   const normalizedGrade = input.grade.trim();
   const normalizedName = input.name.trim();
   const normalizedMedium = input.medium.trim();
 
   return {
-    id: `${normalizedGrade.toLowerCase().replace(/[^a-z0-9]+/g, '-')}-${normalizedName.toLowerCase().replace(/[^a-z0-9]+/g, '-')}-${normalizedMedium.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`.replace(/^-|-$/g, ''),
+    id: createId('cls'),
+    teacherId: input.teacherId ?? null,
     grade: normalizedGrade,
     name: normalizedName,
     medium: normalizedMedium,
     label: input.label || `${normalizedGrade} - ${normalizedName} - ${normalizedMedium} Medium`,
-    subjectId: input.subjectId,
     subjectName: input.subjectName,
     academicYear: input.academicYear,
     schedule: input.schedule,
@@ -991,12 +1244,14 @@ const buildStudent = (input: Omit<AdminStudent, 'id' | 'marks' | 'grade'> & { gr
   };
 };
 
-const buildTeacher = (input: Omit<AdminTeacher, 'id'>): AdminTeacher => ({
+const buildTeacher = (input: { name: string; subject?: string; grade?: string; email: string; phone: string; assignments?: TeacherAssignment[] }): AdminTeacher => ({
   id: createId('t'),
-  ...input,
-  assignments: input.assignments.length > 0 ? input.assignments : [
-    { subject: input.subject, grade: input.grade, classId: '', medium: '' },
-  ],
+  name: input.name,
+  subject: input.subject ?? '',
+  grade: input.grade ?? '',
+  email: input.email,
+  phone: input.phone,
+  assignments: input.assignments ?? [],
 });
 
 const buildUser = (input: Omit<AuthUser, 'id' | 'isActive'> & { passwordHash: string; isActive?: boolean }) => ({
@@ -1005,11 +1260,10 @@ const buildUser = (input: Omit<AuthUser, 'id' | 'isActive'> & { passwordHash: st
   isActive: input.isActive ?? true,
 });
 
-const buildEnrollment = (input: { studentId: string; classId: string; subjectId: string; academicYear: number }) => ({
+const buildEnrollment = (input: { studentId: string; classId: string; academicYear: number }) => ({
   id: `enr-${input.studentId}-${input.classId}`,
   studentId: input.studentId,
   classId: input.classId,
-  subjectId: input.subjectId,
   academicYear: input.academicYear,
   status: 'active' as const,
   enrolledAt: new Date().toISOString(),
@@ -1142,37 +1396,37 @@ const buildEmptyPerformanceSummary = () => ({
 });
 
 const buildPerformanceSummary = (
-  exams: Array<{ id: string; subject_id: string }>,
+  exams: Array<{ id: string; class_id: string }>,
   results: Array<{ exam_id: string; student_id: string; marks_obtained: number | null; is_absent: boolean | null }>,
 ) => {
-  const examSubjectById = new Map(exams.map((exam) => [exam.id, exam.subject_id]));
-  const subjectTotals = new Map<string, { total: number; count: number }>();
+  const examClassById = new Map(exams.map((exam) => [exam.id, exam.class_id]));
+  const classTotals = new Map<string, { total: number; count: number }>();
   let overallTotal = 0;
   let overallCount = 0;
 
   results.forEach((result) => {
     if (result.is_absent || result.marks_obtained === null) return;
-    const subjectId = examSubjectById.get(result.exam_id);
-    if (!subjectId) return;
-    const stats = subjectTotals.get(subjectId) ?? { total: 0, count: 0 };
+    const classId = examClassById.get(result.exam_id);
+    if (!classId) return;
+    const stats = classTotals.get(classId) ?? { total: 0, count: 0 };
     const markValue = Number(result.marks_obtained);
     stats.total += markValue;
     stats.count += 1;
-    subjectTotals.set(subjectId, stats);
+    classTotals.set(classId, stats);
     overallTotal += markValue;
     overallCount += 1;
   });
 
-  const subjectAverages = Array.from(subjectTotals.entries()).map(([subjectId, stats]) => ({
-    subjectId,
+  const classAverages = Array.from(classTotals.entries()).map(([classId, stats]) => ({
+    classId,
     average: stats.count ? Math.round(stats.total / stats.count) : 0,
   }));
-  const bestSubject = subjectAverages.sort((a, b) => b.average - a.average)[0];
+  const bestClass = classAverages.sort((a, b) => b.average - a.average)[0];
 
   return {
     averageMark: overallCount ? Math.round(overallTotal / overallCount) : 0,
-    bestSubject: bestSubject ? (getMemorySubjectById(bestSubject.subjectId)?.name ?? bestSubject.subjectId) : 'N/A',
-    subjectsCount: subjectAverages.length,
+    bestSubject: bestClass ? (store.classes.find((item) => item.id === bestClass.classId)?.label ?? bestClass.classId) : 'N/A',
+    subjectsCount: classAverages.length,
     examsCount: overallCount,
   };
 };
@@ -1239,7 +1493,7 @@ const buildLeaderboardEntries = (
       name: entry.name,
       marks: entry.marks,
       avatar: entry.avatar,
-      badge: index === 0 ? 'gold' : index === 1 ? 'silver' : index === 2 ? 'bronze' : null,
+      badge: index === 0 ? ('gold' as const) : index === 1 ? ('silver' as const) : index === 2 ? ('bronze' as const) : null,
       isYou: viewerStudentId ? entry.studentId === viewerStudentId : false,
     }));
 
@@ -1266,7 +1520,7 @@ const buildLeaderboardFromMemory = (subjectId: string, classId: string, viewerSt
       name: entry.name,
       marks: entry.marks,
       avatar: entry.name.charAt(0).toUpperCase(),
-      badge: index === 0 ? 'gold' : index === 1 ? 'silver' : index === 2 ? 'bronze' : null,
+      badge: index === 0 ? ('gold' as const) : index === 1 ? ('silver' as const) : index === 2 ? ('bronze' as const) : null,
       isYou: viewerStudentId ? entry.studentId === viewerStudentId : false,
     }));
 
@@ -1301,5 +1555,5 @@ const buildSubjectDefaults = (data: { id?: string; subject_name?: string | null 
 const subjectColorFromId = (id: string) => {
   const palette = ['#D9232D', '#F47920', '#1B3A8C', '#2C55C7', '#A761DD', '#16A34A'];
   const hash = Array.from(id).reduce((sum, char) => sum + char.charCodeAt(0), 0);
-  return palette[hash % palette.length];
+  return palette[hash % palette.length] ?? palette[0] ?? '#D9232D';
 };

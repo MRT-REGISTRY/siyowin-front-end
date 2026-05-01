@@ -129,11 +129,10 @@ export const filterStudents = (params: { grade?: string; classId?: string; query
 
 export const createStudent = (input: Omit<AdminStudent, 'id' | 'marks' | 'grade'> & { grade?: string; marks?: AdminStudentMark[] }) => {
   const classItem = store.classes.find((item) => item.id === input.classId);
-  const enrollment = classItem?.subjectId
+  const enrollment = classItem
     ? createStudentEnrollment({
         studentId: '',
         classId: input.classId,
-        subjectId: classItem.subjectId,
         academicYear: classItem.academicYear ?? new Date().getFullYear(),
       }, false)
     : null;
@@ -160,14 +159,13 @@ export const createStudent = (input: Omit<AdminStudent, 'id' | 'marks' | 'grade'
 };
 
 export const createStudentEnrollment = (
-  input: { studentId: string; classId: string; subjectId: string; academicYear: number },
+  input: { studentId: string; classId: string; academicYear: number },
   attachToStudent = true,
-) => {
-  const enrollment: StudentEnrollment = {
+) : StudentEnrollment & { status: 'active' } => {
+  const enrollment: StudentEnrollment & { status: 'active' } = {
     id: createId('enr'),
     studentId: input.studentId,
     classId: input.classId,
-    subjectId: input.subjectId,
     academicYear: input.academicYear,
     status: 'active',
     enrolledAt: new Date().toISOString(),
@@ -193,13 +191,15 @@ export const getStudentEnrollments = (studentId: string) =>
     ...(store.students.find((item) => item.id === studentId)?.enrollments ?? []),
   ].filter((item, index, all) => all.findIndex((candidate) => candidate.id === item.id) === index);
 
-export const createTeacher = (input: Omit<AdminTeacher, 'id'>) => {
+export const createTeacher = (input: { name: string; subject?: string; grade?: string; email: string; phone: string; assignments?: AdminTeacher['assignments'] }) => {
   const teacher: AdminTeacher = {
     id: createId('t'),
-    ...input,
-    assignments: input.assignments.length > 0 ? input.assignments : [
-      { subject: input.subject, grade: input.grade, classId: '', medium: '' },
-    ],
+    name: input.name,
+    subject: input.subject ?? '',
+    grade: input.grade ?? '',
+    email: input.email,
+    phone: input.phone,
+    assignments: input.assignments ?? [],
   };
 
   store.teachers.unshift(teacher);
@@ -211,12 +211,12 @@ export const createClass = (input: Omit<typeof store.classes[number], 'id'>) => 
   const normalizedName = input.name.trim();
   const normalizedMedium = input.medium.trim();
   const classItem = {
-    id: `${normalizedGrade.toLowerCase().replace(/[^a-z0-9]+/g, '-')}-${normalizedName.toLowerCase().replace(/[^a-z0-9]+/g, '-')}-${normalizedMedium.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`.replace(/^-|-$/g, ''),
+    id: createId('cls'),
+    teacherId: input.teacherId ?? null,
     grade: normalizedGrade,
     name: normalizedName,
     medium: normalizedMedium,
     label: input.label || `${normalizedGrade} - ${normalizedName} - ${normalizedMedium} Medium`,
-    subjectId: input.subjectId,
     subjectName: input.subjectName,
     academicYear: input.academicYear,
     schedule: input.schedule,
@@ -225,28 +225,12 @@ export const createClass = (input: Omit<typeof store.classes[number], 'id'>) => 
   };
 
   store.classes.unshift(classItem);
-  if (classItem.subjectId && classItem.subjectName && !store.adminSubjects.some((subject) => subject.id === classItem.subjectId)) {
+  if (classItem.subjectName && !store.adminSubjects.some((subject) => subject.name === classItem.subjectName)) {
     store.adminSubjects.unshift({
-      id: classItem.subjectId,
+      id: classItem.id,
       name: classItem.subjectName,
       teacher: 'Unassigned',
     });
-
-    const template = store.subjects[0];
-    if (template) {
-      store.subjects.unshift({
-        ...template,
-        id: classItem.subjectId,
-        name: classItem.subjectName,
-        teacher: 'Unassigned',
-        classLabel: classItem.label,
-        subjectName: classItem.subjectName,
-        gradeId: classItem.grade,
-        currentMark: 0,
-        history: [],
-        recentHomeworks: [],
-      });
-    }
   }
   return classItem;
 };

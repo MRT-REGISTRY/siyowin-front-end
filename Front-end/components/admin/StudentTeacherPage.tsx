@@ -4,8 +4,8 @@ import type { ReactNode } from 'react';
 import { useEffect, useState } from 'react';
 import { KeyRound, Plus, ShieldCheck, Trash2, UserPlus, Users } from 'lucide-react';
 
-import { apiDelete, apiGet, apiPost, getStoredUser } from '@/utils/api';
-import { AdminClassOption, AdminRole, AdminStudent, AdminTeacher, RegisteredUser, TeacherAssignment } from '@/types';
+import { apiDelete, apiGet, apiPatch, apiPost, getStoredUser } from '@/utils/api';
+import { AdminClassOption, AdminRole, AdminStudent, AdminStudentClassOption, AdminTeacher, RegisteredUser, TeacherAssignment } from '@/types';
 
 type NoticeState = {
   message: string;
@@ -31,6 +31,8 @@ export default function StudentTeacherPage({ onNotice }: Props) {
   const [students, setStudents] = useState<AdminStudent[]>([]);
   const [users, setUsers] = useState<RegisteredUser[]>([]);
   const [classes, setClasses] = useState<AdminClassOption[]>([]);
+  const [studentClassOptions, setStudentClassOptions] = useState<AdminStudentClassOption[]>([]);
+  const [newClassTeacherId, setNewClassTeacherId] = useState('');
   const [newClassLevel, setNewClassLevel] = useState('');
   const [newClassName, setNewClassName] = useState('');
   const [newClassMedium, setNewClassMedium] = useState('Sinhala');
@@ -58,9 +60,12 @@ export default function StudentTeacherPage({ onNotice }: Props) {
   const [parentPhone, setParentPhone] = useState('');
   const [enrollmentStudentId, setEnrollmentStudentId] = useState('');
   const [enrollmentClassId, setEnrollmentClassId] = useState('');
+  const [linkClassId, setLinkClassId] = useState('');
+  const [linkTeacherId, setLinkTeacherId] = useState('');
   const [isAddingStudent, setIsAddingStudent] = useState(false);
   const [isAddingTeacher, setIsAddingTeacher] = useState(false);
   const [isEnrollingStudent, setIsEnrollingStudent] = useState(false);
+  const [isLinkingClassTeacher, setIsLinkingClassTeacher] = useState(false);
 
   const loadUsers = () => {
     apiGet<{ users: RegisteredUser[] }>('/admin/users')
@@ -84,15 +89,16 @@ export default function StudentTeacherPage({ onNotice }: Props) {
   };
 
   const loadMeta = () => {
-    apiGet<{ classes: AdminClassOption[] }>('/admin/meta')
+    apiGet<{ classes: AdminClassOption[]; studentClassOptions: AdminStudentClassOption[] }>('/admin/meta')
       .then((data) => {
         setClasses(data.classes);
-        const firstClass = data.classes[0];
-        setStudentClassId((current) => current || firstClass?.id || '');
-        setEnrollmentClassId((current) => current || firstClass?.id || '');
+        setStudentClassOptions(data.studentClassOptions);
+        const firstStudentClass = data.studentClassOptions[0] ?? data.classes[0];
+        setStudentClassId((current) => current || firstStudentClass?.id || '');
+        setEnrollmentClassId((current) => current || firstStudentClass?.id || '');
         setTeacherAssignments((current) => current.some((assignment) => assignment.classId)
           ? current
-          : [{ ...emptyAssignment, classId: firstClass?.id ?? '', grade: firstClass?.grade ?? '', medium: firstClass?.medium ?? '' }]);
+          : [{ ...emptyAssignment, classId: firstStudentClass?.id ?? '', grade: firstStudentClass?.grade ?? '', medium: firstStudentClass?.medium ?? '' }]);
       })
       .catch(() => undefined);
   };
@@ -114,6 +120,15 @@ export default function StudentTeacherPage({ onNotice }: Props) {
       setStudentUsername(studentIndex.trim().toLowerCase());
     }
   }, [studentIndex, studentUsername]);
+
+  useEffect(() => {
+    setNewClassTeacherId((current) => current || teachers[0]?.id || '');
+    setLinkTeacherId((current) => current || teachers[0]?.id || '');
+  }, [teachers]);
+
+  useEffect(() => {
+    setLinkClassId((current) => current || classes[0]?.id || '');
+  }, [classes]);
 
   const updateAssignment = (index: number, patch: Partial<TeacherAssignment>) => {
     setTeacherAssignments((previous) => previous.map((assignment, assignmentIndex) => {
@@ -137,6 +152,7 @@ export default function StudentTeacherPage({ onNotice }: Props) {
       name: newClassName.trim(),
       medium: newClassMedium.trim(),
       subjectName: newClassSubject.trim(),
+      teacherId: newClassTeacherId.trim() || undefined,
       academicYear: Number(newClassYear) || new Date().getFullYear(),
       schedule: newClassSchedule.trim(),
       fee: newClassFee ? Number(newClassFee) : undefined,
@@ -153,6 +169,27 @@ export default function StudentTeacherPage({ onNotice }: Props) {
       })
       .catch((error) => onNotice?.({ message: error instanceof Error ? error.message : 'Class was not added.', variant: 'danger' }))
       .finally(() => setIsAddingClass(false));
+  };
+
+  const linkTeacherToClass = () => {
+    if (isLinkingClassTeacher) return;
+    if (!linkClassId || !linkTeacherId) {
+      onNotice?.({ message: 'Select a class and teacher to link them.', variant: 'danger' });
+      return;
+    }
+
+    setIsLinkingClassTeacher(true);
+    apiPatch<{ class: AdminClassOption }>(`/admin/classes/${encodeURIComponent(linkClassId)}/teacher`, {
+      teacherId: linkTeacherId,
+    })
+      .then((data) => {
+        setClasses((previous) => previous.map((classItem) => (classItem.id === data.class.id ? data.class : classItem)));
+        onNotice?.({ message: `Linked ${teachers.find((teacher) => teacher.id === linkTeacherId)?.name ?? 'teacher'} to ${classes.find((classItem) => classItem.id === linkClassId)?.label ?? 'class'}.`, variant: 'success' });
+        loadMeta();
+        loadTeachers();
+      })
+      .catch((error) => onNotice?.({ message: error instanceof Error ? error.message : 'Teacher was not linked to class.', variant: 'danger' }))
+      .finally(() => setIsLinkingClassTeacher(false));
   };
 
   const enrollExistingStudent = () => {
@@ -185,16 +222,12 @@ export default function StudentTeacherPage({ onNotice }: Props) {
     }
 
     const assignments = teacherAssignments.filter((assignment) => assignment.subject && assignment.grade && assignment.classId);
-    if (assignments.length === 0) {
-      onNotice?.({ message: 'Add at least one teacher subject and class assignment.', variant: 'danger' });
-      return;
-    }
 
     setIsAddingTeacher(true);
     apiPost<{ teacher: AdminTeacher }>('/admin/teachers', {
       name: teacherName.trim(),
-      subject: assignments[0].subject,
-      grade: assignments[0].grade,
+      subject: assignments[0]?.subject ?? '',
+      grade: assignments[0]?.grade ?? '',
       username: teacherUsername.trim(),
       password: teacherPassword.trim(),
       email: teacherEmail.trim(),
@@ -209,7 +242,7 @@ export default function StudentTeacherPage({ onNotice }: Props) {
         setTeacherUsername('');
         setTeacherPassword(makePassword());
         setTeacherPhone('');
-        setTeacherAssignments([teacherAssignments[0] ?? emptyAssignment]);
+        setTeacherAssignments([emptyAssignment]);
         loadUsers();
         loadTeachers();
       })
@@ -341,6 +374,14 @@ export default function StudentTeacherPage({ onNotice }: Props) {
                 <input value={newClassSubject} onChange={(event) => setNewClassSubject(event.target.value)} placeholder="Subject, e.g. Physics" className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 placeholder:text-slate-400" />
                 <input value={newClassName} onChange={(event) => setNewClassName(event.target.value)} placeholder="Batch or class name" className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 placeholder:text-slate-400" />
                 <input value={newClassMedium} onChange={(event) => setNewClassMedium(event.target.value)} placeholder="Medium" className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 placeholder:text-slate-400" />
+                <select value={newClassTeacherId} onChange={(event) => setNewClassTeacherId(event.target.value)} className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900">
+                  <option value="">Teacher optional</option>
+                  {teachers.map((teacher) => (
+                    <option key={teacher.id} value={teacher.id}>
+                      {teacher.name}
+                    </option>
+                  ))}
+                </select>
                 <input value={newClassYear} onChange={(event) => setNewClassYear(event.target.value)} placeholder="Year" className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 placeholder:text-slate-400" />
                 <input value={newClassSchedule} onChange={(event) => setNewClassSchedule(event.target.value)} placeholder="Schedule optional" className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 placeholder:text-slate-400" />
                 <input value={newClassFee} onChange={(event) => setNewClassFee(event.target.value)} placeholder="Fee optional" className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 placeholder:text-slate-400" />
@@ -349,6 +390,36 @@ export default function StudentTeacherPage({ onNotice }: Props) {
                   {isAddingClass ? 'Adding...' : 'Add class'}
                 </button>
               </div>
+              <p className="mt-3 text-xs text-slate-500">If there is no teacher yet, leave this empty and link it later.</p>
+            </section>
+          </div>
+
+          <div className="px-6 pt-6 sm:px-8">
+            <section className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
+              <Header eyebrow="Linking" title="Attach a teacher to an existing class" label="Optional" />
+              <div className="mt-5 grid gap-3 md:grid-cols-[1fr_1fr_auto]">
+                <select value={linkTeacherId} onChange={(event) => setLinkTeacherId(event.target.value)} className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900">
+                  <option value="">Select teacher</option>
+                  {teachers.map((teacher) => (
+                    <option key={teacher.id} value={teacher.id}>
+                      {teacher.name}
+                    </option>
+                  ))}
+                </select>
+                <select value={linkClassId} onChange={(event) => setLinkClassId(event.target.value)} className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900">
+                  <option value="">Select class</option>
+                  {classes.map((classItem) => (
+                    <option key={classItem.id} value={classItem.id}>
+                      {classItem.label}
+                    </option>
+                  ))}
+                </select>
+                <button type="button" onClick={linkTeacherToClass} disabled={isLinkingClassTeacher} className="inline-flex items-center justify-center gap-2 rounded-2xl bg-emerald-600 px-4 py-3 text-sm font-semibold text-white transition hover:bg-emerald-500 disabled:opacity-60">
+                  <ShieldCheck className="h-4 w-4" />
+                  {isLinkingClassTeacher ? 'Linking...' : 'Link teacher'}
+                </button>
+              </div>
+              <p className="mt-3 text-xs text-slate-500">Use this after creating a teacher or a class first. It updates the class record and the teacher assignment together.</p>
             </section>
           </div>
 
@@ -382,7 +453,11 @@ export default function StudentTeacherPage({ onNotice }: Props) {
                 <input value={studentEmail} onChange={(event) => setStudentEmail(event.target.value)} placeholder="Email optional" className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 placeholder:text-slate-400 sm:col-span-2" />
                 <input type="date" value={studentDateOfBirth} onChange={(event) => setStudentDateOfBirth(event.target.value)} className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 placeholder:text-slate-400" />
                 <select value={studentClassId} onChange={(event) => setStudentClassId(event.target.value)} className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 placeholder:text-slate-400">
-                  {classes.map((classItem) => <option key={classItem.id} value={classItem.id}>{classItem.label}</option>)}
+                  {studentClassOptions.map((classItem) => (
+                    <option key={classItem.id} value={classItem.id}>
+                      {classItem.subjectName} - {classItem.grade} - {classItem.teacherName} - {classItem.medium}
+                    </option>
+                  ))}
                 </select>
                 <input value={parentName} onChange={(event) => setParentName(event.target.value)} placeholder="Parent's name" className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 placeholder:text-slate-400" />
                 <input value={parentPhone} onChange={(event) => setParentPhone(event.target.value)} placeholder="Parent's phone number" className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 placeholder:text-slate-400" />
@@ -395,7 +470,7 @@ export default function StudentTeacherPage({ onNotice }: Props) {
             </section>
 
             <section className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
-              <Header eyebrow="Teacher onboarding" title="Add teacher assignments" label="Admin" />
+              <Header eyebrow="Teacher onboarding" title="Add teacher account" label="Optional classes" />
 
               <div className="mt-5 grid gap-3 sm:grid-cols-2">
                 <input value={teacherName} onChange={(event) => setTeacherName(event.target.value)} placeholder="Teacher name" className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 placeholder:text-slate-400" />
@@ -422,13 +497,14 @@ export default function StudentTeacherPage({ onNotice }: Props) {
               <div className="mt-4 flex flex-wrap gap-3">
                 <button type="button" onClick={() => setTeacherAssignments((previous) => [...previous, { ...emptyAssignment, classId: classes[0]?.id ?? '', grade: classes[0]?.grade ?? '', medium: classes[0]?.medium ?? '' }])} className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 px-4 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-50">
                   <Plus className="h-4 w-4" />
-                  Add subject/class
+                  Add optional assignment
                 </button>
                 <button type="button" onClick={addTeacher} disabled={isAddingTeacher} className="inline-flex items-center gap-2 rounded-2xl bg-slate-900 px-4 py-3 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:opacity-60">
                   <UserPlus className="h-4 w-4" />
                   {isAddingTeacher ? 'Adding teacher...' : 'Add teacher account'}
                 </button>
               </div>
+              <p className="mt-3 text-xs text-slate-500">You can create the teacher first and attach classes later using the linking section above.</p>
             </section>
           </div>
 

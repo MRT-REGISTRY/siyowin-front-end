@@ -110,12 +110,22 @@ export type AdminClassOption = {
   name: string;
   label: string;
   medium: string;
+  teacherId?: string | null;
   subjectId?: string;
   subjectName?: string;
   academicYear?: number;
   schedule?: string;
   fee?: number;
   isActive?: boolean;
+};
+
+export type AdminStudentClassOption = {
+  id: string;
+  grade: string;
+  subjectName: string;
+  teacherName: string;
+  medium: string;
+  subjectId?: string;
 };
 
 export type AdminSubjectOption = {
@@ -174,7 +184,7 @@ export type StudentEnrollment = {
   id: string;
   studentId: string;
   classId: string;
-  subjectId: string;
+  subjectId?: string;
   academicYear: number;
   status: 'active' | 'completed' | 'cancelled';
   enrolledAt: string;
