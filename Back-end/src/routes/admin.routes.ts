@@ -78,10 +78,12 @@ router.get('/meta', asyncHandler(async (req, res) => {
   const classId = typeof req.query.classId === 'string' ? req.query.classId : '';
   const classes = await repo.getClasses();
   const subjects = await repo.getSubjects();
+  const studentClassOptions = await repo.getStudentEnrollmentOptions();
 
   res.json({
     grades: store.grades,
     classes: grade ? classes.filter((classItem) => classItem.grade === grade) : classes,
+    studentClassOptions: grade ? studentClassOptions.filter((option) => option.grade === grade) : studentClassOptions,
     subjects: classId
       ? await repo.getSubjectsForClass(classId)
       : subjects.map((subject) => ({ id: subject.id, name: subject.name, teacher: subject.teacher })),
@@ -158,12 +160,23 @@ router.delete('/classes/:classId', asyncHandler(async (req, res) => {
 
 router.post('/enrollments', validateBody(enrollmentSchema), asyncHandler(async (req, res) => {
   const enrollment = await repo.enrollStudent(req.body);
+  console.log('Enrollment result:', enrollment);
   if (!enrollment) {
     res.status(404).json({ message: 'Class or subject not found for enrollment.' });
     return;
   }
   res.status(201).json({ enrollment });
 }));
+
+// router.get('enrollments/classes', asyncHandler(async (req, res) => {
+//   const classDetails = await repo.getClassDetailsForEnrollment();
+
+//   if (!classDetails) {
+//     res.status(404).json({ message: 'No classes found.' });
+//     return;
+//   };
+//   res.json({ classes: classDetails });
+// }));
 
 router.delete('/enrollments', asyncHandler(async (req, res) => {
   const studentId = String(req.query.studentId ?? '');
@@ -181,33 +194,90 @@ router.delete('/enrollments', asyncHandler(async (req, res) => {
   }
   res.json({ deleted: true });
 }));
-
+// student registering //
 router.post('/students', validateBody(studentSchema), asyncHandler(async (req, res) => {
   const existing = (await repo.getStudents({})).find((student) => student.index === req.body.index);
-  const existingUser = await repo.findUserByEmail(req.body.username);
+  const normalizedUsername = req.body.username.trim().toLowerCase();
+  const normalizedEmail = req.body.email?.trim().toLowerCase() || `${normalizedUsername}@siyowin.local`;
+  const existingUserByUsername = await repo.findUserByEmail(normalizedUsername);
+  const existingUserByEmail = await repo.findUserByEmail(normalizedEmail);
 
-  if (existing && existingUser) {
+  if (existing && existingUserByUsername) {
     res.status(409).json({ message: 'A student with this index already exists.' });
     return;
   }
 
-  if (existingUser) {
+  if (existingUserByUsername) {
     res.status(409).json({ message: 'A user with this username already exists.' });
     return;
   }
 
-  const { username, password, email, ...studentInput } = req.body as z.infer<typeof studentSchema>;
-  const student = existing ?? await repo.createStudent(studentInput);
-  const user = await repo.createUser({
-    name: student.name,
-    username: username.trim().toLowerCase(),
-    email: email?.trim().toLowerCase() || `${username.trim().toLowerCase()}@siyowin.local`,
-    role: 'student',
-    studentId: student.id,
-    passwordHash: bcrypt.hashSync(password, 10),
-  });
+  if (existingUserByEmail) {
+    res.status(409).json({ message: 'A user with this email already exists.' });
+    return;
+  }
 
-  res.status(existing ? 200 : 201).json({ student, user });
+  const { username, password, email, ...studentInput } = req.body as z.infer<typeof studentSchema>;
+  const normalizedDateOfBirth = studentInput.dateOfBirth?.trim() || undefined;
+  if (normalizedDateOfBirth && Number.isNaN(Date.parse(normalizedDateOfBirth))) {
+    res.status(400).json({ message: 'Invalid dateOfBirth. Use a valid date format (YYYY-MM-DD).' });
+    return;
+  }
+  const normalizedStudentInput = {
+    ...studentInput,
+    dateOfBirth: normalizedDateOfBirth,
+  };
+  const passwordHash = bcrypt.hashSync(password, 10);
+
+  try {
+    if (existing) {
+      const user = await repo.createUser({
+        name: existing.name,
+        username: normalizedUsername,
+        email: normalizedEmail,
+        role: 'student',
+        studentId: existing.id,
+        passwordHash,
+      });
+
+      res.status(200).json({ student: existing, user });
+      return;
+    }
+
+    const { student, user } = await repo.createStudentWithUser({
+      student: normalizedStudentInput,
+      user: {
+        username: normalizedUsername,
+        email: normalizedEmail,
+        passwordHash,
+      },
+    });
+
+    res.status(201).json({ student, user });
+  } catch (error) {
+    const code = error && typeof error === 'object' && 'code' in error ? String((error as { code?: string }).code) : '';
+    const message = error && typeof error === 'object' && 'message' in error ? String((error as { message?: string }).message) : '';
+
+    console.error('[admin/students] create failed', {
+      code,
+      message,
+      error,
+    });
+
+    if (code === '23505') {
+      res.status(409).json({ message: 'A user with this username or email already exists.' });
+      return;
+    }
+    if (code === '23503') {
+      res.status(400).json({ message: 'Invalid classId or related reference.' });
+      return;
+    }
+    if (code === '22P02') {
+      res.status(400).json({ message: 'Invalid input format.' });
+      return;
+    }
+    throw error;
+  }
 }));
 
 router.delete('/students/:studentId', asyncHandler(async (req, res) => {

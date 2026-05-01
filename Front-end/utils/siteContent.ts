@@ -245,20 +245,30 @@ const fallbackSiteContent: SiteContent = {
 };
 
 const getRows = async <T>(table: string, orderColumn = 'display_order') => {
-  const supabase = await createClient();
-  const { data, error } = await supabase.from(table).select('*').order(orderColumn, { ascending: true });
+  try {
+    const supabase = await createClient();
+    const { data, error } = await supabase.from(table).select('*').order(orderColumn, { ascending: true });
 
-  if (error) {
+    if (error) {
+      const fallback = getFallbackRows(table);
+
+      if (fallback) {
+        return fallback as T[];
+      }
+
+      throw new Error(`Unable to load ${table}: ${error.message}`);
+    }
+
+    return (data ?? []) as T[];
+  } catch {
     const fallback = getFallbackRows(table);
 
     if (fallback) {
       return fallback as T[];
     }
 
-    throw new Error(`Unable to load ${table}: ${error.message}`);
+    throw new Error(`Unable to load ${table}: Supabase client initialization failed.`);
   }
-
-  return (data ?? []) as T[];
 };
 
 const getFallbackRows = (table: string) => {

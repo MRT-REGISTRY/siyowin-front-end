@@ -118,6 +118,15 @@ export type AdminClassOption = {
   isActive?: boolean;
 };
 
+export type AdminStudentClassOption = {
+  id: string;
+  grade: string;
+  subjectName: string;
+  teacherName: string;
+  medium: string;
+  subjectId?: string;
+};
+
 export type AdminSubjectOption = {
   id: string;
   name: string;

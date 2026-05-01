@@ -89,6 +89,118 @@ CREATE TABLE student_enrollments (
     UNIQUE (student_id, class_id)
 );
 
+CREATE OR REPLACE FUNCTION create_student_with_user(
+    p_student_id TEXT,
+    p_student_name VARCHAR,
+    p_index_number VARCHAR,
+    p_date_of_birth DATE,
+    p_class_id TEXT,
+    p_parent_name VARCHAR,
+    p_parent_phone VARCHAR,
+    p_student_password_hash VARCHAR,
+    p_user_id TEXT,
+    p_username VARCHAR,
+    p_email VARCHAR,
+    p_user_password_hash VARCHAR,
+    p_is_active BOOLEAN DEFAULT TRUE
+)
+RETURNS TABLE(created_student_id TEXT, created_user_id TEXT)
+LANGUAGE plpgsql
+AS $$
+DECLARE
+    v_subject_id TEXT;
+    v_academic_year INTEGER;
+BEGIN
+    INSERT INTO students (
+        id,
+        index_number,
+        name,
+        password_hash,
+        class_id,
+        parent_name,
+        parent_phone,
+        date_of_birth,
+        is_active
+    )
+    VALUES (
+        p_student_id,
+        p_index_number,
+        p_student_name,
+        p_student_password_hash,
+        p_class_id,
+        p_parent_name,
+        p_parent_phone,
+        p_date_of_birth,
+        COALESCE(p_is_active, TRUE)
+    );
+
+    INSERT INTO users (
+        id,
+        name,
+        username,
+        email,
+        password_hash,
+        role,
+        student_id,
+        is_active
+    )
+    VALUES (
+        p_user_id,
+        p_student_name,
+        LOWER(TRIM(p_username)),
+        LOWER(TRIM(p_email)),
+        p_user_password_hash,
+        'student',
+        p_student_id,
+        COALESCE(p_is_active, TRUE)
+    );
+
+    SELECT subject_id, academic_year
+    INTO v_subject_id, v_academic_year
+    FROM classes
+    WHERE id = p_class_id;
+
+    IF v_subject_id IS NOT NULL THEN
+        IF EXISTS (
+            SELECT 1
+            FROM student_enrollments
+            WHERE student_id = p_student_id
+              AND class_id = p_class_id
+        ) THEN
+            UPDATE student_enrollments
+            SET
+                subject_id = v_subject_id,
+                academic_year = COALESCE(v_academic_year, EXTRACT(YEAR FROM CURRENT_DATE)::INTEGER),
+                status = 'active',
+                enrolled_at = NOW()
+            WHERE student_id = p_student_id
+              AND class_id = p_class_id;
+        ELSE
+            INSERT INTO student_enrollments (
+                id,
+                student_id,
+                class_id,
+                subject_id,
+                academic_year,
+                status,
+                enrolled_at
+            )
+            VALUES (
+                CONCAT('enr-', p_student_id, '-', p_class_id),
+                p_student_id,
+                p_class_id,
+                v_subject_id,
+                COALESCE(v_academic_year, EXTRACT(YEAR FROM CURRENT_DATE)::INTEGER),
+                'active',
+                NOW()
+            );
+        END IF;
+    END IF;
+
+    RETURN QUERY SELECT p_student_id AS created_student_id, p_user_id AS created_user_id;
+END;
+$$;
+
 CREATE TABLE teacher_class_assignments (
     id TEXT PRIMARY KEY,
     teacher_id TEXT REFERENCES teachers(id) ON DELETE CASCADE,

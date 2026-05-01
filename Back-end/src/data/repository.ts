@@ -61,7 +61,7 @@ export const repo = {
       return mapUser(data);
     }, () => findMemoryUserByEmail(email));
   },
-
+  
   async findUserById(id: string) {
     return withFallback(async () => {
       const { data, error } = await supabase!
@@ -384,6 +384,52 @@ export const repo = {
     }, () => store.classes);
   },
 
+  async getStudentEnrollmentOptions() {
+    return withFallback(async () => {
+      const [classes, subjects, teachers] = await Promise.all([
+        this.getClasses(),
+        this.getSubjects(),
+        this.getTeachers(),
+      ]);
+
+      const subjectById = new Map(subjects.map((subject) => [subject.id, subject]));
+      const teacherById = new Map(teachers.map((teacher) => [teacher.id, teacher]));
+
+      return classes
+        .map((classItem) => {
+          const linkedSubject = classItem.subjectId ? subjectById.get(classItem.subjectId) : undefined;
+          const teacherName = linkedSubject?.teacherId ? teacherById.get(linkedSubject.teacherId)?.name : undefined;
+          const subjectName = linkedSubject?.name ?? classItem.subjectName ?? classItem.label;
+
+          return {
+            id: classItem.id,
+            grade: classItem.grade,
+            medium: classItem.medium,
+            subjectId: classItem.subjectId ?? linkedSubject?.id ?? undefined,
+            subjectName,
+            teacherName: teacherName ?? 'Unassigned teacher',
+          };
+        })
+        .filter((option) => Boolean(option.subjectId));
+    }, () => {
+      const teacherByName = new Map(store.teachers.map((teacher) => [teacher.id, teacher.name]));
+      return store.classes
+        .map((classItem) => {
+          const subject = store.subjects.find((item) => item.id === classItem.subjectId);
+          const teacherName = subject?.teacherId ? teacherByName.get(subject.teacherId) : undefined;
+          return {
+            id: classItem.id,
+            grade: classItem.grade,
+            medium: classItem.medium,
+            subjectId: classItem.subjectId ?? subject?.id ?? undefined,
+            subjectName: subject?.name ?? classItem.subjectName ?? classItem.label,
+            teacherName: teacherName ?? 'Unassigned teacher',
+          };
+        })
+        .filter((option) => Boolean(option.subjectId));
+    });
+  },
+
   async getRegisteredUsers(): Promise<RegisteredUser[]> {
     return withFallback(async () => {
       const { data, error } = await supabase!
@@ -551,6 +597,99 @@ export const repo = {
     }, () => createMemoryStudent(input));
   },
 
+  async createStudentWithUser(input: {
+    student: Omit<AdminStudent, 'id' | 'marks' | 'grade'> & { grade?: string };
+    user: {
+      username: string;
+      email: string;
+      passwordHash: string;
+      isActive?: boolean;
+    };
+  }) {
+    return withFallback(async () => {
+      const student = buildStudent(input.student);
+      const normalizedDateOfBirth = typeof student.dateOfBirth === 'string' && student.dateOfBirth.trim()
+        ? student.dateOfBirth.trim()
+        : null;
+      const user = buildUser({
+        name: student.name,
+        username: input.user.username.trim().toLowerCase(),
+        email: input.user.email.trim().toLowerCase(),
+        role: 'student',
+        studentId: student.id,
+        passwordHash: input.user.passwordHash,
+        isActive: input.user.isActive ?? true,
+      });
+
+      const { error } = await supabase!.rpc('create_student_with_user', {
+        p_student_id: student.id,
+        p_student_name: student.name,
+        p_index_number: student.index,
+        p_date_of_birth: normalizedDateOfBirth,
+        p_class_id: student.classId,
+        p_parent_name: student.parentName ?? null,
+        p_parent_phone: student.parentPhone ?? null,
+        p_student_password_hash: demoPasswordHash,
+        p_user_id: user.id,
+        p_username: user.username,
+        p_email: user.email,
+        p_user_password_hash: user.passwordHash,
+        p_is_active: user.isActive ?? true,
+      });
+
+      if (error) {
+        const code = String((error as { code?: string }).code ?? '');
+        const message = String((error as { message?: string }).message ?? '').toLowerCase();
+
+        // Fall back to non-RPC flow if the function is not deployed yet.
+        if (code === 'PGRST202' || message.includes('create_student_with_user')) {
+          const fallbackStudent = await this.createStudent(input.student);
+          const fallbackUser = await this.createUser({
+            name: fallbackStudent.name,
+            username: input.user.username.trim().toLowerCase(),
+            email: input.user.email.trim().toLowerCase(),
+            role: 'student',
+            studentId: fallbackStudent.id,
+            passwordHash: input.user.passwordHash,
+            isActive: input.user.isActive ?? true,
+          });
+
+          return { student: fallbackStudent, user: fallbackUser };
+        }
+
+        throw error;
+      }
+
+      return {
+        student,
+        user: mapUser({
+          id: user.id,
+          name: user.name,
+          username: user.username,
+          email: user.email,
+          role: user.role,
+          student_id: user.studentId,
+          teacher_id: null,
+          password_hash: user.passwordHash,
+          is_active: user.isActive,
+        }),
+      };
+    }, () => {
+      const student = createMemoryStudent(input.student);
+      const user = createMemoryUser({
+        name: student.name,
+        username: input.user.username.trim().toLowerCase(),
+        email: input.user.email.trim().toLowerCase(),
+        role: 'student',
+        studentId: student.id,
+        passwordHash: input.user.passwordHash,
+        isActive: input.user.isActive ?? true,
+      });
+
+      return { student, user };
+    });
+  },
+
   async enrollStudent(input: { studentId: string; classId: string }) {
     return withFallback(async () => {
       const classItem = (await this.getClasses()).find((item) => item.id === input.classId);
@@ -569,7 +708,7 @@ export const repo = {
         academic_year: enrollment.academicYear,
         status: enrollment.status,
         enrolled_at: enrollment.enrolledAt,
-      }, { onConflict: 'student_id,class_id' });
+      }, { onConflict: 'student_id,subject_id' });
       if (error) throw error;
 
       const { error: studentUpdateError } = await supabase!

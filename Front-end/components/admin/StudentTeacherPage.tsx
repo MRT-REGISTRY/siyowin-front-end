@@ -5,7 +5,7 @@ import { useEffect, useState } from 'react';
 import { KeyRound, Plus, ShieldCheck, Trash2, UserPlus, Users } from 'lucide-react';
 
 import { apiDelete, apiGet, apiPost, getStoredUser } from '@/utils/api';
-import { AdminClassOption, AdminRole, AdminStudent, AdminTeacher, RegisteredUser, TeacherAssignment } from '@/types';
+import { AdminClassOption, AdminRole, AdminStudent, AdminStudentClassOption, AdminTeacher, RegisteredUser, TeacherAssignment } from '@/types';
 
 type NoticeState = {
   message: string;
@@ -31,6 +31,7 @@ export default function StudentTeacherPage({ onNotice }: Props) {
   const [students, setStudents] = useState<AdminStudent[]>([]);
   const [users, setUsers] = useState<RegisteredUser[]>([]);
   const [classes, setClasses] = useState<AdminClassOption[]>([]);
+  const [studentClassOptions, setStudentClassOptions] = useState<AdminStudentClassOption[]>([]);
   const [newClassLevel, setNewClassLevel] = useState('');
   const [newClassName, setNewClassName] = useState('');
   const [newClassMedium, setNewClassMedium] = useState('Sinhala');
@@ -84,15 +85,16 @@ export default function StudentTeacherPage({ onNotice }: Props) {
   };
 
   const loadMeta = () => {
-    apiGet<{ classes: AdminClassOption[] }>('/admin/meta')
+    apiGet<{ classes: AdminClassOption[]; studentClassOptions: AdminStudentClassOption[] }>('/admin/meta')
       .then((data) => {
         setClasses(data.classes);
-        const firstClass = data.classes[0];
-        setStudentClassId((current) => current || firstClass?.id || '');
-        setEnrollmentClassId((current) => current || firstClass?.id || '');
+        setStudentClassOptions(data.studentClassOptions);
+        const firstStudentClass = data.studentClassOptions[0] ?? data.classes[0];
+        setStudentClassId((current) => current || firstStudentClass?.id || '');
+        setEnrollmentClassId((current) => current || firstStudentClass?.id || '');
         setTeacherAssignments((current) => current.some((assignment) => assignment.classId)
           ? current
-          : [{ ...emptyAssignment, classId: firstClass?.id ?? '', grade: firstClass?.grade ?? '', medium: firstClass?.medium ?? '' }]);
+          : [{ ...emptyAssignment, classId: firstStudentClass?.id ?? '', grade: firstStudentClass?.grade ?? '', medium: firstStudentClass?.medium ?? '' }]);
       })
       .catch(() => undefined);
   };
@@ -382,7 +384,11 @@ export default function StudentTeacherPage({ onNotice }: Props) {
                 <input value={studentEmail} onChange={(event) => setStudentEmail(event.target.value)} placeholder="Email optional" className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 placeholder:text-slate-400 sm:col-span-2" />
                 <input type="date" value={studentDateOfBirth} onChange={(event) => setStudentDateOfBirth(event.target.value)} className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 placeholder:text-slate-400" />
                 <select value={studentClassId} onChange={(event) => setStudentClassId(event.target.value)} className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 placeholder:text-slate-400">
-                  {classes.map((classItem) => <option key={classItem.id} value={classItem.id}>{classItem.label}</option>)}
+                  {studentClassOptions.map((classItem) => (
+                    <option key={classItem.id} value={classItem.id}>
+                      {classItem.subjectName} - {classItem.grade} - {classItem.teacherName} - {classItem.medium}
+                    </option>
+                  ))}
                 </select>
                 <input value={parentName} onChange={(event) => setParentName(event.target.value)} placeholder="Parent's name" className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 placeholder:text-slate-400" />
                 <input value={parentPhone} onChange={(event) => setParentPhone(event.target.value)} placeholder="Parent's phone number" className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 placeholder:text-slate-400" />
