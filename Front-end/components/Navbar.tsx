@@ -5,13 +5,14 @@ import { useState, useEffect } from 'react'
 import LmsLoginModal from './LmsLoginModal'
 
 const navLinks = [
-  { label: 'Home',     href: '/' },
-  { label: 'About',    href: '#' },
-  { label: 'Services', href: '#' },
-  { label: 'Teachers', href: '/teachers' },
-  { label: 'Gallery',  href: '#' },
-  { label: 'FAQ',      href: '#' },
-  { label: 'More Info',href: '#' },
+  { label: 'Home',      href: '/' },
+  { label: 'About',     href: '/#about' },
+  { label: 'Teachers',  href: '/teachers' },
+  { label: 'Timetable', href: '/#timetable' },
+  { label: 'Gallery',   href: '/#gallery' },
+  { label: 'News',      href: '/#news' },
+  { label: 'FAQ',       href: '/#faq' },
+  { label: 'Contact',   href: '/#contact' },
 ]
 
 export default function Navbar() {

@@ -4,14 +4,14 @@ import Link from 'next/link'
 import Image from 'next/image'
 
 const quickLinks = [
-  { label: 'Home',         href: '#' },
-  { label: 'About Us',     href: '#' },
-  { label: 'Services',     href: '#' },
-  { label: 'Teachers',     href: '#' },
-  { label: 'Gallery',      href: '#' },
-  { label: 'FAQ',          href: '#' },
-  { label: 'Privacy Policy', href: '#' },
-  { label: 'Contact',      href: '#' },
+  { label: 'Home',      href: '/' },
+  { label: 'About Us',  href: '/#about' },
+  { label: 'Teachers',  href: '/#teachers' },
+  { label: 'Timetable', href: '/#timetable' },
+  { label: 'Gallery',   href: '/#gallery' },
+  { label: 'News',      href: '/#news' },
+  { label: 'FAQ',       href: '/#faq' },
+  { label: 'Contact',   href: '/#contact' },
 ]
 
 const locations = [
@@ -197,11 +197,6 @@ export default function Footer() {
             </a>
             .
           </p>
-          <div className="flex flex-wrap justify-center gap-4 sm:gap-5">
-            <Link href="#" className="transition-colors duration-200 hover:text-gray-300">Terms &amp; Conditions</Link>
-            <Link href="#" className="transition-colors duration-200 hover:text-gray-300">Privacy Policy</Link>
-            <Link href="#" className="transition-colors duration-200 hover:text-gray-300">Sitemap</Link>
-          </div>
         </div>
       </div>
     </footer>

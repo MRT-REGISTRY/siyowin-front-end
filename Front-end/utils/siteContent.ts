@@ -2,6 +2,33 @@ import { createClient } from '@/utils/supabase/server';
 import { SiteContent, SiteLecturerSection } from '@/types/siteContent';
 import { lecturerSections } from '@/data/teachers';
 
+const localGalleryImages = [
+  {
+    id: 1,
+    src: '/gallery/475317163_122196069374165588_4690794810965554752_n.jpg',
+    alt: 'Siyowin Academy gallery moment',
+    category: 'indoor' as const,
+  },
+  {
+    id: 2,
+    src: '/gallery/475337732_122196069272165588_1143609790566936612_n.jpg',
+    alt: 'Siyowin Academy student event',
+    category: 'outdoor' as const,
+  },
+  {
+    id: 3,
+    src: '/gallery/476208571_122197350860165588_2265152398739208658_n.jpg',
+    alt: 'Siyowin Academy classroom moment',
+    category: 'indoor' as const,
+  },
+  {
+    id: 4,
+    src: '/gallery/602364342_122249120564165588_5955145948022491244_n.jpg',
+    alt: 'Siyowin Academy campus gathering',
+    category: 'outdoor' as const,
+  },
+];
+
 const fallbackSiteContent: SiteContent = {
   heroImages: [
     { id: 'hero-1', src: '/photos/bggrund (1).jpg', alt: 'Siyowin academy classroom event', width: 2048, height: 2048 },
@@ -25,41 +52,26 @@ const fallbackSiteContent: SiteContent = {
     { id: 'established', value: '2024', label: 'Established' },
   ],
   lecturerSections,
-  galleryImages: [
-    { id: 1, src: '/gallery/475317163_122196069374165588_4690794810965554752_n.jpg', alt: 'Siyowin Academy gallery photo 1', category: 'indoor' },
-    { id: 2, src: '/gallery/475337732_122196069272165588_1143609790566936612_n.jpg', alt: 'Siyowin Academy gallery photo 2', category: 'outdoor' },
-    { id: 3, src: '/gallery/476208571_122197350860165588_2265152398739208658_n.jpg', alt: 'Siyowin Academy gallery photo 3', category: 'indoor' },
-    { id: 4, src: '/gallery/602364342_122249120564165588_5955145948022491244_n.jpg', alt: 'Siyowin Academy gallery photo 4', category: 'outdoor' },
-  ],
+  galleryImages: localGalleryImages,
   articles: [
     {
       id: 1,
-      title: 'Why Specialized Guidance Matters for O/L Examinations',
-      description: 'Discover why structured tuition beyond school helps students build confidence, fill knowledge gaps, and perform at their best when it counts most.',
-      image: '/article-1.jpg',
-      date: '12 Oct 2024',
-      category: 'Education',
-      readTime: '4 min read',
+      title: 'Siyowin Kegalle opens 2026 Grade 6–11 Mathematics classes with Rukshan Kulakumara, helping students build confidence and achieve better results.',
+      description: 'Siyowin Kegalle opens 2026 Grade 6–11 Mathematics classes with Rukshan Kulakumara, helping students build confidence and achieve better results.',
+      image: '/news/maths.jpg',
+      date: '2026',
+      category: 'News',
+      readTime: 'Maths',
       href: '#',
     },
     {
       id: 2,
-      title: 'Simple Ways to Measure and Track Your Exam Progress',
-      description: 'Learn the techniques our teachers use to monitor student growth and how you can apply the same methods at home for consistent improvement.',
-      image: '/article-2.jpg',
-      date: '28 Sep 2024',
-      category: 'Study Tips',
-      readTime: '5 min read',
-      href: '#',
-    },
-    {
-      id: 3,
-      title: 'Exploring Career Paths After A/L Examinations',
-      description: 'Not sure what comes next? We break down promising higher education routes and career options available to A/L students in Sri Lanka.',
-      image: '/article-3.jpg',
-      date: '5 Sep 2024',
-      category: 'Career',
-      readTime: '6 min read',
+      title: '2026 A/L Sinhala Revision Begins with Hemaloka Hamuduruwo',
+      description: 'Siyowin Kegalle continues to guide Advanced Level students through focused Sinhala revision classes, helping them improve writing skills, exam confidence, and final performance.',
+      image: '/news/sinhala.jpg',
+      date: '2026',
+      category: 'News',
+      readTime: 'Sinhala',
       href: '#',
     },
   ],
@@ -120,7 +132,6 @@ export async function getSiteContent(): Promise<SiteContent> {
     aboutStats,
     lecturerSections,
     lecturers,
-    galleryImages,
     articles,
   ] = await Promise.all([
     getRows<any>('site_hero_images'),
@@ -128,7 +139,6 @@ export async function getSiteContent(): Promise<SiteContent> {
     getRows<any>('site_about_stats'),
     getRows<any>('site_lecturer_sections'),
     getRows<any>('site_lecturers'),
-    getRows<any>('site_gallery_images'),
     getRows<any>('site_articles'),
   ]);
 
@@ -163,7 +173,7 @@ export async function getSiteContent(): Promise<SiteContent> {
     aboutFeatures: aboutFeatures.map((feature) => ({ id: feature.id, text: feature.text })),
     aboutStats: aboutStats.map((stat) => ({ id: stat.id, value: stat.value, label: stat.label })),
     lecturerSections: sections,
-    galleryImages: galleryImages.map((image) => ({
+    galleryImages: localGalleryImages.map((image) => ({
       id: image.id,
       src: image.src,
       alt: image.alt,

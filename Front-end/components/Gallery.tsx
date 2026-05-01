@@ -27,7 +27,7 @@ export default function Gallery({ images }: { images: SiteGalleryImage[] }) {
   const closeLightbox = ()           => setLightbox(null)
 
   return (
-    <section className="relative overflow-hidden bg-gradient-to-b from-white to-slate-50 py-20">
+    <section id="gallery" className="relative scroll-mt-20 overflow-hidden bg-gradient-to-b from-white to-slate-50 py-20">
 
       {/* Decorative background blobs */}
       <div className="pointer-events-none absolute -left-32 top-20 h-64 w-64 rounded-full bg-red-100/60 blur-3xl" />
@@ -127,31 +127,6 @@ export default function Gallery({ images }: { images: SiteGalleryImage[] }) {
           <div className="py-20 text-center text-gray-400">No photos in this category yet.</div>
         )}
 
-        {/* ── View More CTA ── */}
-        <div className="mt-12 flex justify-center">
-          <a
-            href="#"
-            className="group inline-flex items-center gap-2 rounded-full border-2 px-7 py-3 text-sm font-bold transition-all duration-300 hover:-translate-y-0.5"
-            style={{ borderColor: '#D9232D', color: '#D9232D' }}
-            onMouseEnter={(e) => {
-              const el = e.currentTarget as HTMLAnchorElement
-              el.style.background = 'linear-gradient(135deg, #D9232D, #F47920)'
-              el.style.color = '#fff'
-              el.style.borderColor = 'transparent'
-            }}
-            onMouseLeave={(e) => {
-              const el = e.currentTarget as HTMLAnchorElement
-              el.style.background = 'transparent'
-              el.style.color = '#D9232D'
-              el.style.borderColor = '#D9232D'
-            }}
-          >
-            View Full Gallery
-            <svg className="h-4 w-4 transition-transform duration-300 group-hover:translate-x-1" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M17 8l4 4m0 0l-4 4m4-4H3" />
-            </svg>
-          </a>
-        </div>
       </div>
 
       {/* ── Lightbox ── */}

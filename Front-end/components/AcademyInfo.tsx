@@ -11,7 +11,7 @@ export default function AcademyInfo({
   stats: SiteAboutStat[]
 }) {
   return (
-    <section className="bg-white py-20 lg:py-28">
+    <section id="about" className="scroll-mt-20 bg-white py-20 lg:py-28">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
 
         {/* ── Section label ── */}
@@ -98,20 +98,7 @@ export default function AcademyInfo({
               ))}
             </div>
 
-            {/* CTA + Signature */}
             <div className="flex flex-col items-center gap-6 sm:flex-row lg:items-center">
-              <a
-                href="#"
-                className="inline-flex items-center gap-2 rounded-full border-2 border-gray-900 px-7 py-3 text-sm font-bold text-gray-900 transition-all duration-300 hover:bg-gray-900 hover:text-white active:scale-95"
-              >
-                Learn More About Us
-                <svg className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M17 8l4 4m0 0l-4 4m4-4H3" />
-                </svg>
-              </a>
-
-              <div className="hidden h-10 w-px bg-gray-200 sm:block" />
-
               <div className="text-center sm:text-left">
                 <p className="text-sm font-bold text-gray-900">Rukshan Kulakumara</p>
                 <p className="text-xs text-gray-500">CEO, Siyowin Higher Education Institute</p>
