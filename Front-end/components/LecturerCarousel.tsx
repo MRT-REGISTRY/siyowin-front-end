@@ -1,12 +1,15 @@
 'use client'
 
 import { useEffect, useRef, useState, useCallback } from 'react'
+import { useRouter } from 'next/navigation'
 import Image from 'next/image'
 import { ArrowRight, ChevronLeft, ChevronRight } from 'lucide-react'
 import { SiteLecturerSection } from '@/types/siteContent'
 
 interface LecturerCarouselProps {
   section: SiteLecturerSection
+  showTopWave?: boolean
+  showBottomWave?: boolean
 }
 
 const SIDE_COUNT = 2
@@ -16,24 +19,31 @@ const positions: Record<
   number,
   { scale: number; opacity: number; zIndex: number; xOffset: string; yOffset: number; blur: string }
 > = {
-  '-2': { scale: 0.70, opacity: 0.30, zIndex: 1, xOffset: '-97%', yOffset: 44, blur: '2.5px' },
-  '-1': { scale: 0.84, opacity: 0.75, zIndex: 2, xOffset: '-53%', yOffset: 20, blur: '0.8px' },
-   0:   { scale: 1,    opacity: 1,    zIndex: 4, xOffset: '0%',   yOffset: 0,  blur: '0px'  },
-   1:   { scale: 0.84, opacity: 0.75, zIndex: 2, xOffset: '53%',  yOffset: 20, blur: '0.8px' },
-   2:   { scale: 0.70, opacity: 0.30, zIndex: 1, xOffset: '97%',  yOffset: 44, blur: '2.5px' },
+  '-2': { scale: 0.60, opacity: 0.25, zIndex: 1, xOffset: '-235%', yOffset: 58, blur: '3px' },
+  '-1': { scale: 0.80, opacity: 0.80, zIndex: 2, xOffset: '-130%', yOffset: 20, blur: '0.8px' },
+   0:   { scale: 1,    opacity: 1,    zIndex: 4, xOffset: '0%',    yOffset: 0,  blur: '0px'  },
+   1:   { scale: 0.80, opacity: 0.80, zIndex: 2, xOffset: '130%',  yOffset: 20, blur: '0.8px' },
+   2:   { scale: 0.60, opacity: 0.25, zIndex: 1, xOffset: '235%',  yOffset: 58, blur: '3px' },
 }
 
-export default function LecturerCarousel({ section }: LecturerCarouselProps) {
+export default function LecturerCarousel({
+  section,
+  showTopWave = true,
+  showBottomWave = true,
+}: LecturerCarouselProps) {
+  const router = useRouter()
   const activeSection = section
   const lecturers = activeSection.lecturers
   const total = lecturers.length
+  const viewAllHref = activeSection.viewAllHref?.startsWith('/') ? activeSection.viewAllHref : '/teachers'
+  const shouldLoop = total > 1
 
   const [mounted, setMounted] = useState(false)
   useEffect(() => { setMounted(true) }, [])
 
-  const cloned = total > 0 ? [...lecturers, ...lecturers, ...lecturers] : []
+  const cloned = total > 0 ? (shouldLoop ? [...lecturers, ...lecturers, ...lecturers] : lecturers) : []
 
-  const [index, setIndex]                 = useState(total)
+  const [index, setIndex]                 = useState(shouldLoop ? total : 0)
   const [transitioning, setTransitioning] = useState(false)
   const [isPaused, setIsPaused]           = useState(false)
 
@@ -43,11 +53,13 @@ export default function LecturerCarousel({ section }: LecturerCarouselProps) {
   const activeIndex = total === 0 ? 0 : ((index % total) + total) % total
 
   useEffect(() => {
+    if (!shouldLoop) return
     const raf = requestAnimationFrame(() => setTransitioning(true))
     return () => cancelAnimationFrame(raf)
-  }, [])
+  }, [shouldLoop])
 
   const handleTransitionEnd = useCallback(() => {
+    if (!shouldLoop) return
     if (loopTimerRef.current) clearTimeout(loopTimerRef.current)
     if (index < total) {
       setTransitioning(false)
@@ -56,25 +68,40 @@ export default function LecturerCarousel({ section }: LecturerCarouselProps) {
       setTransitioning(false)
       setIndex(index - total)
     }
-  }, [index, total])
+  }, [index, total, shouldLoop])
 
   useEffect(() => {
-    if (!transitioning) return
+    if (!transitioning || !shouldLoop) return
     loopTimerRef.current = setTimeout(handleTransitionEnd, TRANSITION_MS + 80)
     return () => { if (loopTimerRef.current) clearTimeout(loopTimerRef.current) }
-  }, [index, transitioning, handleTransitionEnd])
+  }, [index, transitioning, handleTransitionEnd, shouldLoop])
 
   useEffect(() => {
-    if (transitioning) return
+    if (transitioning || !shouldLoop) return
     const raf = requestAnimationFrame(() =>
       requestAnimationFrame(() => setTransitioning(true))
     )
     return () => cancelAnimationFrame(raf)
-  }, [transitioning])
+  }, [transitioning, shouldLoop])
 
-  const goTo         = useCallback((n: number) => { setTransitioning(true); setIndex(n) }, [])
+  const goTo         = useCallback((n: number) => {
+    if (!shouldLoop) return
+    setTransitioning(true)
+    setIndex(n)
+  }, [shouldLoop])
   const goToPrevious = useCallback(() => goTo(index - 1), [goTo, index])
   const goToNext     = useCallback(() => goTo(index + 1), [goTo, index])
+  const handleCardClick = useCallback(
+    (offset: number, isCenter: boolean) => {
+      if (isCenter) {
+        router.push(viewAllHref)
+        return
+      }
+
+      goTo(index + offset)
+    },
+    [goTo, index, router, viewAllHref]
+  )
 
   useEffect(() => {
     if (isPaused || total < 2) return
@@ -93,13 +120,13 @@ export default function LecturerCarousel({ section }: LecturerCarouselProps) {
 
   if (!mounted || total === 0) {
     return (
-      <section className="relative bg-gradient-to-b from-slate-50 to-[#eef2f7] py-16">
-        <div className="mx-auto mb-14 max-w-7xl px-4 text-center sm:px-6 lg:px-8">
+      <section className="relative bg-gradient-to-b from-slate-50 to-[#eef2f7] py-10">
+        <div className="mx-auto mb-8 max-w-7xl px-4 text-center sm:px-6 lg:px-8">
           <div className="mx-auto h-6 w-36 animate-pulse rounded-full bg-slate-200" />
           <div className="mx-auto mt-4 h-10 w-64 animate-pulse rounded-lg bg-slate-200" />
           <div className="mx-auto mt-3 h-4 w-80 animate-pulse rounded bg-slate-200" />
         </div>
-        <div className="mx-auto flex h-[480px] max-w-7xl items-center justify-center gap-4 px-8">
+        <div className="mx-auto flex h-[390px] max-w-7xl items-center justify-center gap-4 px-8">
           {[0.70, 0.84, 1, 0.84, 0.70].map((s, i) => (
             <div key={i} className="flex-shrink-0 animate-pulse rounded-3xl bg-slate-200"
               style={{ width: s === 1 ? 300 : s === 0.84 ? 240 : 190, height: s === 1 ? 380 : s === 0.84 ? 330 : 280, opacity: s }} />
@@ -113,14 +140,30 @@ export default function LecturerCarousel({ section }: LecturerCarouselProps) {
   const cardTransition = transitioning
     ? `transform ${TRANSITION_MS}ms ${ease}, opacity ${TRANSITION_MS}ms ${ease}, filter ${TRANSITION_MS}ms ${ease}, top ${TRANSITION_MS}ms ${ease}`
     : 'none'
+  const sectionSpacing = showTopWave
+    ? 'pt-14 pb-6 md:pt-16 md:pb-8'
+    : showBottomWave
+      ? 'pt-4 pb-12 md:pt-6 md:pb-14'
+      : 'pt-4 pb-6 md:pt-6 md:pb-8'
 
   return (
     // NOTE: no overflow-hidden here — that was clipping the "View all" button on scroll
-    <section className="relative bg-gradient-to-b from-slate-50 to-[#eef2f7] py-16">
+    <section className={`relative bg-gradient-to-b from-slate-50 to-[#eef2f7] ${sectionSpacing}`}>
+
+      {showTopWave ? (
+        <svg
+          className="pointer-events-none absolute -top-1 left-0 h-16 w-full -scale-y-100 text-white md:h-20"
+          viewBox="0 0 1440 120"
+          preserveAspectRatio="none"
+          aria-hidden="true"
+        >
+          <path fill="currentColor" d="M0,120 C360,42 1020,42 1440,120 L1440,120 L0,120 Z" />
+        </svg>
+      ) : null}
 
       {/* Heading */}
-      <div className="mx-auto mb-14 max-w-7xl px-4 text-center sm:px-6 lg:px-8">
-        <span className="mb-3 inline-block rounded-full bg-blue-100 px-4 py-1 text-xs font-semibold uppercase tracking-widest text-blue-600">
+      <div className="mx-auto mb-8 max-w-7xl px-4 text-center sm:mb-9 sm:px-6 lg:px-8">
+        <span className="mb-2 inline-block rounded-full bg-blue-100 px-4 py-1 text-xs font-semibold uppercase tracking-widest text-blue-600">
           Meet Our Educators
         </span>
         <h2 className="text-4xl font-extrabold tracking-tight text-gray-900 sm:text-5xl">
@@ -129,12 +172,12 @@ export default function LecturerCarousel({ section }: LecturerCarouselProps) {
             {activeSection.highlight}
           </span>
         </h2>
-        <p className="mx-auto mt-4 max-w-xl text-base text-gray-500">{activeSection.description}</p>
+        <p className="mx-auto mt-3 max-w-xl text-base text-gray-500">{activeSection.description}</p>
       </div>
 
       {/* ── Desktop Carousel ── */}
       <div
-        className="relative mx-auto hidden h-[480px] max-w-7xl select-none overflow-hidden px-8 md:block lg:h-[520px]"
+        className="relative mx-auto hidden h-[390px] max-w-7xl select-none overflow-hidden px-8 md:block lg:h-[420px]"
         onMouseEnter={() => setIsPaused(true)}
         onMouseLeave={() => setIsPaused(false)}
         onTouchStart={onTouchStart}
@@ -149,7 +192,7 @@ export default function LecturerCarousel({ section }: LecturerCarouselProps) {
             return (
               <article
                 key={`d-${lecturer.id}-${i}`}
-                onClick={() => !isCenter && goTo(index + offset)}
+                onClick={() => handleCardClick(offset, isCenter)}
                 onTransitionEnd={isCenter ? handleTransitionEnd : undefined}
                 style={{
                   position: 'absolute', left: '50%',
@@ -159,8 +202,8 @@ export default function LecturerCarousel({ section }: LecturerCarouselProps) {
                   filter: `blur(${pos.blur})`,
                   transition: cardTransition,
                   willChange: 'transform, opacity',
-                  cursor: isCenter ? 'default' : 'pointer',
-                  width: isCenter ? '300px' : '240px',
+                  cursor: 'pointer',
+                  width: isCenter ? '300px' : '200px',
                 }}
                 className="overflow-hidden rounded-3xl shadow-2xl"
               >
@@ -222,7 +265,11 @@ export default function LecturerCarousel({ section }: LecturerCarouselProps) {
             const isCurrent = i === index
             return (
               <div key={`m-${lecturer.id}-${i}`} style={{ minWidth: '100%', padding: '0 12px' }}>
-                <article className="overflow-hidden rounded-3xl shadow-xl"
+                <article
+                  className="overflow-hidden rounded-3xl shadow-xl"
+                  onClick={() => {
+                    if (isCurrent) router.push(viewAllHref)
+                  }}
                   style={{
                     transform: isCurrent ? 'scale(1)' : 'scale(0.94)',
                     opacity: isCurrent ? 1 : 0.5,
@@ -245,7 +292,7 @@ export default function LecturerCarousel({ section }: LecturerCarouselProps) {
             )
           })}
         </div>
-        <div className="mt-5 flex items-center justify-between px-3">
+        <div className="mt-4 flex items-center justify-between px-3">
           <button onClick={goToPrevious} aria-label="Previous"
             className="flex h-9 w-9 items-center justify-center rounded-full bg-white shadow-md transition hover:shadow-lg active:scale-95">
             <ChevronLeft className="h-5 w-5 text-gray-500" strokeWidth={2} />
@@ -259,14 +306,14 @@ export default function LecturerCarousel({ section }: LecturerCarouselProps) {
       </div>
 
       {/* Desktop dots */}
-      <div className="mt-8 hidden justify-center md:flex">
+      <div className="mt-4 hidden justify-center md:flex">
         <Dots total={total} active={activeIndex} onDot={(i) => goTo(total + i)} />
       </div>
 
       {/* View All — outside overflow-hidden, no z-index stacking issue */}
-      <div className="mt-10 flex justify-center">
+      <div className="mt-6 flex justify-center">
         <a
-          href={activeSection.viewAllHref}
+          href={viewAllHref}
           className="group inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-blue-600 to-blue-500 px-7 py-3 text-sm font-bold text-white shadow-lg shadow-blue-200 transition-all duration-300 hover:-translate-y-0.5 hover:shadow-xl hover:shadow-blue-300 active:scale-95"
         >
           View all teachers
@@ -275,13 +322,14 @@ export default function LecturerCarousel({ section }: LecturerCarouselProps) {
         </a>
       </div>
 
-      {/* Bottom wave */}
-      <svg
-        className="pointer-events-none absolute -bottom-1 left-0 h-16 w-full text-white md:h-20"
-        viewBox="0 0 1440 120" preserveAspectRatio="none" aria-hidden="true"
-      >
-        <path fill="currentColor" d="M0,120 C360,42 1020,42 1440,120 L1440,120 L0,120 Z" />
-      </svg>
+      {showBottomWave ? (
+        <svg
+          className="pointer-events-none absolute -bottom-1 left-0 h-16 w-full text-white md:h-20"
+          viewBox="0 0 1440 120" preserveAspectRatio="none" aria-hidden="true"
+        >
+          <path fill="currentColor" d="M0,120 C360,42 1020,42 1440,120 L1440,120 L0,120 Z" />
+        </svg>
+      ) : null}
     </section>
   )
 }
