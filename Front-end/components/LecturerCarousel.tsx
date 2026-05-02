@@ -5,6 +5,8 @@ import { useRouter } from 'next/navigation'
 import Image from 'next/image'
 import { ArrowRight, ChevronLeft, ChevronRight } from 'lucide-react'
 import { SiteLecturerSection } from '@/types/siteContent'
+import { useLanguage } from './LanguageProvider'
+import { toSinhalaSubject, toSinhalaTeacherName } from '@/utils/localization'
 
 interface LecturerCarouselProps {
   section: SiteLecturerSection
@@ -32,6 +34,7 @@ export default function LecturerCarousel({
   showBottomWave = true,
 }: LecturerCarouselProps) {
   const router = useRouter()
+  const { isSinhala } = useLanguage()
   const activeSection = section
   const lecturers = activeSection.lecturers
   const total = lecturers.length
@@ -164,15 +167,21 @@ export default function LecturerCarousel({
       {/* Heading */}
       <div className="mx-auto mb-8 max-w-7xl px-4 text-center sm:mb-9 sm:px-6 lg:px-8">
         <span className="mb-2 inline-block rounded-full bg-blue-100 px-4 py-1 text-xs font-semibold uppercase tracking-widest text-blue-600">
-          Meet Our Educators
+          {isSinhala ? 'අපගේ ගුරු මණ්ඩලය' : 'Meet Our Educators'}
         </span>
         <h2 className="text-4xl font-extrabold tracking-tight text-gray-900 sm:text-5xl">
           {activeSection.title}{' '}
           <span className="bg-gradient-to-r from-red-500 to-orange-400 bg-clip-text text-transparent">
-            {activeSection.highlight}
+            {isSinhala ? 'ගුරුවරු' : activeSection.highlight}
           </span>
         </h2>
-        <p className="mx-auto mt-3 max-w-xl text-base text-gray-500">{activeSection.description}</p>
+        <p className="mx-auto mt-3 max-w-xl text-base text-gray-500">
+          {isSinhala
+            ? activeSection.title === 'O/L'
+              ? 'O/L විෂය මඟපෙන්වීම සහ විභාග සූදානම් කිරීම.'
+              : 'Technology, Arts සහ Commerce අංශ සඳහා විශේෂඥ ගුරුවරු.'
+            : activeSection.description}
+        </p>
       </div>
 
       {/* ── Desktop Carousel ── */}
@@ -214,7 +223,7 @@ export default function LecturerCarousel({
                     transition: transitioning ? `height ${TRANSITION_MS}ms ${ease}` : 'none',
                   }}
                 >
-                  <Image src={lecturer.image} alt={lecturer.name} fill
+                  <Image src={lecturer.image} alt={toSinhalaTeacherName(lecturer.name, isSinhala)} fill
                     className="object-contain object-bottom transition-transform duration-700 ease-out"
                     style={{ transform: isCenter ? 'scale(1)' : 'scale(0.95)' }}
                     sizes={isCenter ? '300px' : '240px'} priority={isCenter}
@@ -226,17 +235,17 @@ export default function LecturerCarousel({
                 </div>
                 <div className="px-5 py-4 text-center" style={{ backgroundColor: lecturer.infoBg }}>
                   <h3 className="font-semibold text-gray-600" style={{ fontSize: isCenter ? '0.8rem' : '0.7rem' }}>
-                    {lecturer.name}
+                    {toSinhalaTeacherName(lecturer.name, isSinhala)}
                   </h3>
                   <p className="mt-1 font-extrabold leading-tight"
                     style={{ color: lecturer.accent, fontSize: isCenter ? '1.2rem' : '1rem' }}>
-                    {lecturer.subject}
+                    {toSinhalaSubject(lecturer.subject, isSinhala)}
                   </p>
                   {isCenter && (
                     <>
                       <div className="mx-auto my-2 h-[2px] w-10 rounded-full"
                         style={{ backgroundColor: lecturer.accent + '50' }} />
-                      <p className="text-xs leading-5 text-gray-500">{lecturer.credentials}</p>
+                      <p className="text-xs leading-5 text-gray-500">{toSinhalaSubject(lecturer.credentials, isSinhala)}</p>
                     </>
                   )}
                 </div>
@@ -277,15 +286,15 @@ export default function LecturerCarousel({
                   }}
                 >
                   <div className="relative" style={{ height: '220px', backgroundColor: lecturer.photoBg }}>
-                    <Image src={lecturer.image} alt={lecturer.name} fill className="object-contain object-bottom" sizes="336px" />
+                    <Image src={lecturer.image} alt={toSinhalaTeacherName(lecturer.name, isSinhala)} fill className="object-contain object-bottom" sizes="336px" />
                     <div className="absolute inset-x-0 bottom-0 h-10"
                       style={{ background: `linear-gradient(to top, ${lecturer.infoBg}, transparent)` }} />
                   </div>
                   <div className="px-5 py-5 text-center" style={{ backgroundColor: lecturer.infoBg }}>
-                    <h3 className="text-sm font-semibold text-gray-600">{lecturer.name}</h3>
-                    <p className="mt-1 text-xl font-extrabold leading-tight" style={{ color: lecturer.accent }}>{lecturer.subject}</p>
+                    <h3 className="text-sm font-semibold text-gray-600">{toSinhalaTeacherName(lecturer.name, isSinhala)}</h3>
+                    <p className="mt-1 text-xl font-extrabold leading-tight" style={{ color: lecturer.accent }}>{toSinhalaSubject(lecturer.subject, isSinhala)}</p>
                     <div className="mx-auto my-2 h-[2px] w-8 rounded-full" style={{ backgroundColor: lecturer.accent + '55' }} />
-                    <p className="text-xs leading-5 text-gray-500">{lecturer.credentials}</p>
+                    <p className="text-xs leading-5 text-gray-500">{toSinhalaSubject(lecturer.credentials, isSinhala)}</p>
                   </div>
                 </article>
               </div>
@@ -316,7 +325,7 @@ export default function LecturerCarousel({
           href={viewAllHref}
           className="group inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-blue-600 to-blue-500 px-7 py-3 text-sm font-bold text-white shadow-lg shadow-blue-200 transition-all duration-300 hover:-translate-y-0.5 hover:shadow-xl hover:shadow-blue-300 active:scale-95"
         >
-          View all teachers
+          {isSinhala ? 'සියලු ගුරුවරු බලන්න' : 'View all teachers'}
           <ArrowRight size={16} strokeWidth={2.5}
             className="transition-transform duration-300 group-hover:translate-x-1" />
         </a>

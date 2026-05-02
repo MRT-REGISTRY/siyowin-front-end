@@ -3,23 +3,26 @@
 import { useState } from "react";
 import { ArrowRight, Award, BookOpen, GraduationCap, Search, X } from "lucide-react";
 import Navbar from "@/components/Navbar";
+import { useLanguage } from "@/components/LanguageProvider";
 import { teacherDirectory, type TeacherProfile } from "@/data/teachers";
+import { toSinhalaSubject, toSinhalaTeacherName } from "@/utils/localization";
 
 type Teacher = TeacherProfile;
 
 const teachers: Teacher[] = teacherDirectory;
 
 const tabs = [
-  { id: "all", label: "All Teachers", icon: GraduationCap },
-  { id: "ol", label: "O/L", icon: BookOpen },
-  { id: "al", label: "A/L", icon: Award },
-  { id: "scholarship", label: "Scholarship & Other", icon: GraduationCap },
+  { id: "all", label: "All Teachers", sinhalaLabel: "සියලු ගුරුවරු", icon: GraduationCap },
+  { id: "ol", label: "O/L", sinhalaLabel: "O/L", icon: BookOpen },
+  { id: "al", label: "A/L", sinhalaLabel: "A/L", icon: Award },
+  { id: "scholarship", label: "Scholarship & Other", sinhalaLabel: "ශිෂ්‍යත්ව සහ වෙනත්", icon: GraduationCap },
 ] as const;
 
 export default function TeachersPage() {
   const [active, setActive] = useState<(typeof tabs)[number]["id"]>("all");
   const [query, setQuery] = useState("");
   const [selectedTeacher, setSelectedTeacher] = useState<(typeof teachers)[number] | null>(null);
+  const { isSinhala } = useLanguage();
 
   const filtered = teachers.filter((t) => {
     const matchTab = active === "all" || t.category === active;
@@ -40,16 +43,18 @@ export default function TeachersPage() {
 
         <div className="mx-auto max-w-7xl px-4 text-center sm:px-6 lg:px-8">
           <span className="mb-3 inline-block rounded-full bg-blue-100 px-4 py-1 text-xs font-semibold uppercase tracking-widest text-blue-600">
-            Meet Our Educators
+            {isSinhala ? "අපගේ ගුරු මණ්ඩලය" : "Meet Our Educators"}
           </span>
           <h1 className="text-4xl font-extrabold tracking-tight text-gray-900 sm:text-5xl md:text-6xl">
-            Our{" "}
+            {isSinhala ? "අපගේ" : "Our"}{" "}
             <span className="bg-gradient-to-r from-[#D9232D] to-[#F47920] bg-clip-text text-transparent">
-              Teachers
+              {isSinhala ? "ගුරුවරු" : "Teachers"}
             </span>
           </h1>
           <p className="mx-auto mt-4 max-w-2xl text-base text-gray-600 sm:text-lg">
-            Experienced subject specialists guiding O/L, A/L and Scholarship students towards excellence.
+            {isSinhala
+              ? "O/L, A/L සහ ශිෂ්‍යත්ව සිසුන්ට විශිෂ්ටත්වය කරා මඟ පෙන්වන පළපුරුදු විෂය විශේෂඥයින්."
+              : "Experienced subject specialists guiding O/L, A/L and Scholarship students towards excellence."}
           </p>
 
           <div className="mx-auto mt-8 flex max-w-md items-center gap-2 rounded-full border border-blue-100 bg-white/80 px-4 py-2 shadow-sm backdrop-blur">
@@ -57,7 +62,7 @@ export default function TeachersPage() {
             <input
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder="Search by name or subject..."
+              placeholder={isSinhala ? "නම හෝ විෂය අනුව සොයන්න..." : "Search by name or subject..."}
               className="flex-1 bg-transparent text-sm text-gray-800 placeholder:text-gray-400 outline-none"
             />
           </div>
@@ -81,7 +86,7 @@ export default function TeachersPage() {
                 }`}
               >
                 <Icon className="h-4 w-4" />
-                {t.label}
+                {isSinhala ? t.sinhalaLabel : t.label}
               </button>
             );
           })}
@@ -91,7 +96,7 @@ export default function TeachersPage() {
       {/* Grid */}
       <section className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8">
         {filtered.length === 0 ? (
-          <div className="py-20 text-center text-gray-500">No teachers found.</div>
+          <div className="py-20 text-center text-gray-500">{isSinhala ? "ගුරුවරු හමු නොවීය." : "No teachers found."}</div>
         ) : (
           <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
             {filtered.map((t) => (
@@ -107,7 +112,7 @@ export default function TeachersPage() {
                   {t.photo ? (
                     <img
                       src={t.photo}
-                      alt={t.name}
+                      alt={toSinhalaTeacherName(t.name, isSinhala)}
                       className="absolute inset-0 h-full w-full object-cover object-top"
                     />
                   ) : (
@@ -127,20 +132,20 @@ export default function TeachersPage() {
                 </div>
 
                 <div className="p-5">
-                  <h3 className="text-lg font-bold text-gray-900">{t.name}</h3>
+                  <h3 className="text-lg font-bold text-gray-900">{toSinhalaTeacherName(t.name, isSinhala)}</h3>
                   <p className="mt-0.5 text-sm font-semibold" style={{ color: t.accent }}>
-                    {t.subject}
+                    {toSinhalaSubject(t.subject, isSinhala)}
                   </p>
-                  <p className="mt-2 line-clamp-2 text-xs text-gray-600">{t.credentials}</p>
+                  <p className="mt-2 line-clamp-2 text-xs text-gray-600">{toSinhalaSubject(t.credentials, isSinhala)}</p>
 
                   <div className="mt-4 flex items-center justify-between border-t border-gray-100 pt-3">
-                    <span className="text-xs font-medium text-gray-500">{t.experience}</span>
+                    <span className="text-xs font-medium text-gray-500">{toSinhalaSubject(t.experience, isSinhala)}</span>
                     <button
                       type="button"
                       onClick={() => setSelectedTeacher(t)}
                       className="inline-flex items-center gap-1 text-xs font-bold text-blue-700 transition-colors hover:text-blue-900"
                     >
-                      View Profile
+                      {isSinhala ? "විස්තර බලන්න" : "View Profile"}
                       <ArrowRight className="h-3 w-3 transition-transform group-hover:translate-x-0.5" />
                     </button>
                   </div>
@@ -171,7 +176,7 @@ export default function TeachersPage() {
                 {selectedTeacher.photo ? (
                   <img
                     src={selectedTeacher.photo}
-                    alt={selectedTeacher.name}
+                    alt={toSinhalaTeacherName(selectedTeacher.name, isSinhala)}
                     className="h-full w-full object-cover object-top"
                   />
                 ) : (
@@ -193,30 +198,36 @@ export default function TeachersPage() {
                     {selectedTeacher.category === "ol" ? "O/L" : selectedTeacher.category === "al" ? "A/L" : "Scholarship"}
                   </span>
                   <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700">
-                    {selectedTeacher.experience}
+                    {toSinhalaSubject(selectedTeacher.experience, isSinhala)}
                   </span>
                 </div>
 
-                <p className="mt-4 text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">Tutor Profile</p>
-                <h3 className="mt-1 text-3xl font-extrabold text-slate-900">{selectedTeacher.name}</h3>
-                <h2 className="mt-4 text-3xl font-extrabold text-slate-900">{selectedTeacher.subject}</h2>
-                <p className="mt-2 text-sm leading-6 text-slate-600">{selectedTeacher.about}</p>
+                <p className="mt-4 text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">{isSinhala ? "ගුරු පැතිකඩ" : "Tutor Profile"}</p>
+                <h3 className="mt-1 text-3xl font-extrabold text-slate-900">{toSinhalaTeacherName(selectedTeacher.name, isSinhala)}</h3>
+                <h2 className="mt-4 text-3xl font-extrabold text-slate-900">{toSinhalaSubject(selectedTeacher.subject, isSinhala)}</h2>
+                <p className="mt-2 text-sm leading-6 text-slate-600">
+                  {isSinhala
+                    ? `${toSinhalaTeacherName(selectedTeacher.name, true)} විසින් ${toSinhalaSubject(selectedTeacher.subject, true)} සඳහා සැලසුම්ගත මඟපෙන්වීම ලබා දෙයි.`
+                    : selectedTeacher.about}
+                </p>
 
                 <div className="mt-6 grid gap-3 sm:grid-cols-2">
                   <div className="rounded-2xl bg-slate-50 p-4">
-                    <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Credentials</p>
-                    <p className="mt-1 text-sm font-medium text-slate-800">{selectedTeacher.credentials}</p>
+                    <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">{isSinhala ? "සුදුසුකම්" : "Credentials"}</p>
+                    <p className="mt-1 text-sm font-medium text-slate-800">{toSinhalaSubject(selectedTeacher.credentials, isSinhala)}</p>
                   </div>
                   <div className="rounded-2xl bg-slate-50 p-4">
-                    <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Subject</p>
-                    <p className="mt-1 text-sm font-medium text-slate-800">{selectedTeacher.subject}</p>
+                    <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">{isSinhala ? "විෂය" : "Subject"}</p>
+                    <p className="mt-1 text-sm font-medium text-slate-800">{toSinhalaSubject(selectedTeacher.subject, isSinhala)}</p>
                   </div>
                 </div>
 
                 <div className="mt-6 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-                  <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Teaching Focus</p>
+                  <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">{isSinhala ? "ඉගැන්වීමේ අවධානය" : "Teaching Focus"}</p>
                   <p className="mt-1 text-sm leading-6 text-slate-700">
-                    {selectedTeacher.name} helps students strengthen fundamentals, improve problem solving, and prepare effectively for exams.
+                    {isSinhala
+                      ? `${toSinhalaTeacherName(selectedTeacher.name, true)} සිසුන්ට මූලික දැනුම ශක්තිමත් කර ගැනීමට සහ විභාග සඳහා සාර්ථකව සූදානම් වීමට උපකාර කරයි.`
+                      : `${selectedTeacher.name} helps students strengthen fundamentals, improve problem solving, and prepare effectively for exams.`}
                   </p>
                 </div>
 
@@ -226,7 +237,7 @@ export default function TeachersPage() {
                     onClick={() => setSelectedTeacher(null)}
                     className="rounded-full bg-slate-900 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-slate-700"
                   >
-                    Close Profile
+                    {isSinhala ? "වසන්න" : "Close Profile"}
                   </button>
                 </div>
               </div>
@@ -241,13 +252,13 @@ export default function TeachersPage() {
           <div className="absolute -right-10 -top-10 h-40 w-40 rounded-full bg-white/10 blur-2xl" />
           <div className="absolute -left-10 -bottom-10 h-40 w-40 rounded-full bg-orange-300/20 blur-2xl" />
           <h2 className="text-2xl font-extrabold text-white sm:text-3xl">
-            Ready to learn from the best?
+            {isSinhala ? "හොඳම ගුරුවරුන් සමඟ ඉගෙනීමට සූදානම්ද?" : "Ready to learn from the best?"}
           </h2>
           <p className="mx-auto mt-2 max-w-xl text-sm text-blue-100">
-            Join hundreds of students achieving outstanding results with our expert educators.
+            {isSinhala ? "අපගේ විශේෂඥ ගුරුවරුන් සමඟ විශිෂ්ට ප්‍රතිඵල ලබාගන්නා සිසුන් අතරට එක්වන්න." : "Join hundreds of students achieving outstanding results with our expert educators."}
           </p>
           <button className="mt-6 rounded-full bg-gradient-to-r from-[#D9232D] to-[#F47920] px-8 py-3 text-sm font-bold text-white shadow-lg shadow-orange-400/40 transition-all duration-300 hover:-translate-y-0.5 hover:shadow-xl active:scale-95">
-            Enroll Now
+            {isSinhala ? "දැන් ලියාපදිංචි වන්න" : "Enroll Now"}
           </button>
         </div>
       </section>

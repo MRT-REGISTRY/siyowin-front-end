@@ -3,23 +3,27 @@
 import Image from 'next/image'
 import { useState } from 'react'
 import { SiteArticle } from '@/types/siteContent'
+import { useLanguage } from './LanguageProvider'
 
 export default function Articles({ articles }: { articles: SiteArticle[] }) {
   const [activeArticle, setActiveArticle] = useState<SiteArticle | null>(null)
+  const { isSinhala } = useLanguage()
 
   return (
     <section id="news" className="scroll-mt-20 bg-[#f8f9fb] py-20 lg:py-28">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <div className="mb-14 flex flex-col items-center text-center">
           <span className="text-xs font-bold uppercase tracking-[0.25em] text-[#D9232D]">
-            News &amp; Insights
+            {isSinhala ? 'පුවත් සහ තොරතුරු' : 'News & Insights'}
           </span>
           <h2 className="mt-3 text-3xl font-extrabold text-gray-900 sm:text-4xl lg:text-5xl">
-            Latest Articles
+            {isSinhala ? 'නවතම පුවත්' : 'Latest Articles'}
           </h2>
           <div className="mt-4 h-px w-14 bg-[#D9232D]/30" />
           <p className="mt-5 max-w-xl text-base text-gray-500">
-            Tips, news, and guidance from our educators and academic team.
+            {isSinhala
+              ? 'අපගේ ගුරුවරුන් සහ අධ්‍යාපනික කණ්ඩායමෙන් පුවත්, උපදෙස් සහ මඟපෙන්වීම්.'
+              : 'Tips, news, and guidance from our educators and academic team.'}
           </p>
         </div>
 
@@ -62,7 +66,7 @@ export default function Articles({ articles }: { articles: SiteArticle[] }) {
                     onClick={() => setActiveArticle(article)}
                     className="inline-flex items-center gap-1.5 text-sm font-semibold text-gray-900 transition-colors duration-200 hover:text-[#D9232D]"
                   >
-                    Read Article
+                    {isSinhala ? 'කියවන්න' : 'Read Article'}
                     <svg className="h-3.5 w-3.5 transition-transform duration-300 group-hover:translate-x-1" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" d="M17 8l4 4m0 0l-4 4m4-4H3" />
                     </svg>

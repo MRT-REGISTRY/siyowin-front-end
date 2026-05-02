@@ -1,27 +1,34 @@
+'use client'
+
 import Link from 'next/link'
 import { ArrowRight, Clock3 } from 'lucide-react'
 import { timetableGroups, timetableUpdateMessage } from '@/data/timetables'
+import { useLanguage } from './LanguageProvider'
 
 export default function TimetablePreview() {
+  const { isSinhala } = useLanguage()
+
   return (
     <section id="timetable" className="relative scroll-mt-20 bg-gradient-to-b from-slate-50 to-[#eef2f7] pb-20 pt-8 md:pt-10">
       <div className="relative mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <div className="mx-auto max-w-3xl text-center">
           <span className="inline-flex items-center gap-2 rounded-full bg-blue-100 px-4 py-1 text-xs font-semibold uppercase tracking-widest text-blue-600">
               <Clock3 className="h-3.5 w-3.5" />
-              Class Schedules
+              {isSinhala ? 'පන්ති කාලසටහන්' : 'Class Schedules'}
             </span>
           <h2 className="mt-3 text-4xl font-extrabold tracking-tight text-gray-900 sm:text-5xl">
-              Time{' '}
+              {isSinhala ? 'කාල' : 'Time'}{' '}
               <span className="bg-gradient-to-r from-red-500 to-orange-400 bg-clip-text text-transparent">
-                Tables
+                {isSinhala ? 'සටහන්' : 'Tables'}
               </span>
             </h2>
           <p className="mx-auto mt-3 max-w-2xl text-base leading-7 text-gray-500">
-              Select a category to view teacher-wise class details and the timetable update area.
+              {isSinhala
+                ? 'ගුරුවරු අනුව පන්ති විස්තර සහ කාලසටහන් තොරතුරු බැලීමට කාණ්ඩයක් තෝරන්න.'
+                : 'Select a category to view teacher-wise class details and the timetable update area.'}
             </p>
           <p className="mx-auto mt-5 max-w-2xl rounded-2xl border border-blue-100 bg-white/80 px-5 py-3 text-sm leading-6 text-slate-600 shadow-sm">
-            {timetableUpdateMessage}
+            {isSinhala ? 'සම්පූර්ණ කාලසටහන සංශෝධනය කරමින් පවතින අතර අවසාන දින, වේලාවන් සහ හෝල් විස්තර ඉක්මනින් මෙහි එක් කෙරේ.' : timetableUpdateMessage}
           </p>
         </div>
 
@@ -43,11 +50,17 @@ export default function TimetablePreview() {
                 </div>
 
                 <div className="p-6 pt-5">
-                  <h3 className="text-xl font-extrabold text-slate-900">{group.title}</h3>
-                  <p className="mt-2 min-h-12 text-sm leading-6 text-slate-600">{group.description}</p>
+                  <h3 className="text-xl font-extrabold text-slate-900">
+                    {isSinhala ? `${group.shortTitle} පන්ති කාලසටහන` : group.title}
+                  </h3>
+                  <p className="mt-2 min-h-12 text-sm leading-6 text-slate-600">
+                    {isSinhala ? 'විෂය ගුරුවරු සහ පන්ති විස්තර බලන්න.' : group.description}
+                  </p>
 
                   <div className="mt-5 border-t border-slate-100 pt-4">
-                    <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">Available Teachers</p>
+                    <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">
+                      {isSinhala ? 'ගුරුවරු' : 'Available Teachers'}
+                    </p>
                     <p className="mt-1 text-sm font-bold text-slate-800">
                       {group.classes.map((item) => item.teacher).join(', ')}
                     </p>

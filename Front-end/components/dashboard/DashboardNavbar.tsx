@@ -2,6 +2,7 @@
 
 import { Bell, Search, Menu } from 'lucide-react';
 import { StudentProfile } from '@/types';
+import { useLanguage } from '@/components/LanguageProvider';
 
 interface Props {
   onMenuToggle: () => void;
@@ -11,6 +12,7 @@ interface Props {
 }
 
 export default function DashboardNavbar({ onMenuToggle, profile, searchValue, onSearchChange }: Props) {
+  const { isSinhala, toggleLanguage } = useLanguage();
   const avatar = profile?.avatar || profile?.name.charAt(0).toUpperCase() || 'S';
 
   return (
@@ -27,7 +29,7 @@ export default function DashboardNavbar({ onMenuToggle, profile, searchValue, on
           <Search size={15} className="sd-search-icon" />
           <input
             type="text"
-            placeholder="Search subjects, assignments..."
+            placeholder={isSinhala ? 'විෂයන්, පැවරුම් සොයන්න...' : 'Search subjects, assignments...'}
             className="sd-search-input"
             value={searchValue}
             onChange={(event) => onSearchChange(event.target.value)}
@@ -36,6 +38,10 @@ export default function DashboardNavbar({ onMenuToggle, profile, searchValue, on
       </div>
 
       <div className="sd-navbar-right">
+        <button type="button" className="sd-notif-btn" onClick={toggleLanguage} aria-label="Change language">
+          <span className="text-xs font-bold">{isSinhala ? 'EN' : 'සිං'}</span>
+        </button>
+
         <button className="sd-notif-btn" aria-label="Notifications">
           <Bell size={19} />
           <span className="sd-notif-dot" />
@@ -44,8 +50,8 @@ export default function DashboardNavbar({ onMenuToggle, profile, searchValue, on
         <div className="sd-navbar-profile">
           <div className="sd-navbar-avatar">{avatar}</div>
           <div className="sd-navbar-profile-info">
-            <p className="sd-navbar-name">{profile?.name ?? 'Student'}</p>
-            <p className="sd-navbar-role">Student</p>
+            <p className="sd-navbar-name">{profile?.name ?? (isSinhala ? 'සිසුවා' : 'Student')}</p>
+            <p className="sd-navbar-role">{isSinhala ? 'සිසුවා' : 'Student'}</p>
           </div>
         </div>
       </div>

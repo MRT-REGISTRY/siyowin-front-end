@@ -2,6 +2,7 @@
 
 import { BarChart3, Medal, ClipboardCheck, Star } from 'lucide-react';
 import { DashboardOverview, SubjectRecord } from '@/types';
+import { useLanguage } from '@/components/LanguageProvider';
 
 interface Props {
   overview: DashboardOverview | null;
@@ -9,42 +10,43 @@ interface Props {
 }
 
 export default function OverviewCards({ overview, subjects }: Props) {
+  const { isSinhala } = useLanguage();
   const average = overview?.averageMark ?? 0;
   const homeworkDone = subjects.reduce((total, subject) => total + subject.homeworkDoneThisMonth, 0);
   const homeworkTarget = subjects.reduce((total, subject) => total + subject.homeworkTargetThisMonth, 0);
   const cards = [
     {
       id: 'avg',
-      label: 'Overall Average',
+      label: isSinhala ? 'මුළු සාමාන්‍යය' : 'Overall Average',
       value: `${average}%`,
-      sub: '+2.1% from last term',
+      sub: isSinhala ? 'පසුගිය වාරයට වඩා +2.1%' : '+2.1% from last term',
       icon: BarChart3,
       color: 'red',
       trend: 'up',
     },
     {
       id: 'rank',
-      label: 'Class Rank',
+      label: isSinhala ? 'පන්ති ස්ථානය' : 'Class Rank',
       value: `#${overview?.classRank ?? '-'}`,
-      sub: 'Current best subject rank',
+      sub: isSinhala ? 'වත්මන් හොඳම විෂය ස්ථානය' : 'Current best subject rank',
       icon: Medal,
       color: 'orange',
       trend: 'neutral',
     },
     {
       id: 'hw',
-      label: 'Homework Completion',
+      label: isSinhala ? 'ගෙදර වැඩ සම්පූර්ණ කිරීම' : 'Homework Completion',
       value: `${overview?.homeworkCompletion ?? 0}%`,
-      sub: `${homeworkDone} of ${homeworkTarget} tasks done`,
+      sub: isSinhala ? `${homeworkTarget}න් ${homeworkDone}ක් සම්පූර්ණයි` : `${homeworkDone} of ${homeworkTarget} tasks done`,
       icon: ClipboardCheck,
       color: 'navy',
       trend: 'up',
     },
     {
       id: 'status',
-      label: 'Performance Status',
-      value: average >= 85 ? 'Excellent' : average >= 70 ? 'Good' : 'Needs Work',
-      sub: `Best subject: ${overview?.bestSubject ?? '-'}`,
+      label: isSinhala ? 'කාර්යසාධන තත්ත්වය' : 'Performance Status',
+      value: average >= 85 ? (isSinhala ? 'විශිෂ්ටයි' : 'Excellent') : average >= 70 ? (isSinhala ? 'හොඳයි' : 'Good') : (isSinhala ? 'වැඩි අවධානය අවශ්‍යයි' : 'Needs Work'),
+      sub: isSinhala ? `හොඳම විෂය: ${overview?.bestSubject ?? '-'}` : `Best subject: ${overview?.bestSubject ?? '-'}`,
       icon: Star,
       color: 'dark',
       trend: 'up',
@@ -62,7 +64,7 @@ export default function OverviewCards({ overview, subjects }: Props) {
                 <Icon size={20} />
               </div>
               {card.trend === 'up' && (
-                <span className="sd-trend-badge sd-trend-up">↑ Improving</span>
+                <span className="sd-trend-badge sd-trend-up">↑ {isSinhala ? 'දියුණු වෙමින්' : 'Improving'}</span>
               )}
             </div>
             <div className="sd-overview-card-body">
