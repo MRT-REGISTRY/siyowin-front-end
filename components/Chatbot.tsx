@@ -194,7 +194,7 @@ https://maps.app.goo.gl/DUgkYCeNYevdC9AQ9`);
                               addMessage('user', 'Location');
                               addMessage('bot', `📍 Siyowin Education Centre\n216/1 Main street, Kegalle 71010`, ['View on Google Maps']);
                             } else if (s === 'View on Google Maps') {
-                              window.open('https://maps.app.goo.gl/DUgkYCeNYevdC9AQ9', '_blank');
+                              window.open('https://maps.app.goo.gl/DUgkYCeNYevdC9AQ9', '_blank', 'noopener,noreferrer');
                             } else if (state === 'initial' && (m.suggestions?.includes('Subjects'))) {
                               if (s === 'Subjects') handleSubjectsClick();
                               else handleSend(s);
