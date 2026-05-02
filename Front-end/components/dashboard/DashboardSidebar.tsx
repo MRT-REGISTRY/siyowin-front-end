@@ -1,15 +1,19 @@
 'use client';
 
 import Image from 'next/image';
+import Link from 'next/link';
 import {
   LayoutDashboard,
   BookOpen,
   Trophy,
   TrendingUp,
   Settings,
+  LogOut,
   X,
 } from 'lucide-react';
 import { StudentProfile } from '@/types';
+import { clearSession } from '@/utils/api';
+import { useLanguage } from '@/components/LanguageProvider';
 
 const ICON_MAP: Record<string, React.ElementType> = {
   'layout-dashboard': LayoutDashboard,
@@ -42,10 +46,16 @@ export default function DashboardSidebar({
   onClose,
   profile,
 }: Props) {
+  const { isSinhala } = useLanguage();
+  const logout = () => {
+    clearSession();
+    window.location.href = '/';
+  };
+
   return (
     <aside className={`sd-sidebar ${isOpen ? 'sd-sidebar-open' : ''}`}>
       <div className="sd-sidebar-logo">
-        <div className="sd-logo-img-wrap">
+        <Link href="/" className="sd-logo-img-wrap" aria-label="Go to home page">
           <Image
             src="/photos/logo.png"
             alt="Siyowin Logo"
@@ -54,7 +64,7 @@ export default function DashboardSidebar({
             className="sd-logo-img"
             priority
           />
-        </div>
+        </Link>
         <button
           className="sd-sidebar-close"
           onClick={onClose}
@@ -64,7 +74,7 @@ export default function DashboardSidebar({
         </button>
       </div>
 
-      <p className="sd-sidebar-section-label">MENU</p>
+      <p className="sd-sidebar-section-label">{isSinhala ? 'මෙනුව' : 'MENU'}</p>
 
       <nav className="sd-sidebar-nav">
         {navItems.map((item) => {
@@ -96,6 +106,14 @@ export default function DashboardSidebar({
           </p>
         </div>
       </div>
+      <button
+        type="button"
+        onClick={logout}
+        className="mt-4 flex w-full items-center justify-center gap-2 rounded-2xl border border-red-100 bg-red-50 px-4 py-3 text-sm font-semibold text-red-700 transition hover:bg-red-100"
+      >
+        <LogOut size={16} />
+        {isSinhala ? 'ඉවත් වන්න' : 'Logout'}
+      </button>
     </aside>
   );
 }

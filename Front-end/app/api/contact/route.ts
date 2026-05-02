@@ -48,29 +48,37 @@ export async function POST(request: Request) {
     auth: { user, pass },
   })
 
-  await transporter.sendMail({
-    from,
-    to,
-    replyTo: email,
-    subject: `Website contact message from ${name}`,
-    text: [
-      `Name: ${name}`,
-      `Email: ${email}`,
-      `Phone: ${phone || 'Not provided'}`,
-      '',
-      message,
-    ].join('\n'),
-    html: `
-      <div style="font-family:Arial,sans-serif;line-height:1.6;color:#111827">
-        <h2>New website contact message</h2>
-        <p><strong>Name:</strong> ${escapeHtml(name)}</p>
-        <p><strong>Email:</strong> ${escapeHtml(email)}</p>
-        <p><strong>Phone:</strong> ${escapeHtml(phone || 'Not provided')}</p>
-        <hr style="border:none;border-top:1px solid #e5e7eb;margin:20px 0" />
-        <p>${escapeHtml(message).replace(/\n/g, '<br />')}</p>
-      </div>
-    `,
-  })
+  try {
+    await transporter.sendMail({
+      from,
+      to,
+      replyTo: email,
+      subject: `Website contact message from ${name}`,
+      text: [
+        `Name: ${name}`,
+        `Email: ${email}`,
+        `Phone: ${phone || 'Not provided'}`,
+        '',
+        message,
+      ].join('\n'),
+      html: `
+        <div style="font-family:Arial,sans-serif;line-height:1.6;color:#111827">
+          <h2>New website contact message</h2>
+          <p><strong>Name:</strong> ${escapeHtml(name)}</p>
+          <p><strong>Email:</strong> ${escapeHtml(email)}</p>
+          <p><strong>Phone:</strong> ${escapeHtml(phone || 'Not provided')}</p>
+          <hr style="border:none;border-top:1px solid #e5e7eb;margin:20px 0" />
+          <p>${escapeHtml(message).replace(/\n/g, '<br />')}</p>
+        </div>
+      `,
+    })
+  } catch (error) {
+    console.error('Contact email failed', error instanceof Error ? error.message : error)
+    return NextResponse.json(
+      { error: 'Email service failed. Please try again or contact us by phone.' },
+      { status: 502 }
+    )
+  }
 
   return NextResponse.json({ ok: true })
 }
