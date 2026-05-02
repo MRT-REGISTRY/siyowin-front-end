@@ -10,6 +10,7 @@ export async function GET(request: Request) {
     .from('classes')
     .select('grade')
     .eq('subject_name', subject)
+    .eq('is_active', true)
     .order('grade', { ascending: true });
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
