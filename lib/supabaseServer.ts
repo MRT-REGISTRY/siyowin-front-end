@@ -1,6 +1,13 @@
 import { createClient } from '@supabase/supabase-js';
 
-const url = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
-const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
+const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+if (!url) {
+  throw new Error('Missing required environment variable: NEXT_PUBLIC_SUPABASE_URL');
+}
+
+const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+if (!anonKey) {
+  throw new Error('Missing required environment variable: NEXT_PUBLIC_SUPABASE_ANON_KEY');
+}
 
 export const supabaseServer = createClient(url.replace(/\/rest\/v1\/?$/, ''), anonKey);
