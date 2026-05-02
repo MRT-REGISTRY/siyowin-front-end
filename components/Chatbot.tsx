@@ -132,21 +132,24 @@ export default function Chatbot() {
     setInput('');
 
     if (state === 'initial') {
-      addMessage('user', t);
       const lower = t.toLowerCase();
       if (lower.includes('subject')) {
         handleSubjectsClick();
       } else if (lower.includes('location')) {
+        addMessage('user', t);
         addMessage('bot', `📍 Siyowin Education Centre
 216/1 Main street, Kegalle 71010
 
 🗺️ View on Google Maps:
 https://maps.app.goo.gl/DUgkYCeNYevdC9AQ9`);
       } else if (lower.includes('office') || lower.includes('hours')) {
+        addMessage('user', t);
         addMessage('bot', 'Office hours are Mon-Fri 9:00–16:00.');
       } else if (lower.includes('contact')) {
+        addMessage('user', t);
         addMessage('bot', 'You can reach us at +94 77 123 4567 or email info@example.com.');
       } else {
+        addMessage('user', t);
         addMessage('bot', "Sorry, I don't have that yet — I'll learn that soon.");
       }
     } else if (state === 'subjects') {
