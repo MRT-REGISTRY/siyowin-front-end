@@ -114,11 +114,17 @@ export default function MarksPage() {
     [selectedGrade, selectedClassId, studentQuery, students],
   );
 
+  useEffect(() => {
+    if (!filteredStudents.some((student) => student.id === selectedStudentId)) {
+      setSelectedStudentId(filteredStudents[0]?.id ?? '');
+    }
+  }, [filteredStudents, selectedStudentId]);
+
   const selectedStudent = students.find((student) => student.id === selectedStudentId) ?? null;
   const currentSubject = subjects.find((subject) => subject.id === selectedSubjectId) ?? subjects[0];
-  const currentMarkKey = buildMarkKey(selectedSubjectId, selectedExamType, examName.trim());
+  const currentMarkKey = buildMarkKey(selectedSubjectId, selectedExamType, examName.trim(), examDate);
   const currentMark = selectedStudent?.marks.find(
-    (item) => buildMarkKey(item.subjectId, item.examType, item.examName) === currentMarkKey,
+    (item) => buildMarkKey(item.subjectId, item.examType, item.examName, item.examDate) === currentMarkKey,
   ) ?? null;
 
   const showNotice = (message: string, variant: NoticeVariant = 'success') => {
@@ -157,7 +163,7 @@ export default function MarksPage() {
         if (student.id !== selectedStudent.id) return student;
 
         const existingIndex = student.marks.findIndex(
-          (item) => buildMarkKey(item.subjectId, item.examType, item.examName) === buildMarkKey(nextMark.subjectId, nextMark.examType, nextMark.examName),
+          (item) => buildMarkKey(item.subjectId, item.examType, item.examName, item.examDate) === buildMarkKey(nextMark.subjectId, nextMark.examType, nextMark.examName, nextMark.examDate),
         );
 
         const nextMarks = [...student.marks];
@@ -186,7 +192,7 @@ export default function MarksPage() {
       return;
     }
 
-    apiDelete(`/admin/marks?studentId=${encodeURIComponent(selectedStudent.id)}&subjectId=${encodeURIComponent(selectedSubjectId)}&examType=${encodeURIComponent(selectedExamType)}&examName=${encodeURIComponent(examName.trim())}`)
+    apiDelete(`/admin/marks?studentId=${encodeURIComponent(selectedStudent.id)}&subjectId=${encodeURIComponent(selectedSubjectId)}&examType=${encodeURIComponent(selectedExamType)}&examName=${encodeURIComponent(examName.trim())}&examDate=${encodeURIComponent(examDate)}`)
       .then(() => {
         setStudents((previous) =>
       previous.map((student) => {
@@ -195,7 +201,7 @@ export default function MarksPage() {
         return {
           ...student,
           marks: student.marks.filter(
-            (item) => buildMarkKey(item.subjectId, item.examType, item.examName) !== currentMarkKey,
+            (item) => buildMarkKey(item.subjectId, item.examType, item.examName, item.examDate) !== currentMarkKey,
           ),
         };
       }),

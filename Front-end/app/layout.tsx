@@ -1,31 +1,23 @@
 import type { Metadata } from 'next'
 import { Geist, Geist_Mono } from 'next/font/google'
 import { Analytics } from '@vercel/analytics/next'
+import { LanguageProvider } from '@/components/LanguageProvider'
 import './globals.css'
 
 const _geist = Geist({ subsets: ["latin"] });
 const _geistMono = Geist_Mono({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: 'Siyowin Academy - Inspiring Minds Through Excellence',
+  title: 'Siyowin Higher Education Institute',
   description: 'Siyowin Academy - Sri Lanka\'s most trusted academy for quality education',
-  generator: 'v0.app',
   icons: {
     icon: [
       {
-        url: '/icon-light-32x32.png',
-        media: '(prefers-color-scheme: light)',
-      },
-      {
-        url: '/icon-dark-32x32.png',
-        media: '(prefers-color-scheme: dark)',
-      },
-      {
-        url: '/icon.svg',
-        type: 'image/svg+xml',
+        url: '/photos/logo.png',
+        type: 'image/png',
       },
     ],
-    apple: '/apple-icon.png',
+    apple: '/photos/logo.png',
   },
 }
 
@@ -37,7 +29,7 @@ export default function RootLayout({
   return (
     <html lang="en" className="bg-white">
       <body className="font-sans antialiased">
-        {children}
+        <LanguageProvider>{children}</LanguageProvider>
         {process.env.NODE_ENV === 'production' && <Analytics />}
       </body>
     </html>

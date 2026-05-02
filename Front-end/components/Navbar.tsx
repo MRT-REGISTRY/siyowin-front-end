@@ -3,20 +3,23 @@
 import Link from 'next/link'
 import { useState, useEffect } from 'react'
 import LmsLoginModal from './LmsLoginModal'
+import { useLanguage } from './LanguageProvider'
 
 const navLinks = [
-  { label: 'Home',     href: '#' },
-  { label: 'About',    href: '#' },
-  { label: 'Services', href: '#' },
-  { label: 'Teachers', href: '#' },
-  { label: 'Gallery',  href: '#' },
-  { label: 'FAQ',      href: '#' },
-  { label: 'More Info',href: '#' },
+  { label: 'Home', sinhalaLabel: 'මුල් පිටුව', href: '/' },
+  { label: 'About', sinhalaLabel: 'අප ගැන', href: '/#about' },
+  { label: 'Teachers', sinhalaLabel: 'ගුරුවරු', href: '/teachers' },
+  { label: 'Timetable', sinhalaLabel: 'කාලසටහන්', href: '/#timetable' },
+  { label: 'Gallery', sinhalaLabel: 'ගැලරිය', href: '/#gallery' },
+  { label: 'News', sinhalaLabel: 'පුවත්', href: '/#news' },
+  { label: 'FAQ', sinhalaLabel: 'ප්‍රශ්න', href: '/#faq' },
+  { label: 'Contact', sinhalaLabel: 'සම්බන්ධ වන්න', href: '/#contact' },
 ]
 
 export default function Navbar() {
   const [isOpen,    setIsOpen]    = useState(false)
   const [showLogin, setShowLogin] = useState(false)
+  const { isSinhala, toggleLanguage } = useLanguage()
 
   // Listen for the Hero LMS button custom event
   useEffect(() => {
@@ -44,18 +47,26 @@ export default function Navbar() {
                   href={link.href}
                   className="group relative px-3 py-1.5 text-sm font-semibold text-blue-700 transition-colors duration-200 hover:text-blue-900"
                 >
-                  {link.label}
+                  {isSinhala ? link.sinhalaLabel : link.label}
                   {/* Animated underline */}
                   <span className="absolute bottom-0 left-1/2 h-[2px] w-0 -translate-x-1/2 rounded-full bg-blue-500 transition-all duration-300 ease-out group-hover:w-4/5" />
                 </Link>
               ))}
+
+              <button
+                type="button"
+                onClick={toggleLanguage}
+                className="ml-2 rounded-full border border-blue-200 px-3 py-1.5 text-xs font-bold text-blue-700 transition hover:bg-blue-50"
+              >
+                {isSinhala ? 'English' : 'සිංහල'}
+              </button>
 
               {/* LMS Button */}
               <button
                 onClick={() => setShowLogin(true)}
                 className="ml-4 rounded-full border-2 border-red-700 px-5 py-1.5 text-sm font-bold text-red-700 transition-all duration-300 hover:bg-red-700 hover:text-white hover:shadow-md active:scale-95"
               >
-                LMS LOGIN
+                {isSinhala ? 'LMS පිවිසුම' : 'LMS LOGIN'}
               </button>
             </div>
 
@@ -103,10 +114,23 @@ export default function Navbar() {
                     transition: `opacity 350ms ease ${i * 40}ms, transform 350ms ease ${i * 40}ms, color 200ms`,
                   }}
                 >
-                  {link.label}
+                  {isSinhala ? link.sinhalaLabel : link.label}
                   <span className="absolute bottom-1.5 left-1/2 h-[2px] w-0 -translate-x-1/2 rounded-full bg-blue-400 transition-all duration-300 group-hover:w-1/3" />
                 </Link>
               ))}
+
+              <button
+                type="button"
+                onClick={() => { setIsOpen(false); toggleLanguage() }}
+                className="mt-3 w-44 rounded-full border border-blue-200 py-2 text-sm font-bold text-blue-700 transition-all duration-300 hover:bg-blue-50 active:scale-95"
+                style={{
+                  opacity: isOpen ? 1 : 0,
+                  transform: isOpen ? 'translateY(0)' : 'translateY(-8px)',
+                  transition: `opacity 350ms ease ${navLinks.length * 40}ms, transform 350ms ease ${navLinks.length * 40}ms`,
+                }}
+              >
+                {isSinhala ? 'English' : 'සිංහල'}
+              </button>
 
               {/* LMS Login — mobile */}
               <button
@@ -118,7 +142,7 @@ export default function Navbar() {
                   transition: `opacity 350ms ease ${navLinks.length * 40}ms, transform 350ms ease ${navLinks.length * 40}ms`,
                 }}
               >
-                LMS LOGIN
+                {isSinhala ? 'LMS පිවිසුම' : 'LMS LOGIN'}
               </button>
             </div>
           </div>

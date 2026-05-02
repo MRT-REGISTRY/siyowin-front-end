@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { ArrowRight, FileSpreadsheet, UserPlus, Users } from 'lucide-react';
+import { ArrowRight, BookOpenCheck, FileSpreadsheet, Users } from 'lucide-react';
 
 export default function AdminHub() {
   return (
@@ -20,7 +20,7 @@ export default function AdminHub() {
             </div>
           </div>
 
-          <div className="grid gap-6 px-6 py-6 md:grid-cols-2 sm:px-8">
+          <div className="grid gap-6 px-6 py-6 md:grid-cols-3 sm:px-8">
             <Link
               href="/admin/students"
               className="group rounded-3xl border border-slate-200 bg-slate-50 p-6 transition hover:-translate-y-1 hover:shadow-lg hover:shadow-slate-900/10"
@@ -34,6 +34,22 @@ export default function AdminHub() {
               <h2 className="mt-5 text-2xl font-bold text-slate-900">Students / Teachers</h2>
               <p className="mt-2 text-sm leading-6 text-slate-600">
                 Create issued logins, view registered users, and assign classes or teacher grade groups.
+              </p>
+            </Link>
+
+            <Link
+              href="/admin/classes"
+              className="group rounded-3xl border border-slate-200 bg-slate-50 p-6 transition hover:-translate-y-1 hover:shadow-lg hover:shadow-slate-900/10"
+            >
+              <div className="flex items-center justify-between gap-4">
+                <div className="rounded-2xl bg-sky-100 p-3 text-sky-700">
+                  <BookOpenCheck className="h-6 w-6" />
+                </div>
+                <ArrowRight className="h-5 w-5 text-slate-400 transition group-hover:translate-x-1" />
+              </div>
+              <h2 className="mt-5 text-2xl font-bold text-slate-900">Classes & Enrollments</h2>
+              <p className="mt-2 text-sm leading-6 text-slate-600">
+                Search class subjects, inspect class details, and manage enrolled students.
               </p>
             </Link>
 

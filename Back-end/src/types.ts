@@ -48,6 +48,9 @@ export type SubjectRecord = {
   teacherId?: string | null;
   gradeId?: string | null;
   subjectName?: string | null;
+  medium?: string | null;
+  schedule?: string | null;
+  fee?: number | null;
   year?: number | null;
   isActive?: boolean | null;
   createdAt?: string | null;
@@ -68,6 +71,7 @@ export type AdminClassOption = {
   name: string;
   label: string;
   medium: string;
+  teacherId?: string | null;
   subjectId?: string;
   subjectName?: string;
   academicYear?: number;
@@ -80,6 +84,12 @@ export type AdminSubjectOption = {
   id: string;
   name: string;
   teacher: string;
+  classLabel?: string;
+  grade?: string;
+  medium?: string;
+  schedule?: string;
+  fee?: number;
+  studentCount?: number;
 };
 
 export type AdminExamType = {
@@ -132,7 +142,7 @@ export type StudentEnrollment = {
   id: string;
   studentId: string;
   classId: string;
-  subjectId: string;
+  subjectId?: string;
   academicYear: number;
   status: 'active' | 'completed' | 'cancelled';
   enrolledAt: string;
@@ -142,7 +152,7 @@ export type TeacherClassAssignment = {
   id: string;
   teacherId: string;
   classId: string;
-  subjectId: string;
+  subjectId?: string;
   role: 'primary' | 'assistant';
   activeFrom?: string;
   activeTo?: string;

@@ -1,5 +1,6 @@
 'use client';
 
+import { useMemo, useState } from 'react';
 import { Filter, Search, ArrowRight } from 'lucide-react';
 import { SubjectRecord } from '@/types';
 
@@ -9,6 +10,36 @@ interface Props {
 }
 
 export default function SubjectsPage({ subjects, onSelectSubject }: Props) {
+  const [query, setQuery] = useState('');
+  const [filterMode, setFilterMode] = useState<'all' | 'improving' | 'needs-work'>('all');
+  const normalizedQuery = query.trim().toLowerCase();
+  const filteredSubjects = useMemo(() => {
+    return subjects.filter((subject) => {
+      const matchesQuery = !normalizedQuery || [
+        subject.name,
+        subject.subjectName,
+        subject.teacher,
+        subject.classLabel,
+        subject.gradeId,
+      ].some((value) => (value ?? '').toLowerCase().includes(normalizedQuery));
+      const matchesFilter =
+        filterMode === 'all' ||
+        (filterMode === 'improving' && subject.trend === 'up') ||
+        (filterMode === 'needs-work' && subject.trend === 'down');
+
+      return matchesQuery && matchesFilter;
+    });
+  }, [filterMode, normalizedQuery, subjects]);
+
+  const cycleFilter = () => {
+    setFilterMode((current) => {
+      if (current === 'all') return 'improving';
+      if (current === 'improving') return 'needs-work';
+      return 'all';
+    });
+  };
+  const filterLabel = filterMode === 'all' ? 'All' : filterMode === 'improving' ? 'Improving' : 'Needs work';
+
   return (
     <div className="sdp-wrap">
       <div className="sdp-header">
@@ -19,9 +50,16 @@ export default function SubjectsPage({ subjects, onSelectSubject }: Props) {
         <div className="sdp-header-right">
           <div className="sdp-search">
             <Search size={14} className="sdp-search-icon" />
-            <input placeholder="Search subject..." className="sdp-search-input" />
+            <input
+              placeholder="Search subject..."
+              className="sdp-search-input"
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+            />
           </div>
-          <button className="sdp-filter-btn"><Filter size={14} /> Filter</button>
+          <button className="sdp-filter-btn" type="button" onClick={cycleFilter}>
+            <Filter size={14} /> {filterLabel}
+          </button>
         </div>
       </div>
 
@@ -38,7 +76,7 @@ export default function SubjectsPage({ subjects, onSelectSubject }: Props) {
       </div>
 
       <div className="sdp-grid">
-        {subjects.map((subject) => (
+        {filteredSubjects.map((subject) => (
           <button
             key={subject.id}
             type="button"
@@ -59,6 +97,9 @@ export default function SubjectsPage({ subjects, onSelectSubject }: Props) {
           </button>
         ))}
       </div>
+      {filteredSubjects.length === 0 && (
+        <p className="sdp-card">No subjects match the current search.</p>
+      )}
     </div>
   );
 }

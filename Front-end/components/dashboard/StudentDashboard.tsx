@@ -1,7 +1,6 @@
 'use client';
 
-import { useState } from 'react';
-import { useEffect } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import DashboardSidebar from './DashboardSidebar';
 import DashboardNavbar from './DashboardNavbar';
 import OverviewCards from './OverviewCards';
@@ -15,6 +14,7 @@ import SettingsPage from './pages/SettingsPage';
 import { apiGet } from '@/utils/api';
 import { ApiSubjectRecord, DashboardOverview, StudentProfile, SubjectRecord } from '@/types';
 import { normalizeSubjects } from '@/utils/subjects';
+import { useLanguage } from '@/components/LanguageProvider';
 
 const NAV_ITEMS = [
   { id: 'dashboard',   label: 'Dashboard',   icon: 'layout-dashboard' },
@@ -24,6 +24,7 @@ const NAV_ITEMS = [
 ];
 
 export default function StudentDashboard() {
+  const { isSinhala } = useLanguage();
   const [activeNav, setActiveNav] = useState('dashboard');
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [selectedSubjectId, setSelectedSubjectId] = useState<string | null>(null);
@@ -32,9 +33,30 @@ export default function StudentDashboard() {
   const [overview, setOverview] = useState<DashboardOverview | null>(null);
   const [progress, setProgress] = useState<Array<{ month: string; score: number; classAvg: number }>>([]);
   const [homework, setHomework] = useState<Array<any>>([]);
+  const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
+  const normalizedSearchQuery = searchQuery.trim().toLowerCase();
+  const visibleSubjects = useMemo(() => {
+    if (!normalizedSearchQuery) return subjects;
+    return subjects.filter((subject) => [
+      subject.name,
+      subject.subjectName,
+      subject.teacher,
+      subject.classLabel,
+      subject.gradeId,
+    ].some((value) => (value ?? '').toLowerCase().includes(normalizedSearchQuery)));
+  }, [normalizedSearchQuery, subjects]);
+  const visibleHomework = useMemo(() => {
+    if (!normalizedSearchQuery) return homework;
+    return homework.filter((item) => [
+      item.title,
+      item.subjectName,
+      item.status,
+      item.dueDate,
+    ].some((value) => String(value ?? '').toLowerCase().includes(normalizedSearchQuery)));
+  }, [homework, normalizedSearchQuery]);
   const selectedSubject = selectedSubjectId ? subjects.find((subject) => subject.id === selectedSubjectId) ?? null : null;
 
   useEffect(() => {
@@ -90,7 +112,18 @@ export default function StudentDashboard() {
   return (
     <div className="sd-root">
       <DashboardSidebar
-        navItems={NAV_ITEMS}
+        navItems={NAV_ITEMS.map((item) => ({
+          ...item,
+          label: isSinhala
+            ? item.id === 'dashboard'
+              ? 'පුවරුව'
+              : item.id === 'subjects'
+                ? 'මගේ විෂයන්'
+                : item.id === 'progress'
+                  ? 'ප්‍රගතිය'
+                  : 'සැකසුම්'
+            : item.label,
+        }))}
         activeNav={activeNav}
         onNavChange={handleNavChange}
         isOpen={sidebarOpen}
@@ -102,26 +135,31 @@ export default function StudentDashboard() {
       )}
 
       <div className="sd-main-wrapper">
-        <DashboardNavbar onMenuToggle={() => setSidebarOpen(true)} />
+        <DashboardNavbar
+          onMenuToggle={() => setSidebarOpen(true)}
+          profile={profile}
+          searchValue={searchQuery}
+          onSearchChange={setSearchQuery}
+        />
 
         <main className="sd-content">
-          {loading && <p className="sdp-card">Loading dashboard...</p>}
+          {loading && <p className="sdp-card">{isSinhala ? 'පුවරුව පූරණය වෙමින්...' : 'Loading dashboard...'}</p>}
           {!loading && error && <p className="sdp-card text-red-600">{error}</p>}
           {activeNav === 'dashboard' && (
             <>
               <div className="sd-greeting">
                 <div>
                   <h1 className="sd-greeting-title">
-                    Good afternoon, <span className="sd-highlight">{profile?.name.split(' ')[0] ?? 'Student'}!</span>
+                    {isSinhala ? 'ආයුබෝවන්' : 'Good afternoon'}, <span className="sd-highlight">{profile?.name.split(' ')[0] ?? (isSinhala ? 'සිසුවා' : 'Student')}!</span>
                   </h1>
-                  <p className="sd-greeting-sub">Here&apos;s a summary of your academic performance this term.</p>
+                  <p className="sd-greeting-sub">{isSinhala ? 'මෙම වාරයේ ඔබගේ අධ්‍යාපනික ප්‍රගතියේ සාරාංශය මෙන්න.' : 'Here&apos;s a summary of your academic performance this term.'}</p>
                 </div>
-                <div className="sd-term-badge">{profile ? `${profile.term} - ${profile.year}` : 'Current term'}</div>
+                <div className="sd-term-badge">{profile ? `${profile.term} - ${profile.year}` : isSinhala ? 'වත්මන් වාරය' : 'Current term'}</div>
               </div>
               <OverviewCards overview={overview} subjects={subjects} />
               <div className="sd-mid-grid">
                 <SubjectCards
-                  subjects={subjects}
+                  subjects={visibleSubjects}
                   onSelectSubject={openSubject}
                   onViewAll={() => {
                     setSelectedSubjectId(null);
@@ -131,7 +169,7 @@ export default function StudentDashboard() {
                 <ProgressChart data={progress} />
               </div>
               <div className="sd-bottom-grid">
-                <HomeworkSection homework={homework} />
+                <HomeworkSection homework={visibleHomework} />
               </div>
             </>
           )}
@@ -141,7 +179,7 @@ export default function StudentDashboard() {
           )}
 
           {activeNav === 'subjects' && !selectedSubject && (
-            <SubjectsPage subjects={subjects} onSelectSubject={openSubject} />
+            <SubjectsPage subjects={visibleSubjects} onSelectSubject={openSubject} />
           )}
           
           {activeNav === 'progress'    && <ProgressPage overview={overview} subjects={subjects} progress={progress} />}

@@ -4,6 +4,7 @@ import { useState } from 'react'
 import Image from 'next/image'
 import { X, ZoomIn } from 'lucide-react'
 import { SiteGalleryImage } from '@/types/siteContent'
+import { useLanguage } from './LanguageProvider'
 
 type Filter = 'all' | 'indoor' | 'outdoor'
 
@@ -16,6 +17,7 @@ const filters: { label: string; value: Filter }[] = [
 export default function Gallery({ images }: { images: SiteGalleryImage[] }) {
   const [active,     setActive]     = useState<Filter>('all')
   const [lightbox,   setLightbox]   = useState<number | null>(null)
+  const { isSinhala } = useLanguage()
 
   const filtered = active === 'all'
     ? images
@@ -27,7 +29,7 @@ export default function Gallery({ images }: { images: SiteGalleryImage[] }) {
   const closeLightbox = ()           => setLightbox(null)
 
   return (
-    <section className="relative overflow-hidden bg-gradient-to-b from-white to-slate-50 py-20">
+    <section id="gallery" className="relative scroll-mt-20 overflow-hidden bg-gradient-to-b from-white to-slate-50 py-20">
 
       {/* Decorative background blobs */}
       <div className="pointer-events-none absolute -left-32 top-20 h-64 w-64 rounded-full bg-red-100/60 blur-3xl" />
@@ -38,19 +40,21 @@ export default function Gallery({ images }: { images: SiteGalleryImage[] }) {
         {/* ── Section Header ── */}
         <div className="mb-12 flex flex-col items-center text-center">
           <span className="mb-3 inline-block rounded-full bg-red-50 px-4 py-1 text-xs font-semibold uppercase tracking-widest text-red-600">
-            Our Moments
+            {isSinhala ? 'අපගේ මතකයන්' : 'Our Moments'}
           </span>
           <h2 className="text-4xl font-extrabold tracking-tight text-gray-900 sm:text-5xl">
-            Photo{' '}
+            {isSinhala ? 'ඡායාරූප' : 'Photo'}{' '}
             <span
               className="bg-clip-text text-transparent"
               style={{ backgroundImage: 'linear-gradient(to right, #D9232D, #F47920)' }}
             >
-              Gallery
+              {isSinhala ? 'ගැලරිය' : 'Gallery'}
             </span>
           </h2>
           <p className="mt-3 max-w-xl text-base text-gray-500">
-            Glimpses from our events, classrooms, and campus life at Siyowin Higher Education Institute.
+            {isSinhala
+              ? 'Siyowin Higher Education Institute හි වැඩසටහන්, පන්ති කාමර සහ සිසුන්ගේ මතකයන්.'
+              : 'Glimpses from our events, classrooms, and campus life at Siyowin Higher Education Institute.'}
           </p>
         </div>
 
@@ -73,7 +77,13 @@ export default function Gallery({ images }: { images: SiteGalleryImage[] }) {
                   transform: isActive ? 'scale(1.04)' : 'scale(1)',
                 }}
               >
-                {f.label}
+                {isSinhala
+                  ? f.value === 'all'
+                    ? 'සියලු ඡායාරූප'
+                    : f.value === 'indoor'
+                      ? 'ඇතුළත වැඩසටහන්'
+                      : 'බාහිර වැඩසටහන්'
+                  : f.label}
               </button>
             )
           })}
@@ -124,34 +134,11 @@ export default function Gallery({ images }: { images: SiteGalleryImage[] }) {
 
         {/* No results */}
         {filtered.length === 0 && (
-          <div className="py-20 text-center text-gray-400">No photos in this category yet.</div>
+          <div className="py-20 text-center text-gray-400">
+            {isSinhala ? 'මෙම කාණ්ඩයේ ඡායාරූප නොමැත.' : 'No photos in this category yet.'}
+          </div>
         )}
 
-        {/* ── View More CTA ── */}
-        <div className="mt-12 flex justify-center">
-          <a
-            href="#"
-            className="group inline-flex items-center gap-2 rounded-full border-2 px-7 py-3 text-sm font-bold transition-all duration-300 hover:-translate-y-0.5"
-            style={{ borderColor: '#D9232D', color: '#D9232D' }}
-            onMouseEnter={(e) => {
-              const el = e.currentTarget as HTMLAnchorElement
-              el.style.background = 'linear-gradient(135deg, #D9232D, #F47920)'
-              el.style.color = '#fff'
-              el.style.borderColor = 'transparent'
-            }}
-            onMouseLeave={(e) => {
-              const el = e.currentTarget as HTMLAnchorElement
-              el.style.background = 'transparent'
-              el.style.color = '#D9232D'
-              el.style.borderColor = '#D9232D'
-            }}
-          >
-            View Full Gallery
-            <svg className="h-4 w-4 transition-transform duration-300 group-hover:translate-x-1" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M17 8l4 4m0 0l-4 4m4-4H3" />
-            </svg>
-          </a>
-        </div>
       </div>
 
       {/* ── Lightbox ── */}

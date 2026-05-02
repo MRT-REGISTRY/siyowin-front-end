@@ -74,16 +74,22 @@ export default function TeacherDashboard() {
   const [studentProgress, setStudentProgress] = useState<StudentProgressResponse | null>(null);
   const [progressLoading, setProgressLoading] = useState(false);
 
+  const selectedSubject = subjects.find((subject) => subject.id === selectedSubjectId);
   const filteredStudents = useMemo(() => {
     const normalized = query.trim().toLowerCase();
-    if (!normalized) return students;
+    return students.filter((student) => {
+      const matchesClass =
+        !selectedSubjectId ||
+        student.classId === selectedSubjectId ||
+        student.enrollments?.some((enrollment) => enrollment.classId === selectedSubjectId);
+      const matchesQuery =
+        !normalized ||
+        student.name.toLowerCase().includes(normalized) ||
+        student.index.toLowerCase().includes(normalized);
 
-    return students.filter((student) =>
-      student.name.toLowerCase().includes(normalized) || student.index.toLowerCase().includes(normalized),
-    );
-  }, [query, students]);
-
-  const selectedSubject = subjects.find((subject) => subject.id === selectedSubjectId);
+      return matchesClass && matchesQuery;
+    });
+  }, [query, selectedSubjectId, students]);
   const selectedStudent = students.find((student) => student.id === selectedStudentId);
 
   const loadDashboard = () => {
@@ -125,6 +131,12 @@ export default function TeacherDashboard() {
       .catch((error) => setNotice(error instanceof Error ? error.message : 'Student progress could not be loaded.'))
       .finally(() => setProgressLoading(false));
   }, [selectedStudentId]);
+
+  useEffect(() => {
+    if (!filteredStudents.some((student) => student.id === selectedStudentId)) {
+      setSelectedStudentId(filteredStudents[0]?.id ?? '');
+    }
+  }, [filteredStudents, selectedStudentId]);
 
   const saveMark = () => {
     const mark = Number(markValue);
@@ -213,7 +225,7 @@ export default function TeacherDashboard() {
 
             <div className="mt-5 grid gap-3 sm:grid-cols-2">
               <select value={selectedSubjectId} onChange={(event) => setSelectedSubjectId(event.target.value)} className="rounded-2xl border border-slate-200 px-4 py-3 text-sm">
-                {subjects.map((subject) => <option key={subject.id} value={subject.id}>{subject.name}</option>)}
+                {subjects.map((subject) => <option key={subject.id} value={subject.id}>{subject.name} - {subject.classLabel ?? subject.grade ?? ''}</option>)}
               </select>
               <select value={selectedExamType} onChange={(event) => setSelectedExamType(event.target.value)} className="rounded-2xl border border-slate-200 px-4 py-3 text-sm">
                 {examTypes.map((exam) => <option key={exam.id} value={exam.id}>{exam.label}</option>)}
@@ -223,6 +235,17 @@ export default function TeacherDashboard() {
               <input value={markValue} onChange={(event) => setMarkValue(event.target.value)} inputMode="numeric" className="rounded-2xl border border-slate-200 px-4 py-3 text-sm" placeholder="Mark" />
               <input value={note} onChange={(event) => setNote(event.target.value)} className="rounded-2xl border border-slate-200 px-4 py-3 text-sm" placeholder="Optional note" />
             </div>
+
+            {selectedSubject && (
+              <div className="mt-4 grid gap-3 rounded-2xl border border-slate-200 bg-slate-50 p-4 sm:grid-cols-2">
+                <ClassDetail label="Class" value={selectedSubject.classLabel ?? selectedSubject.name} />
+                <ClassDetail label="Grade" value={selectedSubject.grade ?? 'Not set'} />
+                <ClassDetail label="Medium" value={selectedSubject.medium ?? 'Not set'} />
+                <ClassDetail label="Schedule" value={selectedSubject.schedule ?? 'Not set'} />
+                <ClassDetail label="Students" value={String(selectedSubject.studentCount ?? filteredStudents.length)} />
+                <ClassDetail label="Fee" value={selectedSubject.fee !== undefined ? `Rs. ${selectedSubject.fee}` : 'Not set'} />
+              </div>
+            )}
 
             <div className="mt-5 rounded-2xl border border-slate-200 bg-slate-50 p-4">
               <div className="flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-3">
@@ -244,6 +267,11 @@ export default function TeacherDashboard() {
                     <Users className="h-4 w-4 text-slate-400" />
                   </button>
                 ))}
+                {filteredStudents.length === 0 && (
+                  <p className="rounded-2xl border border-dashed border-slate-200 px-4 py-6 text-center text-sm text-slate-500">
+                    No students are enrolled in the selected class.
+                  </p>
+                )}
               </div>
             </div>
 
@@ -265,7 +293,7 @@ export default function TeacherDashboard() {
                 </thead>
                 <tbody>
                   {recentMarks.map((mark) => (
-                    <tr key={`${mark.studentId}-${mark.subjectId}-${mark.examType}-${mark.examName}`} className="border-t border-slate-100">
+                    <tr key={`${mark.studentId}-${mark.subjectId}-${mark.examType}-${mark.examName}-${mark.examDate}`} className="border-t border-slate-100">
                       <td className="px-4 py-3">
                         <strong className="block text-slate-900">{mark.studentName}</strong>
                         <span className="text-xs text-slate-500">{mark.studentIndex}</span>
@@ -331,5 +359,14 @@ export default function TeacherDashboard() {
         </section>
       </div>
     </main>
+  );
+}
+
+function ClassDetail({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3">
+      <p className="text-xs uppercase tracking-[0.14em] text-slate-500">{label}</p>
+      <p className="mt-1 text-sm font-bold text-slate-900">{value}</p>
+    </div>
   );
 }
