@@ -45,7 +45,7 @@ export default function HeroSection() {
         fill
         priority
         sizes="(max-width: 768px) 100vw, (max-width: 1200px) 100vw, 100vw"
-        className="object-cover"
+        className="object-cover object-center md:mt-11"
         quality={85}
       />
 

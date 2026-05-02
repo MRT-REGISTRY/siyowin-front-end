@@ -5,6 +5,7 @@ import LecturerCarousel from '@/components/LecturerCarousel'
 import Gallery from '@/components/Gallery'
 import Articles from '@/components/Articles'
 import Footer from '@/components/Footer'
+import Chatbot from '@/components/Chatbot'
 
 export default function Home() {
   return (
@@ -18,6 +19,8 @@ export default function Home() {
       <Gallery />
       <Articles />
       <Footer />
+
+      <Chatbot />
     </main>
   )
 }

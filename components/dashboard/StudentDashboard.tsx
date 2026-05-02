@@ -98,6 +98,7 @@ export default function StudentDashboard() {
           {activeNav === 'settings'    && <SettingsPage />}
         </main>
       </div>
+      
     </div>
   );
 }
