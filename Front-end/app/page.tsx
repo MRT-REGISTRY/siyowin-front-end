@@ -8,6 +8,7 @@ import Articles from '@/components/Articles'
 import ContactSection from '@/components/ContactSection'
 import FaqSection from '@/components/FaqSection'
 import Footer from '@/components/Footer'
+import TawkToWidget from '@/components/TawkToWidget'
 import { getSiteContent } from '@/utils/siteContent'
 
 export default async function Home() {
@@ -34,6 +35,7 @@ export default async function Home() {
         <ContactSection />
         <FaqSection />
         <Footer />
+        <TawkToWidget />
       </main>
   )
 }
