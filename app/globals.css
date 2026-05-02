@@ -179,31 +179,6 @@
   }
 }
 
-/* Chatbot button (global) */
-.chatbot-button {
-  position: fixed;
-  bottom: 24px;
-  right: 24px;
-  width: 56px;
-  height: 56px;
-  border-radius: 50%;
-  background: linear-gradient(135deg, #D9232D, #F47920);
-  color: #fff;
-  border: none;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  box-shadow: 0 4px 16px rgba(217, 35, 45, 0.3);
-  transition: transform 0.2s, box-shadow 0.2s;
-  z-index: 50;
-  padding: 0;
-}
-
-.chatbot-button:hover { transform: scale(1.06); }
-.chatbot-button:active { transform: scale(0.98); }
-.chatbot-button svg { width: 24px; height: 24px; stroke: currentColor; }
-
 /* Chatbot panel styles */
 .chatbot-panel {
   position: fixed;
