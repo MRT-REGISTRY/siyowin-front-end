@@ -6,7 +6,6 @@ import DashboardNavbar from './DashboardNavbar';
 import OverviewCards from './OverviewCards';
 import SubjectCards from './SubjectCards';
 import ProgressChart from './ProgressChart';
-import HomeworkSection from './HomeworkSection';
 import SubjectsPage from './pages/SubjectsPage';
 import SubjectReportPage from './pages/SubjectReportPage';
 import ProgressPage from './pages/ProgressPage';
@@ -32,7 +31,6 @@ export default function StudentDashboard() {
   const [profile, setProfile] = useState<StudentProfile | null>(null);
   const [overview, setOverview] = useState<DashboardOverview | null>(null);
   const [progress, setProgress] = useState<Array<{ month: string; score: number; classAvg: number }>>([]);
-  const [homework, setHomework] = useState<Array<any>>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -48,15 +46,6 @@ export default function StudentDashboard() {
       subject.gradeId,
     ].some((value) => (value ?? '').toLowerCase().includes(normalizedSearchQuery)));
   }, [normalizedSearchQuery, subjects]);
-  const visibleHomework = useMemo(() => {
-    if (!normalizedSearchQuery) return homework;
-    return homework.filter((item) => [
-      item.title,
-      item.subjectName,
-      item.status,
-      item.dueDate,
-    ].some((value) => String(value ?? '').toLowerCase().includes(normalizedSearchQuery)));
-  }, [homework, normalizedSearchQuery]);
   const selectedSubject = selectedSubjectId ? subjects.find((subject) => subject.id === selectedSubjectId) ?? null : null;
 
   useEffect(() => {
@@ -79,7 +68,6 @@ export default function StudentDashboard() {
           score: item.score ?? item.average ?? 0,
           classAvg: item.classAvg ?? 0,
         })));
-        setHomework(data.homework);
         setError('');
       })
       .catch((err) => {
@@ -146,18 +134,22 @@ export default function StudentDashboard() {
           {loading && <p className="sdp-card">{isSinhala ? 'පුවරුව පූරණය වෙමින්...' : 'Loading dashboard...'}</p>}
           {!loading && error && <p className="sdp-card text-red-600">{error}</p>}
           {activeNav === 'dashboard' && (
-            <>
+            <div className="sd-dashboard-grid">
               <div className="sd-greeting">
                 <div>
                   <h1 className="sd-greeting-title">
                     {isSinhala ? 'ආයුබෝවන්' : 'Good afternoon'}, <span className="sd-highlight">{profile?.name.split(' ')[0] ?? (isSinhala ? 'සිසුවා' : 'Student')}!</span>
                   </h1>
-                  <p className="sd-greeting-sub">{isSinhala ? 'මෙම වාරයේ ඔබගේ අධ්‍යාපනික ප්‍රගතියේ සාරාංශය මෙන්න.' : 'Here&apos;s a summary of your academic performance this term.'}</p>
+                  <p className="sd-greeting-sub">{isSinhala ? 'මෙම වාරයේ ඔබගේ අධ්‍යාපනික ප්‍රගතියේ සාරාංශය මෙන්න.' : 'Here is a summary of your academic performance this term.'}</p>
                 </div>
                 <div className="sd-term-badge">{profile ? `${profile.term} - ${profile.year}` : isSinhala ? 'වත්මන් වාරය' : 'Current term'}</div>
               </div>
-              <OverviewCards overview={overview} subjects={subjects} />
-              <div className="sd-mid-grid">
+
+              <div className="sd-dashboard-overview">
+                <OverviewCards overview={overview} />
+              </div>
+
+              <div className="sd-dashboard-subjects">
                 <SubjectCards
                   subjects={visibleSubjects}
                   onSelectSubject={openSubject}
@@ -166,12 +158,12 @@ export default function StudentDashboard() {
                     setActiveNav('subjects');
                   }}
                 />
-                <ProgressChart data={progress} />
               </div>
-              <div className="sd-bottom-grid">
-                <HomeworkSection homework={visibleHomework} />
+
+              <div className="sd-dashboard-progress">
+                <ProgressChart data={progress} subjects={subjects} />
               </div>
-            </>
+            </div>
           )}
 
           {activeNav === 'subjects' && selectedSubject && (

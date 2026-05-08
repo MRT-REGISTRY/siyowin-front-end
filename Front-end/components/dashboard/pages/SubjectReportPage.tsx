@@ -1,56 +1,49 @@
 'use client';
 
-import { useState } from 'react';
-import { ArrowLeft, ChevronDown, ChevronRight, MessageSquare, FileText } from 'lucide-react';
-import { SubjectRecord } from '@/types';
+import { useEffect, useState } from 'react';
+import { ArrowLeft, ChevronDown, ChevronRight, FileText, Link2, Trophy } from 'lucide-react';
+import { ApiSubjectModule, SubjectRecord } from '@/types';
+import { apiGet } from '@/utils/api';
 
 interface Props {
   subject: SubjectRecord;
   onBack: () => void;
 }
 
-interface Module {
-  id: string;
-  title: string;
-  items: { id: string; title: string; type: 'announcement' | 'assignment' | 'resource' }[];
-}
-
-const SAMPLE_MODULES: Module[] = [
-  {
-    id: 'general',
-    title: 'General',
-    items: [{ id: 'a1', title: 'Announcements', type: 'announcement' }],
-  },
-  {
-    id: 'lecture',
-    title: 'Lecture',
-    items: [],
-  },
-  {
-    id: 'week1',
-    title: '1 February - 7 February',
-    items: [{ id: 'g1', title: 'Group Project', type: 'assignment' }],
-  },
-  {
-    id: 'week2',
-    title: '8 February - 14 February',
-    items: [],
-  },
-  {
-    id: 'week3',
-    title: '15 February - 21 February',
-    items: [],
-  },
-  {
-    id: 'week4',
-    title: '22 February - 28 February',
-    items: [],
-  },
-];
-
 export default function SubjectReportPage({ subject, onBack }: Props) {
-  const [expandedModules, setExpandedModules] = useState<string[]>(['general', 'week1']);
-  const allExpanded = expandedModules.length === SAMPLE_MODULES.length;
+  const [modules, setModules] = useState<ApiSubjectModule[]>([]);
+  const [expandedModules, setExpandedModules] = useState<string[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const allExpanded = modules.length > 0 && expandedModules.length === modules.length;
+
+  useEffect(() => {
+    let mounted = true;
+
+    setLoading(true);
+    setError('');
+    setModules([]);
+    setExpandedModules([]);
+
+    apiGet<{ subjectId: string; modules: ApiSubjectModule[] }>(`/dashboard/subjects/${subject.id}/modules`)
+      .then((response) => {
+        if (!mounted) return;
+        const nextModules = response.modules ?? [];
+        setModules(nextModules);
+        setExpandedModules(nextModules.slice(0, 2).map((module) => module.id));
+      })
+      .catch((fetchError) => {
+        if (!mounted) return;
+        setError(fetchError instanceof Error ? fetchError.message : 'Unable to load subject content.');
+      })
+      .finally(() => {
+        if (mounted) setLoading(false);
+      });
+
+    return () => {
+      mounted = false;
+    };
+  }, [subject.id]);
 
   const toggleModule = (moduleId: string) => {
     setExpandedModules((prev) =>
@@ -62,7 +55,7 @@ export default function SubjectReportPage({ subject, onBack }: Props) {
     if (allExpanded) {
       setExpandedModules([]);
     } else {
-      setExpandedModules(SAMPLE_MODULES.map((m) => m.id));
+      setExpandedModules(modules.map((module) => module.id));
     }
   };
 
@@ -87,27 +80,33 @@ export default function SubjectReportPage({ subject, onBack }: Props) {
       {/* Main Content Area */}
       <div className="flex-1 w-full px-4 md:px-8 py-4 md:py-6">
         <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden w-full max-w-[1400px] mx-auto">
-          <div className="px-4 md:px-6 py-3 border-b border-slate-100 flex justify-end">
-            <button
-              onClick={toggleAll}
-              className="text-sm font-medium text-blue-600 hover:text-blue-800 transition-colors"
-            >
-              {allExpanded ? 'Collapse all' : 'Expand all'}
-            </button>
-          </div>
+          {!loading && !error && modules.length > 0 && (
+            <div className="px-4 md:px-6 py-3 border-b border-slate-100 flex justify-end">
+              <button
+                onClick={toggleAll}
+                className="text-sm font-medium text-blue-600 hover:text-blue-800 transition-colors"
+              >
+                {allExpanded ? 'Collapse all' : 'Expand all'}
+              </button>
+            </div>
+          )}
+
+          {loading && <p className="px-4 md:px-6 py-6 text-sm text-slate-500">Loading subject content...</p>}
+          {!loading && error && <p className="px-4 md:px-6 py-6 text-sm text-rose-600">{error}</p>}
+          {!loading && !error && modules.length === 0 && (
+            <p className="px-4 md:px-6 py-6 text-sm text-slate-400 italic">No resources available.</p>
+          )}
 
           <div className="divide-y divide-slate-100">
-            {SAMPLE_MODULES.map((module) => {
+            {modules.map((module) => {
               const isExpanded = expandedModules.includes(module.id);
               return (
                 <div key={module.id} className="group">
                   <button
                     onClick={() => toggleModule(module.id)}
-                    className="w-full flex items-center px-4 md:px-6 py-5 hover:bg-slate-50 transition-colors
-      focus:outline-none focus:bg-slate-50"
+                    className="w-full flex items-center px-4 md:px-6 py-5 hover:bg-slate-50 transition-colors focus:outline-none focus:bg-slate-50"
                   >
-                    <div className="flex items-center justify-center w-6 h-6 rounded-full bg-slate-100
-      text-slate-500 mr-4 group-hover:bg-blue-100 group-hover:text-blue-600 transition-colors">
+                    <div className="flex items-center justify-center w-6 h-6 rounded-full bg-slate-100 text-slate-500 mr-4 group-hover:bg-blue-100 group-hover:text-blue-600 transition-colors">
                       {isExpanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
                     </div>
                     <h2 className="text-lg font-semibold text-slate-800">{module.title}</h2>
@@ -119,17 +118,36 @@ export default function SubjectReportPage({ subject, onBack }: Props) {
                         <ul className="space-y-3">
                           {module.items.map((item) => (
                             <li key={item.id} className="flex items-start">
-                              <span className={`mt-0.5 mr-3 ${item.type === 'announcement' ? 'text-purple-600' :
-      'text-rose-500'}`}>
-                                {item.type === 'announcement' ? (
-                                  <MessageSquare size={18} />
-                                ) : (
-                                  <FileText size={18} />
-                                )}
-                              </span>
-                              <a href="#" className="text-blue-600 hover:underline font-medium text-[15px]">
-                                {item.title}
-                              </a>
+                              {item.type === 'mark' && (
+                                <>
+                                  <span className="mt-0.5 mr-3 text-amber-500">
+                                    <Trophy size={18} />
+                                  </span>
+                                  <span className="rounded-full bg-amber-50 px-3 py-1 text-[15px] font-semibold text-amber-700 ring-1 ring-amber-200">
+                                    {item.title}
+                                  </span>
+                                </>
+                              )}
+
+                              {item.type === 'link' && (
+                                <>
+                                  <span className="mt-0.5 mr-3 text-blue-600">
+                                    <Link2 size={18} />
+                                  </span>
+                                  <a href={item.href} className="text-blue-600 hover:underline font-medium text-[15px]">
+                                    {item.title}
+                                  </a>
+                                </>
+                              )}
+
+                              {item.type === 'text' && (
+                                <>
+                                  <span className="mt-0.5 mr-3 text-slate-500">
+                                    <FileText size={18} />
+                                  </span>
+                                  <p className="text-[15px] leading-6 text-slate-700">{item.title}</p>
+                                </>
+                              )}
                             </li>
                           ))}
                         </ul>

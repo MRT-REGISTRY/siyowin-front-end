@@ -125,6 +125,41 @@ router.get('/subjects/:subjectId/results', requireRoles('student'), async (req, 
   });
 });
 
+router.get('/subjects/:subjectId/modules', requireRoles('student', 'teacher', 'admin', 'super-admin'), async (req, res) => {
+  const subjectId = req.params.subjectId;
+  if (typeof subjectId !== 'string') {
+    res.status(400).json({ message: 'subjectId is required.' });
+    return;
+  }
+
+  const subject = await repo.getSubjectById(subjectId);
+
+  if (!subject) {
+    res.status(404).json({ message: 'Subject not found.' });
+    return;
+  }
+
+  if (req.user?.role === 'student') {
+    const studentId = req.user.studentId;
+    if (!studentId) {
+      res.status(400).json({ message: 'Student profile is required.' });
+      return;
+    }
+
+    const enrolledSubjects = await repo.getEnrolledSubjects(studentId);
+    if (!enrolledSubjects.some((item) => item.id === subject.id)) {
+      res.status(403).json({ message: 'You are not enrolled in this subject.' });
+      return;
+    }
+  }
+
+  const modules = await repo.getSubjectModules(subject.id);
+  res.json({
+    subjectId: subject.id,
+    modules,
+  });
+});
+
 router.get('/subjects/:subjectId/homework', requireRoles('student', 'teacher', 'admin', 'super-admin'), async (req, res) => {
   const subjectId = req.params.subjectId;
   if (typeof subjectId !== 'string') {

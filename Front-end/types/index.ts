@@ -15,6 +15,32 @@ export type SubjectHomeworkItem = {
   status: 'completed' | 'pending';
 };
 
+export type SubjectModuleItemType = 'mark' | 'link' | 'text';
+
+export type SubjectModuleItem =
+  | {
+      id: string;
+      title: string;
+      type: 'mark';
+    }
+  | {
+      id: string;
+      title: string;
+      type: 'link';
+      href: string;
+    }
+  | {
+      id: string;
+      title: string;
+      type: 'text';
+    };
+
+export type ApiSubjectModule = {
+  id: string;
+  title: string;
+  items: SubjectModuleItem[];
+};
+
 export type SubjectRecord = {
   id: string;
   name: string;

@@ -1,5 +1,16 @@
 import { supabase } from '../config/supabase.js';
-import { AdminStudent, AdminStudentMark, AdminTeacher, AuthUser, LeaderboardEntry, RegisteredUser, SubjectRecord, TeacherAssignment } from '../types.js';
+import {
+  AdminStudent,
+  AdminStudentMark,
+  AdminTeacher,
+  AuthUser,
+  LeaderboardEntry,
+  RegisteredUser,
+  SubjectModule,
+  SubjectModuleItem,
+  SubjectRecord,
+  TeacherAssignment,
+} from '../types.js';
 import { createId } from '../utils/ids.js';
 import {
   createUser as createMemoryUser,
@@ -126,6 +137,51 @@ export const repo = {
   async getSubjectById(subjectId: string) {
     const subjects = await this.getSubjects();
     return subjects.find((subject) => subject.id === subjectId);
+  },
+
+  async getSubjectModules(subjectId: string): Promise<SubjectModule[]> {
+    return withFallback(async () => {
+      const { data: modules, error: modulesError } = await supabase!
+        .from('subject_modules')
+        .select('id,class_id,title,sort_order,is_active,created_at')
+        .eq('class_id', subjectId)
+        .eq('is_active', true)
+        .order('sort_order', { ascending: true })
+        .order('created_at', { ascending: true });
+
+      if (modulesError) throw modulesError;
+      const moduleRows = modules ?? [];
+      if (moduleRows.length === 0) return [];
+
+      const moduleIds = moduleRows.map((module) => module.id);
+      const { data: items, error: itemsError } = await supabase!
+        .from('subject_module_items')
+        .select('id,module_id,title,item_type,href,sort_order,is_active,created_at')
+        .in('module_id', moduleIds)
+        .eq('is_active', true)
+        .order('sort_order', { ascending: true })
+        .order('created_at', { ascending: true });
+
+      if (itemsError) throw itemsError;
+
+      const itemsByModuleId = new Map<string, SubjectModuleItem[]>();
+      (items ?? []).forEach((item) => {
+        const moduleItems = itemsByModuleId.get(item.module_id) ?? [];
+        moduleItems.push({
+          id: item.id,
+          title: item.title,
+          type: mapModuleItemType(item.item_type),
+          href: item.href ?? undefined,
+        });
+        itemsByModuleId.set(item.module_id, moduleItems);
+      });
+
+      return moduleRows.map((module) => ({
+        id: module.id,
+        title: module.title,
+        items: itemsByModuleId.get(module.id) ?? [],
+      }));
+    }, () => buildMemorySubjectModules(subjectId));
   },
 
   async getStudentSubjectResults(studentId: string | undefined, subjectId: string) {
@@ -1264,6 +1320,63 @@ const mapClassAsSubject = (classItem: import('../types.js').AdminClassOption, te
     isActive: classItem.isActive ?? true,
     createdAt: null,
   };
+};
+
+const mapModuleItemType = (value: string | null | undefined): SubjectModuleItem['type'] => {
+  if (value === 'mark' || value === 'link' || value === 'text') return value;
+  return 'text';
+};
+
+const buildMemorySubjectModules = (subjectId: string): SubjectModule[] => {
+  const subject = getMemorySubjectById(subjectId);
+  if (!subject) return [];
+
+  return [
+    {
+      id: `${subjectId}-general`,
+      title: 'General',
+      items: [
+        {
+          id: `${subjectId}-general-mark`,
+          title: 'paper:85%',
+          type: 'mark',
+        },
+        {
+          id: `${subjectId}-general-link`,
+          title: 'Revision topic',
+          type: 'link',
+          href: 'https://example.com/revision-topic',
+        },
+        {
+          id: `${subjectId}-general-text`,
+          title: 'Read this note before the next class.',
+          type: 'text',
+        },
+      ],
+    },
+    {
+      id: `${subjectId}-lecture`,
+      title: 'Lecture',
+      items: [
+        {
+          id: `${subjectId}-lecture-mark`,
+          title: 'paper:92%',
+          type: 'mark',
+        },
+      ],
+    },
+    ...subject.recentHomeworks.map((homework, index) => ({
+      id: `${subjectId}-homework-${index + 1}`,
+      title: homework.dueDate,
+      items: [
+        {
+          id: homework.id,
+          title: homework.title,
+          type: 'text' as const,
+        },
+      ],
+    })),
+  ];
 };
 
 const normalizeAssignments = (value: unknown, subject: string, grade: string): TeacherAssignment[] => {
