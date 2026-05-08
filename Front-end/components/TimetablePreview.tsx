@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { ArrowRight, Clock3 } from 'lucide-react'
-import { timetableGroups, timetableUpdateMessage } from '@/data/timetables'
+import { timetableGroups } from '@/data/timetables'
 import { useLanguage } from './LanguageProvider'
 
 export default function TimetablePreview() {
@@ -25,16 +25,16 @@ export default function TimetablePreview() {
           <p className="mx-auto mt-3 max-w-2xl text-base leading-7 text-gray-500">
               {isSinhala
                 ? 'ගුරුවරු අනුව පන්ති විස්තර සහ කාලසටහන් තොරතුරු බැලීමට කාණ්ඩයක් තෝරන්න.'
-                : 'Select a category to view teacher-wise class details and the timetable update area.'}
+                : 'Select a category to view teacher-wise class details, times, and branch information.'}
             </p>
-          <p className="mx-auto mt-5 max-w-2xl rounded-2xl border border-blue-100 bg-white/80 px-5 py-3 text-sm leading-6 text-slate-600 shadow-sm">
-            {isSinhala ? 'සම්පූර්ණ කාලසටහන සංශෝධනය කරමින් පවතින අතර අවසාන දින, වේලාවන් සහ හෝල් විස්තර ඉක්මනින් මෙහි එක් කෙරේ.' : timetableUpdateMessage}
-          </p>
         </div>
 
         <div className="mt-8 grid gap-5 md:grid-cols-3">
           {timetableGroups.map((group) => {
             const Icon = group.icon
+            const teacherNames = group.classes.map((item) => item.teacher)
+            const visibleTeachers = teacherNames.slice(0, 4).join(', ')
+            const remainingTeachers = teacherNames.length - 4
 
             return (
               <Link
@@ -62,7 +62,7 @@ export default function TimetablePreview() {
                       {isSinhala ? 'ගුරුවරු' : 'Available Teachers'}
                     </p>
                     <p className="mt-1 text-sm font-bold text-slate-800">
-                      {group.classes.map((item) => item.teacher).join(', ')}
+                      {visibleTeachers}{remainingTeachers > 0 ? ` + ${remainingTeachers} more` : ''}
                     </p>
                   </div>
                 </div>
