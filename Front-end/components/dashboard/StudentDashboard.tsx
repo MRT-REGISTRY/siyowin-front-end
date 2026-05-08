@@ -63,6 +63,19 @@ export default function StudentDashboard() {
     return visibleHomework.filter((task) => task.status === 'completed');
   }, [visibleHomework]);
 
+  const localizedNavItems = useMemo(() => NAV_ITEMS.map((item) => ({
+    ...item,
+    label: isSinhala
+      ? item.id === 'dashboard'
+        ? 'පුවරුව'
+        : item.id === 'subjects'
+          ? 'මගේ විෂයන්'
+          : item.id === 'progress'
+            ? 'ප්‍රගතිය'
+            : 'සැකසුම්'
+      : item.label,
+  })), [isSinhala]);
+
   useEffect(() => {
     let mounted = true;
 
@@ -116,18 +129,7 @@ export default function StudentDashboard() {
   return (
     <div className="sd-root">
       <DashboardSidebar
-        navItems={NAV_ITEMS.map((item) => ({
-          ...item,
-          label: isSinhala
-            ? item.id === 'dashboard'
-              ? 'පුවරුව'
-              : item.id === 'subjects'
-                ? 'මගේ විෂයන්'
-                : item.id === 'progress'
-                  ? 'ප්‍රගතිය'
-                  : 'සැකසුම්'
-            : item.label,
-        }))}
+        navItems={localizedNavItems}
         activeNav={activeNav}
         onNavChange={handleNavChange}
         isOpen={sidebarOpen}

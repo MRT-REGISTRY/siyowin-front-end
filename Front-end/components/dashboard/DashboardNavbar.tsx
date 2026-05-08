@@ -51,7 +51,7 @@ export default function DashboardNavbar({ onMenuToggle, profile, searchValue, on
           <div className="sd-navbar-avatar">{avatar}</div>
           <div className="sd-navbar-profile-info">
             <p className="sd-navbar-name">{profile?.name ?? (isSinhala ? 'සිසුවා' : 'Student')}</p>
-            <p className="sd-navbar-role">{isSinhala ? 'සිසුවා' : 'Student'}</p>
+            <p className="sd-navbar-role">{(profile as any)?.role ?? (isSinhala ? 'සිසුවා' : 'Student')}</p>
           </div>
         </div>
       </div>
