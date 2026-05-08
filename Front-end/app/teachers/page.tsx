@@ -27,7 +27,20 @@ export default function TeachersPage() {
   const filtered = teachers.filter((t) => {
     const matchTab = active === "all" || t.category === active;
     const q = query.trim().toLowerCase();
-    const matchQuery = !q || t.name.toLowerCase().includes(q) || t.subject.toLowerCase().includes(q);
+    const searchable = [
+      t.name,
+      t.subject,
+      t.credentials,
+      t.experience,
+      t.about,
+      t.medium,
+      t.schedule,
+      t.qualifications,
+    ]
+      .filter(Boolean)
+      .join(" ")
+      .toLowerCase();
+    const matchQuery = !q || searchable.includes(q);
     return matchTab && matchQuery;
   });
 
@@ -213,14 +226,34 @@ export default function TeachersPage() {
 
                 <div className="mt-6 grid gap-3 sm:grid-cols-2">
                   <div className="rounded-2xl bg-slate-50 p-4">
-                    <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">{isSinhala ? "සුදුසුකම්" : "Credentials"}</p>
-                    <p className="mt-1 text-sm font-medium text-slate-800">{toSinhalaSubject(selectedTeacher.credentials, isSinhala)}</p>
+                    <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">{isSinhala ? "සුදුසුකම්" : "Qualifications"}</p>
+                    <p className="mt-1 whitespace-pre-line text-sm font-medium text-slate-800">{toSinhalaSubject(selectedTeacher.qualifications ?? selectedTeacher.credentials, isSinhala)}</p>
                   </div>
                   <div className="rounded-2xl bg-slate-50 p-4">
                     <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">{isSinhala ? "විෂය" : "Subject"}</p>
                     <p className="mt-1 text-sm font-medium text-slate-800">{toSinhalaSubject(selectedTeacher.subject, isSinhala)}</p>
                   </div>
+                  {selectedTeacher.medium ? (
+                    <div className="rounded-2xl bg-slate-50 p-4">
+                      <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Medium</p>
+                      <p className="mt-1 text-sm font-medium text-slate-800">{selectedTeacher.medium}</p>
+                    </div>
+                  ) : null}
+                  {selectedTeacher.whatsapp || selectedTeacher.email ? (
+                    <div className="rounded-2xl bg-slate-50 p-4">
+                      <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Contact</p>
+                      {selectedTeacher.whatsapp ? <p className="mt-1 text-sm font-medium text-slate-800">WhatsApp: {selectedTeacher.whatsapp}</p> : null}
+                      {selectedTeacher.email ? <p className="mt-1 break-words text-sm font-medium text-slate-800">Email: {selectedTeacher.email}</p> : null}
+                    </div>
+                  ) : null}
                 </div>
+
+                {selectedTeacher.schedule ? (
+                  <div className="mt-3 rounded-2xl bg-slate-50 p-4">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Classes</p>
+                    <p className="mt-1 whitespace-pre-line text-sm leading-6 text-slate-700">{toSinhalaSubject(selectedTeacher.schedule, isSinhala)}</p>
+                  </div>
+                ) : null}
 
                 <div className="mt-6 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
                   <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">{isSinhala ? "ඉගැන්වීමේ අවධානය" : "Teaching Focus"}</p>

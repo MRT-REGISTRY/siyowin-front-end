@@ -1,9 +1,9 @@
 'use client'
 
 import Link from 'next/link'
-import { ArrowLeft, CalendarDays, CheckCircle2, Clock3 } from 'lucide-react'
+import { ArrowLeft, CalendarDays, CheckCircle2, MapPin } from 'lucide-react'
 import Navbar from '@/components/Navbar'
-import { getTimetableGroup, timetableUpdateMessage } from '@/data/timetables'
+import { branchLabels, getTimetableGroup } from '@/data/timetables'
 import { useLanguage } from './LanguageProvider'
 import { toSinhalaSubject, toSinhalaTeacherName } from '@/utils/localization'
 
@@ -41,14 +41,6 @@ export default function TimetablePageContent({ level }: { level: string }) {
                   : `${group.description} Teacher names and class details are listed below so students can find the right class quickly.`}
               </p>
 
-              <div className="mt-6 rounded-2xl border border-orange-100 bg-orange-50 p-5">
-                <div className="flex items-start gap-3">
-                  <Clock3 className="mt-0.5 h-5 w-5 flex-shrink-0 text-orange-600" />
-                  <p className="text-sm leading-6 text-orange-900">
-                    {isSinhala ? 'සම්පූර්ණ කාලසටහන සංශෝධනය කරමින් පවතී. අවසාන දින, වේලාවන් සහ හෝල් විස්තර ඉක්මනින් මෙහි එක් කෙරේ.' : timetableUpdateMessage}
-                  </p>
-                </div>
-              </div>
             </div>
 
             <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-xl shadow-slate-900/5">
@@ -57,16 +49,26 @@ export default function TimetablePageContent({ level }: { level: string }) {
                   <CalendarDays className="h-5 w-5" />
                 </div>
                 <div>
-                  <h2 className="text-lg font-extrabold text-slate-900">{isSinhala ? 'අවසාන කාලසටහන' : 'Final Timetable'}</h2>
-                  <p className="text-sm text-slate-500">{isSinhala ? 'සංශෝධනයෙන් පසු දින, වේලාවන් සහ හෝල් අංක එක් කෙරේ.' : 'Dates, times, and hall numbers will be added after revision.'}</p>
+                  <h2 className="text-lg font-extrabold text-slate-900">{isSinhala ? 'ශාඛා සංකේත' : 'Branch Key'}</h2>
+                  <p className="text-sm text-slate-500">{isSinhala ? 'පන්ති විස්තරවල ඇති ශාඛා සංකේත මෙහි පැහැදිලි කර ඇත.' : 'Submitted branch codes are expanded in each class row.'}</p>
                 </div>
               </div>
 
-              <div className="mt-5 rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-8 text-center">
-                <p className="text-sm font-semibold uppercase tracking-widest text-slate-500">{isSinhala ? 'ඉක්මනින් යාවත්කාලීන වේ' : 'Updating Soon'}</p>
-                <p className="mx-auto mt-2 max-w-lg text-sm leading-6 text-slate-600">
-                  {isSinhala ? 'නිල කාලසටහන සමාලෝචනය කරමින් පවතී. තහවුරු කළ පන්ති කාලසටහන සඳහා නැවත පරීක්ෂා කරන්න.' : 'The official timetable is being reviewed. Please check this page again for the confirmed class schedule.'}
-                </p>
+              <div className="mt-5 grid gap-3">
+                {Object.entries(branchLabels).map(([code, label]) => (
+                  <div key={code} className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                    <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-blue-600 text-sm font-black text-white">
+                      {code}
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-sm font-bold text-slate-900">{toSinhalaSubject(label, isSinhala)}</p>
+                      <p className="text-xs text-slate-500">
+                        {isSinhala ? 'ගුරුවරයා ශාඛා සංකේතයක් යොදා තිබෙන විට පන්ති වේලාවෙන් පසුව මෙය පෙන්වයි.' : 'Shown after the class time when the teacher submitted a branch code.'}
+                      </p>
+                    </div>
+                    <MapPin className="ml-auto h-4 w-4 flex-shrink-0 text-orange-500" />
+                  </div>
+                ))}
               </div>
             </div>
           </div>

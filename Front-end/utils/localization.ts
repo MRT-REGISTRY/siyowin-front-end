@@ -8,18 +8,31 @@ export const teacherSinhalaNames: Record<string, string> = {
   'Dudeep Priyantha': 'දුදීප් ප්‍රියන්ත',
   'Akila Jayawardhana': 'අකිල ජයවර්ධන',
   'Sanjeewa Siriwardhana': 'සංජීව සිරිවර්ධන',
+  'Sanjeewa Siriwardana': 'සංජීව සිරිවර්ධන',
   'Suraj S. Kumara': 'සුරාජ් එස්. කුමාර',
   'Malaka Thalduwa': 'මලක තල්දුව',
+  'හේමාලෝක හාමුදුරුවෝ': 'හේමාලෝක හාමුදුරුවෝ',
   'Chamula Nuwanperuma': 'චමුල නුවන්පෙරුම',
+  'Upul Mannapperuma': 'උපුල් මන්නප්පෙරුම',
   'Kanishka Madhuwara': 'කනිෂ්ක මධුවර',
+  'Kosala Bandara': 'කෝසල බණ්ඩාර',
   'Tharindu Rajapaksha': 'තරිඳු රාජපක්ෂ',
   'Vishula Gunawardhana': 'විශුල ගුණවර්ධන',
+  'Vipul Gunawardhana': 'විපුල් ගුණවර්ධන',
   'Dilshan S. Pathirana': 'ඩිල්ෂාන් එස්. පතිරණ',
+  'Dilshan Pathirana': 'ඩිල්ෂාන් පතිරණ',
   'Hashika Thilakarathne': 'හෂික තිලකරත්න',
   'Shalani Ranasinghe': 'ශලනි රණසිංහ',
   'Lahiru Dilumgoda': 'ලහිරු දිලුම්ගොඩ',
+  'Lahiru Damunupola': 'ලහිරු දමුනුපොල',
   'Nila Welikala': 'නිලා වැලිකල',
+  'Neil Welipitiya': 'නීල් වැලිපිටිය',
   'Udaya Sampath': 'උදය සම්පත්',
+  'Lakshantha Brian': 'ලක්ෂාන්ත බ්‍රයන්',
+  'Mahesh Dewanarayana': 'මහේෂ් දේවනාරායණ',
+  'Shanuka Wimalarathna': 'ශනුක විමලරත්න',
+  'Eranga Weerawardana': 'එරංග වීරවර්ධන',
+  'Eranga Rajapaksha': 'එරංග රාජපක්ෂ',
   'Jagath Maliyadda': 'ජගත් මාලියද්ද',
 }
 
@@ -28,9 +41,55 @@ export const commonSinhalaTerms: Record<string, string> = {
   Siyowin: 'සියෝවින්',
   'Siyowin Higher Education Center': 'සියෝවින් උසස් අධ්‍යාපන ආයතනය',
   'Siyowin Higher Education Institute': 'සියෝවින් උසස් අධ්‍යාපන ආයතනය',
-  'Palladeniya Road, Kegalle & Behind Commercial Bank, Kegalle.': 'පල්ලාදෙණිය පාර හා කොමර්ශල් බැංකුව පිටුපස',
+  'Palladeniya Road, Kegalle & Behind Commercial Bank, Kegalle.': 'පල්ලාදෙණිය පාර හා කොමර්ෂල් බැංකුව පිටුපස',
   'Rukshan Kulakumara': 'රුක්ෂාන් කුලකුමාර',
 }
+
+const subjectSinhalaReplacements: Array<[RegExp, string]> = [
+  [/Behind the Commercial Bank branch/g, 'කොමර්ෂල් බැංකුව පිටුපස ශාඛාව'],
+  [/Palladeniya Road branch/g, 'පල්ලාදෙණිය පාර ශාඛාව'],
+  [/Class schedule will be announced soon\./g, 'පන්ති කාලසටහන ඉක්මනින් දැනුම් දෙනු ලැබේ.'],
+  [/Medium:/g, 'මාධ්‍යය:'],
+  [/Sinhala Medium/g, 'සිංහල මාධ්‍යය'],
+  [/English Medium/g, 'ඉංග්‍රීසි මාධ්‍යය'],
+  [/Engineering Technology - ET/g, 'ඉංජිනේරු තාක්ෂණය - ET'],
+  [/Home Economics Science/g, 'ගෘහ ආර්ථික විද්‍යාව'],
+  [/Buddhist Civilization/g, 'බෞද්ධ ශිෂ්ටාචාරය'],
+  [/Political Science/g, 'දේශපාලන විද්‍යාව'],
+  [/Business Studies/g, 'ව්‍යාපාර අධ්‍යයනය'],
+  [/Combined Mathematics/g, 'සංයුක්ත ගණිතය'],
+  [/German Language & Literature/g, 'ජර්මානු භාෂාව සහ සාහිත්‍යය'],
+  [/Korean Language/g, 'කොරියානු භාෂාව'],
+  [/Technology Stream/g, 'තාක්ෂණ අංශය'],
+  [/Commerce Stream/g, 'වාණිජ අංශය'],
+  [/Arts Stream/g, 'කලා අංශය'],
+  [/Scholarship/g, 'ශිෂ්‍යත්ව'],
+  [/Mathematics|Maths/g, 'ගණිතය'],
+  [/Science/g, 'විද්‍යාව'],
+  [/Chemistry/g, 'රසායන විද්‍යාව'],
+  [/Accounting/g, 'ගිණුම්කරණය'],
+  [/Economics/g, 'ආර්ථික විද්‍යාව'],
+  [/Geography/g, 'භූගෝල විද්‍යාව'],
+  [/History/g, 'ඉතිහාසය'],
+  [/Media/g, 'මාධ්‍ය'],
+  [/Japanese/g, 'ජපන්'],
+  [/Korean/g, 'කොරියානු'],
+  [/German/g, 'ජර්මානු'],
+  [/Tamil/g, 'දෙමළ'],
+  [/English/g, 'ඉංග්‍රීසි'],
+  [/Sinhala/g, 'සිංහල'],
+  [/ICT/g, 'තොරතුරු හා සන්නිවේදන තාක්ෂණය'],
+  [/SFT/g, 'SFT'],
+  [/ET/g, 'ET'],
+  [/O\/L/g, 'සා/පෙ'],
+  [/A\/L/g, 'උ/පෙ'],
+  [/Grade/g, commonSinhalaTerms.Grade],
+  [/Theory/g, 'න්‍යාය'],
+  [/Revision/g, 'පුනරීක්ෂණ'],
+  [/Paper Class/g, 'ප්‍රශ්න පත්‍ර පන්තිය'],
+  [/classes and exam preparation/g, 'පන්ති සහ විභාග සූදානම'],
+  [/teacher/g, 'ගුරුවරයා'],
+]
 
 export const toSinhalaTeacherName = (name: string, isSinhala: boolean) =>
   isSinhala ? teacherSinhalaNames[name] ?? name : name
@@ -38,9 +97,8 @@ export const toSinhalaTeacherName = (name: string, isSinhala: boolean) =>
 export const toSinhalaSubject = (subject: string, isSinhala: boolean) => {
   if (!isSinhala) return subject
 
-  return subject
-    .replace(/Grade/g, commonSinhalaTerms.Grade)
-    .replace(/Scholarship/g, 'ශිෂ්‍යත්ව')
-    .replace(/teacher/g, 'ගුරුවරයා')
-    .replace(/classes and exam preparation/g, 'පන්ති සහ විභාග සූදානම')
+  return subjectSinhalaReplacements.reduce(
+    (value, [pattern, replacement]) => value.replace(pattern, replacement),
+    subject
+  )
 }
