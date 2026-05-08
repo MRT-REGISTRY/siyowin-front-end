@@ -69,41 +69,25 @@ export default function SubjectReportPage({ subject, onBack }: Props) {
   return (
     <div className="flex flex-col min-h-screen bg-slate-50 font-sans">
       {/* Header Area */}
-      <div className="bg-white px-6 py-4 border-b border-slate-200">
-        <button
-          type="button"
-          onClick={onBack}
-          className="flex items-center text-sm text-slate-500 hover:text-slate-900 mb-4 transition-colors"
-        >
-          <ArrowLeft size={16} className="mr-1" /> Back to My courses
-        </button>
-        <h1 className="text-2xl font-bold text-slate-900">
-          {subject.name} - {subject.teacher}
-        </h1>
-      </div>
-
-      {/* Secondary Navigation */}
-      <div className="bg-[#1e52a8] text-white px-6">
-        <nav className="flex space-x-1 overflow-x-auto">
-          {['Course', 'Participants', 'Grades', 'Competencies'].map((tab) => (
-            <button
-              key={tab}
-              className={`px-4 py-3 text-sm font-medium whitespace-nowrap ${
-                tab === 'Course'
-                  ? 'border-b-4 border-white'
-                  : 'text-blue-100 hover:bg-white/10 hover:text-white'
-              }`}
-            >
-              {tab}
-            </button>
-          ))}
-        </nav>
+      <div className="px-4 md:px-8 pt-4 md:pt-6">
+        <div className="max-w-[1400px] mx-auto rounded-2xl bg-slate-200 border border-slate-300 shadow-sm px-6 py-5">
+          <button
+            type="button"
+            onClick={onBack}
+            className="flex items-center text-sm text-slate-500 hover:text-slate-900 mb-4 transition-colors"
+          >
+            <ArrowLeft size={16} className="mr-1" /> Back to My courses
+          </button>
+          <h1 className="text-2xl font-bold text-slate-900">
+            {subject.name} - {subject.teacher}
+          </h1>
+        </div>
       </div>
 
       {/* Main Content Area */}
-      <div className="flex-1 p-6 md:p-8 max-w-5xl mx-auto w-full">
-        <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
-          <div className="p-4 border-b border-slate-100 flex justify-end">
+      <div className="flex-1 w-full px-4 md:px-8 py-4 md:py-6">
+        <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden w-full max-w-[1400px] mx-auto">
+          <div className="px-4 md:px-6 py-3 border-b border-slate-100 flex justify-end">
             <button
               onClick={toggleAll}
               className="text-sm font-medium text-blue-600 hover:text-blue-800 transition-colors"
@@ -119,7 +103,7 @@ export default function SubjectReportPage({ subject, onBack }: Props) {
                 <div key={module.id} className="group">
                   <button
                     onClick={() => toggleModule(module.id)}
-                    className="w-full flex items-center px-6 py-5 hover:bg-slate-50 transition-colors
+                    className="w-full flex items-center px-4 md:px-6 py-5 hover:bg-slate-50 transition-colors
       focus:outline-none focus:bg-slate-50"
                   >
                     <div className="flex items-center justify-center w-6 h-6 rounded-full bg-slate-100
@@ -130,7 +114,7 @@ export default function SubjectReportPage({ subject, onBack }: Props) {
                   </button>
 
                   {isExpanded && (
-                    <div className="px-6 pb-6 pl-16">
+                    <div className="px-4 md:px-6 pb-6 pl-14 md:pl-16">
                       {module.items.length > 0 ? (
                         <ul className="space-y-3">
                           {module.items.map((item) => (
