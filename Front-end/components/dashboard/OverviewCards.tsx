@@ -1,6 +1,6 @@
 'use client';
 
-import { BarChart3, Medal, ClipboardCheck, Star } from 'lucide-react';
+import { BarChart3, Medal, ClipboardCheck, Star, FileText } from 'lucide-react';
 import { DashboardOverview, SubjectRecord } from '@/types';
 import { useLanguage } from '@/components/LanguageProvider';
 
@@ -16,40 +16,20 @@ export default function OverviewCards({ overview, subjects }: Props) {
   const homeworkTarget = subjects.reduce((total, subject) => total + subject.homeworkTargetThisMonth, 0);
   const cards = [
     {
-      id: 'avg',
-      label: isSinhala ? 'මුළු සාමාන්‍යය' : 'Overall Average',
-      value: `${average}%`,
-      sub: isSinhala ? 'පසුගිය වාරයට වඩා +2.1%' : '+2.1% from last term',
-      icon: BarChart3,
-      color: 'red',
-      trend: 'up',
-    },
-    {
-      id: 'rank',
-      label: isSinhala ? 'පන්ති ස්ථානය' : 'Class Rank',
-      value: `#${overview?.classRank ?? '-'}`,
-      sub: isSinhala ? 'වත්මන් හොඳම විෂය ස්ථානය' : 'Current best subject rank',
-      icon: Medal,
-      color: 'orange',
-      trend: 'neutral',
-    },
-    {
       id: 'hw',
       label: isSinhala ? 'ගෙදර වැඩ සම්පූර්ණ කිරීම' : 'Homework Completion',
       value: `${overview?.homeworkCompletion ?? 0}%`,
       sub: isSinhala ? `${homeworkTarget}න් ${homeworkDone}ක් සම්පූර්ණයි` : `${homeworkDone} of ${homeworkTarget} tasks done`,
       icon: ClipboardCheck,
       color: 'navy',
-      trend: 'up',
     },
     {
-      id: 'status',
-      label: isSinhala ? 'කාර්යසාධන තත්ත්වය' : 'Performance Status',
-      value: average >= 85 ? (isSinhala ? 'විශිෂ්ටයි' : 'Excellent') : average >= 70 ? (isSinhala ? 'හොඳයි' : 'Good') : (isSinhala ? 'වැඩි අවධානය අවශ්‍යයි' : 'Needs Work'),
-      sub: isSinhala ? `හොඳම විෂය: ${overview?.bestSubject ?? '-'}` : `Best subject: ${overview?.bestSubject ?? '-'}`,
-      icon: Star,
-      color: 'dark',
-      trend: 'up',
+      id: 'paper',
+      label: isSinhala ? 'ප්‍රශ්න පත්‍ර සම්පූර්ණ කිරීම' : 'Paper Completion',
+      value: '88%',
+      sub: isSinhala ? '10න් 9ක් සම්පූර්ණයි' : '9 of 10 papers done',
+      icon: FileText,
+      color: 'orange',
     },
   ];
 

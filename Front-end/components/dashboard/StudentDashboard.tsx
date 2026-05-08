@@ -7,6 +7,7 @@ import OverviewCards from './OverviewCards';
 import SubjectCards from './SubjectCards';
 import ProgressChart from './ProgressChart';
 import HomeworkSection from './HomeworkSection';
+import RecentlyCompletedTasks from './RecentlyCompletedTasks';
 import SubjectsPage from './pages/SubjectsPage';
 import SubjectReportPage from './pages/SubjectReportPage';
 import ProgressPage from './pages/ProgressPage';
@@ -58,6 +59,9 @@ export default function StudentDashboard() {
     ].some((value) => String(value ?? '').toLowerCase().includes(normalizedSearchQuery)));
   }, [homework, normalizedSearchQuery]);
   const selectedSubject = selectedSubjectId ? subjects.find((subject) => subject.id === selectedSubjectId) ?? null : null;
+  const completedTasks = useMemo(() => {
+    return visibleHomework.filter((task) => task.status === 'completed');
+  }, [visibleHomework]);
 
   useEffect(() => {
     let mounted = true;
@@ -152,11 +156,14 @@ export default function StudentDashboard() {
                   <h1 className="sd-greeting-title">
                     {isSinhala ? 'ආයුබෝවන්' : 'Good afternoon'}, <span className="sd-highlight">{profile?.name.split(' ')[0] ?? (isSinhala ? 'සිසුවා' : 'Student')}!</span>
                   </h1>
-                  <p className="sd-greeting-sub">{isSinhala ? 'මෙම වාරයේ ඔබගේ අධ්‍යාපනික ප්‍රගතියේ සාරාංශය මෙන්න.' : 'Here&apos;s a summary of your academic performance this term.'}</p>
+                  <p className="sd-greeting-sub">{isSinhala ? 'මෙම වාරයේ ඔබගේ අධ්‍යාපනික ප්‍රගතියේ සාරාංශය මෙන්න.' : "Here's a summary of your academic performance this term."}</p>
                 </div>
                 <div className="sd-term-badge">{profile ? `${profile.term} - ${profile.year}` : isSinhala ? 'වත්මන් වාරය' : 'Current term'}</div>
               </div>
               <OverviewCards overview={overview} subjects={subjects} />
+              <div className="sd-recently-completed-grid">
+                <RecentlyCompletedTasks tasks={completedTasks} />
+              </div>
               <div className="sd-mid-grid">
                 <SubjectCards
                   subjects={visibleSubjects}
@@ -166,10 +173,6 @@ export default function StudentDashboard() {
                     setActiveNav('subjects');
                   }}
                 />
-                <ProgressChart data={progress} />
-              </div>
-              <div className="sd-bottom-grid">
-                <HomeworkSection homework={visibleHomework} />
               </div>
             </>
           )}
