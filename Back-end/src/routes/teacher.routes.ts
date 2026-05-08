@@ -190,4 +190,26 @@ router.get('/students/:studentId/progress', async (req, res) => {
   });
 });
 
+router.delete('/marks', async (req, res) => {
+  const teacher = await repo.getTeacherById(req.user?.teacherId);
+  if (!teacher) {
+    res.status(404).json({ message: 'Teacher profile not found.' });
+    return;
+  }
+
+  const { studentId, subjectId, examType, examName, examDate } = req.body;
+  if (!studentId || !subjectId || !examType || !examName) {
+    res.status(400).json({ message: 'studentId, subjectId, examType, and examName are required.' });
+    return;
+  }
+
+  const result = await repo.deleteMark({ studentId, subjectId, examType, examName, examDate });
+  if (!result || !result.deleted) {
+    res.status(404).json({ message: 'Mark not found or could not be deleted.' });
+    return;
+  }
+
+  res.json({ message: 'Mark deleted successfully.', student: result.student });
+});
+
 export default router;
