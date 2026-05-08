@@ -146,32 +146,9 @@ export default function StudentDashboard() {
           {loading && <p className="sdp-card">{isSinhala ? 'පුවරුව පූරණය වෙමින්...' : 'Loading dashboard...'}</p>}
           {!loading && error && <p className="sdp-card text-red-600">{error}</p>}
           {activeNav === 'dashboard' && (
-            <>
-              <div className="sd-greeting">
-                <div>
-                  <h1 className="sd-greeting-title">
-                    {isSinhala ? 'ආයුබෝවන්' : 'Good afternoon'}, <span className="sd-highlight">{profile?.name.split(' ')[0] ?? (isSinhala ? 'සිසුවා' : 'Student')}!</span>
-                  </h1>
-                  <p className="sd-greeting-sub">{isSinhala ? 'මෙම වාරයේ ඔබගේ අධ්‍යාපනික ප්‍රගතියේ සාරාංශය මෙන්න.' : 'Here&apos;s a summary of your academic performance this term.'}</p>
-                </div>
-                <div className="sd-term-badge">{profile ? `${profile.term} - ${profile.year}` : isSinhala ? 'වත්මන් වාරය' : 'Current term'}</div>
-              </div>
-              <OverviewCards overview={overview} subjects={subjects} />
-              <div className="sd-mid-grid">
-                <SubjectCards
-                  subjects={visibleSubjects}
-                  onSelectSubject={openSubject}
-                  onViewAll={() => {
-                    setSelectedSubjectId(null);
-                    setActiveNav('subjects');
-                  }}
-                />
-                <ProgressChart data={progress} />
-              </div>
-              <div className="sd-bottom-grid">
-                <HomeworkSection homework={visibleHomework} />
-              </div>
-            </>
+            <div className="p-8 text-center text-gray-500">
+              {/* Dashboard components removed */}
+            </div>
           )}
 
           {activeNav === 'subjects' && selectedSubject && (
