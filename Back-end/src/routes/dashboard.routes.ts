@@ -42,6 +42,7 @@ router.get('/student', requireRoles('student', 'admin', 'super-admin'), async (r
     },
     overview: await repo.getOverview(subjects),
     subjects: subjects.map(toSubjectResponse),
+    latestModuleItems: await repo.getLatestModuleItemsForStudent(studentId),
     progress: await repo.getStudentProgressSeries(studentId),
     homework: subjects.flatMap((subject) =>
       subject.recentHomeworks.map((homework) => ({

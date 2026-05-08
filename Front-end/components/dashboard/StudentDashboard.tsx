@@ -11,7 +11,7 @@ import SubjectReportPage from './pages/SubjectReportPage';
 import ProgressPage from './pages/ProgressPage';
 import SettingsPage from './pages/SettingsPage';
 import { apiGet } from '@/utils/api';
-import { ApiSubjectRecord, DashboardOverview, StudentProfile, SubjectRecord } from '@/types';
+import { ApiSubjectRecord, DashboardOverview, StudentProfile, SubjectRecord, SubjectModuleItem } from '@/types';
 import { normalizeSubjects } from '@/utils/subjects';
 import { useLanguage } from '@/components/LanguageProvider';
 
@@ -30,6 +30,7 @@ export default function StudentDashboard() {
   const [subjects, setSubjects] = useState<SubjectRecord[]>([]);
   const [profile, setProfile] = useState<StudentProfile | null>(null);
   const [overview, setOverview] = useState<DashboardOverview | null>(null);
+  const [latestModuleItems, setLatestModuleItems] = useState<SubjectModuleItem[]>([]);
   const [progress, setProgress] = useState<Array<{ month: string; score: number; classAvg: number }>>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(true);
@@ -55,6 +56,7 @@ export default function StudentDashboard() {
       overview: DashboardOverview;
       profile: StudentProfile;
       subjects: ApiSubjectRecord[];
+      latestModuleItems?: SubjectModuleItem[];
       progress: Array<{ month: string; score?: number; average?: number; classAvg?: number }>;
       homework: Array<any>;
     }>('/dashboard/student')
@@ -63,6 +65,7 @@ export default function StudentDashboard() {
         setOverview(data.overview);
         setProfile(data.profile);
         setSubjects(normalizeSubjects(data.subjects, data.homework));
+        setLatestModuleItems(data.latestModuleItems ?? []);
         setProgress(data.progress.map((item) => ({
           month: item.month,
           score: item.score ?? item.average ?? 0,
@@ -146,7 +149,7 @@ export default function StudentDashboard() {
               </div>
 
               <div className="sd-dashboard-overview">
-                <OverviewCards overview={overview} />
+                <OverviewCards overview={overview} latestItems={latestModuleItems} onOpenSubject={openSubject} />
               </div>
 
               <div className="sd-dashboard-subjects">

@@ -1,14 +1,16 @@
 'use client';
 
 import { BookOpen, FileText, Star } from 'lucide-react';
-import { DashboardOverview } from '@/types';
+import { DashboardOverview, SubjectModuleItem } from '@/types';
 import { useLanguage } from '@/components/LanguageProvider';
 
 interface Props {
   overview: DashboardOverview | null;
+  latestItems?: SubjectModuleItem[];
+  onOpenSubject?: (subjectId: string) => void;
 }
 
-export default function OverviewCards({ overview }: Props) {
+export default function OverviewCards({ overview, latestItems, onOpenSubject }: Props) {
   const { isSinhala } = useLanguage();
   const average = overview?.averageMark ?? 0;
   const cards = [
@@ -43,7 +45,7 @@ export default function OverviewCards({ overview }: Props) {
 
   return (
     <section className="sd-overview-grid">
-      {cards.map((card) => {
+      {cards.map((card, idx) => {
         const Icon = card.icon;
         return (
           <button
@@ -51,7 +53,16 @@ export default function OverviewCards({ overview }: Props) {
             type="button"
             className={`sd-overview-card sd-card-${card.color} text-left`}
             onClick={() => {
-              if (card.id !== 'status') return;
+              if (card.id === 'status') return;
+              const latest = (latestItems ?? [])[idx];
+              if (!latest) return;
+              if (latest.href && latest.type === 'link') {
+                window.open(latest.href, '_blank');
+                return;
+              }
+              if (latest.classId && onOpenSubject) {
+                onOpenSubject(latest.classId);
+              }
             }}
           >
             <div className="sd-overview-card-header">
@@ -64,8 +75,8 @@ export default function OverviewCards({ overview }: Props) {
             </div>
             <div className="sd-overview-card-body">
               <p className="sd-overview-label">{card.label}</p>
-              <p className="sd-overview-value">{card.value}</p>
-              <p className="sd-overview-sub">{card.sub}</p>
+              <p className="sd-overview-value">{(latestItems ?? [])[idx]?.title ?? card.value}</p>
+              <p className="sd-overview-sub">{(latestItems ?? [])[idx]?.createdAt ?? card.sub}</p>
             </div>
             <div className={`sd-card-glow sd-glow-${card.color}`} />
           </button>

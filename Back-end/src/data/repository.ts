@@ -172,6 +172,8 @@ export const repo = {
           title: item.title,
           type: mapModuleItemType(item.item_type),
           href: item.href ?? undefined,
+          moduleId: item.module_id,
+          createdAt: item.created_at ?? null,
         });
         itemsByModuleId.set(item.module_id, moduleItems);
       });
@@ -182,6 +184,45 @@ export const repo = {
         items: itemsByModuleId.get(module.id) ?? [],
       }));
     }, () => buildMemorySubjectModules(subjectId));
+  },
+
+  async getLatestModuleItemsForStudent(studentId: string | undefined, limit = 2) {
+    if (!studentId) return [];
+
+    return withFallback(async () => {
+      const classIds = await getActiveClassIdsForStudent(studentId);
+      if (classIds.length === 0) return [];
+
+      const { data: modules, error: modulesError } = await supabase!
+        .from('subject_modules')
+        .select('id,class_id')
+        .in('class_id', classIds);
+      if (modulesError) throw modulesError;
+      const moduleRows = modules ?? [];
+      const moduleIds = moduleRows.map((m) => m.id);
+      if (moduleIds.length === 0) return [];
+
+      const { data: items, error: itemsError } = await supabase!
+        .from('subject_module_items')
+        .select('id,module_id,title,item_type,href,created_at')
+        .in('module_id', moduleIds)
+        .eq('is_active', true)
+        .order('created_at', { ascending: false })
+        .limit(limit);
+      if (itemsError) throw itemsError;
+
+      const classByModule = new Map((moduleRows ?? []).map((m) => [m.id, m.class_id]));
+
+      return (items ?? []).map((item) => ({
+        id: item.id,
+        title: item.title,
+        type: mapModuleItemType(item.item_type),
+        href: item.href ?? undefined,
+        moduleId: item.module_id,
+        classId: classByModule.get(item.module_id) ?? undefined,
+        createdAt: item.created_at ?? null,
+      }));
+    }, () => []);
   },
 
   async getStudentSubjectResults(studentId: string | undefined, subjectId: string) {
