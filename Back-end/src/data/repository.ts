@@ -1043,45 +1043,57 @@ export const repo = {
 
   async upsertMark(studentId: string, mark: AdminStudentMark) {
     return withFallback(async () => {
-      const student = await findStudentForMark(studentId);
-      if (!student) return null;
       const classId = mark.classId ?? mark.subjectId;
       if (!classId) return null;
-      const examId = `${classId}-${slugify(mark.examType)}-${slugify(mark.examName)}-${slugify(mark.examDate)}`;
-      const resultId = `${examId}-${student.id}`;
-      const { data: existingResult, error: existingError } = await supabase!
-        .from('results')
+      
+      let examId = `${classId}-${slugify(mark.examType)}-${slugify(mark.examName)}-${slugify(mark.examDate)}`;
+      
+      // Look up if an exam with this name already exists (since IDs don't change on rename)
+      let examQuery = supabase!
+        .from('exams')
         .select('id')
-        .eq('exam_id', examId)
-        .eq('student_id', student.id)
-        .maybeSingle();
-      if (existingError && !isMissingTable(existingError)) throw existingError;
+        .eq('class_id', classId)
+        .eq('exam_type', mark.examType)
+        .eq('title', mark.examName);
+      if (mark.examDate) examQuery = examQuery.eq('exam_date', mark.examDate);
 
-      const { error: examError } = await supabase!.from('exams').upsert({
-        id: examId,
-        class_id: classId,
-        exam_type: mark.examType,
-        title: mark.examName,
-        exam_date: mark.examDate,
-        total_marks: 100,
-      });
-      if (examError) throw examError;
-      const { error: resultError } = await supabase!.from('results').upsert({
-        id: resultId,
-        exam_id: examId,
-        student_id: student.id,
-        marks_obtained: mark.mark,
-        is_absent: false,
-      }, { onConflict: 'exam_id,student_id' });
-      if (resultError) throw resultError;
+      const { data: existingExams, error: examLookupError } = await examQuery;
+      if (existingExams && existingExams.length > 0) {
+        examId = existingExams[0].id;
+      } else if (examLookupError && !isMissingTable(examLookupError)) {
+        throw examLookupError;
+      }
+
+      const resultId = `${examId}-${studentId}`;
+
+      // Run exam upsert and result upsert in parallel
+      const [examResult, resultResult] = await Promise.all([
+        supabase!.from('exams').upsert({
+          id: examId,
+          class_id: classId,
+          exam_type: mark.examType,
+          title: mark.examName,
+          exam_date: mark.examDate,
+          total_marks: 100,
+        }),
+        supabase!.from('results').upsert({
+          id: resultId,
+          exam_id: examId,
+          student_id: studentId,
+          marks_obtained: mark.mark,
+          is_absent: false,
+        }, { onConflict: 'exam_id,student_id' }),
+      ]);
+      if (examResult.error) throw examResult.error;
+      if (resultResult.error) throw resultResult.error;
 
       return {
-        student: mapStudentWithData(student, new Map((await this.getClasses()).map((classItem) => [classItem.id, classItem])), [mark], []),
         mark,
-        action: existingResult ? ('updated' as const) : ('created' as const),
+        action: 'updated' as const,
       };
     }, () => upsertMemoryMark(studentId, mark));
   },
+
 
   async deleteMark(params: { studentId: string; subjectId: string; examType: string; examName: string; examDate?: string }) {
     return withFallback(async () => {

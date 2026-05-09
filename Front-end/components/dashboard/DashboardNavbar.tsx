@@ -7,11 +7,12 @@ import { useLanguage } from '@/components/LanguageProvider';
 interface Props {
   onMenuToggle: () => void;
   profile: StudentProfile | null;
-  searchValue: string;
-  onSearchChange: (value: string) => void;
+  searchValue?: string;
+  onSearchChange?: (value: string) => void;
+  showSearch?: boolean;
 }
 
-export default function DashboardNavbar({ onMenuToggle, profile, searchValue, onSearchChange }: Props) {
+export default function DashboardNavbar({ onMenuToggle, profile, searchValue = '', onSearchChange, showSearch = true }: Props) {
   const { isSinhala, toggleLanguage } = useLanguage();
   const avatar = profile?.avatar || profile?.name.charAt(0).toUpperCase() || 'S';
 
@@ -25,16 +26,18 @@ export default function DashboardNavbar({ onMenuToggle, profile, searchValue, on
         >
           <Menu size={22} />
         </button>
-        <div className="sd-search-bar">
-          <Search size={15} className="sd-search-icon" />
-          <input
-            type="text"
-            placeholder={isSinhala ? 'විෂයන්, පැවරුම් සොයන්න...' : 'Search subjects, assignments...'}
-            className="sd-search-input"
-            value={searchValue}
-            onChange={(event) => onSearchChange(event.target.value)}
-          />
-        </div>
+        {showSearch && (
+          <div className="sd-search-bar">
+            <Search size={15} className="sd-search-icon" />
+            <input
+              type="text"
+              placeholder={isSinhala ? 'විෂයන්, පැවරුම් සොයන්න...' : 'Search subjects, assignments...'}
+              className="sd-search-input"
+              value={searchValue}
+              onChange={(event) => onSearchChange?.(event.target.value)}
+            />
+          </div>
+        )}
       </div>
 
       <div className="sd-navbar-right">
