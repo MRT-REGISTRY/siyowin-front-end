@@ -24,6 +24,19 @@ const emptyAssignment: TeacherAssignment = {
 };
 
 const makePassword = () => `Siyo${Math.floor(100000 + Math.random() * 900000)}`;
+const buildStudentUsername = (name: string, dateOfBirth: string) => {
+  const normalizedName = name.trim().toLowerCase().replace(/[^a-z0-9]+/g, '');
+  if (!normalizedName) return '';
+  if (!dateOfBirth) return normalizedName;
+
+  const parsedDate = new Date(dateOfBirth);
+  if (Number.isNaN(parsedDate.getTime())) return normalizedName;
+
+  const month = String(parsedDate.getMonth() + 1).padStart(2, '0');
+  const day = String(parsedDate.getDate()).padStart(2, '0');
+
+  return `${normalizedName}${month}${day}`;
+};
 
 export default function StudentTeacherPage({ onNotice }: Props) {
   const [role, setRole] = useState<AdminRole>('admin');
@@ -52,7 +65,7 @@ export default function StudentTeacherPage({ onNotice }: Props) {
   const [studentName, setStudentName] = useState('');
   const [studentIndex, setStudentIndex] = useState('');
   const [studentUsername, setStudentUsername] = useState('');
-  const [studentPassword, setStudentPassword] = useState(makePassword);
+  const [studentPassword, setStudentPassword] = useState('');
   const [studentEmail, setStudentEmail] = useState('');
   const [studentDateOfBirth, setStudentDateOfBirth] = useState('');
   const [studentClassId, setStudentClassId] = useState('');
@@ -116,10 +129,12 @@ export default function StudentTeacherPage({ onNotice }: Props) {
   }, []);
 
   useEffect(() => {
-    if (studentIndex.trim() && !studentUsername.trim()) {
-      setStudentUsername(studentIndex.trim().toLowerCase());
-    }
-  }, [studentIndex, studentUsername]);
+    setStudentUsername(buildStudentUsername(studentName, studentDateOfBirth));
+  }, [studentName, studentDateOfBirth]);
+
+  useEffect(() => {
+    setStudentPassword(studentIndex.trim());
+  }, [studentIndex]);
 
   useEffect(() => {
     setNewClassTeacherId((current) => current || teachers[0]?.id || '');
@@ -252,29 +267,48 @@ export default function StudentTeacherPage({ onNotice }: Props) {
 
   const addStudent = () => {
     if (isAddingStudent) return;
-    if (!studentName.trim() || !studentIndex.trim() || !studentUsername.trim() || !studentPassword.trim() || !studentClassId) {
-      onNotice?.({ message: 'Enter student details, class, username, and password.', variant: 'danger' });
+    if (!studentName.trim() || !studentIndex.trim() || !studentClassId) {
+      onNotice?.({ message: 'Enter student details, class, and index.', variant: 'danger' });
       return;
     }
 
-    setIsAddingStudent(true);
-    apiPost('/admin/students', {
+    const username = buildStudentUsername(studentName, studentDateOfBirth);
+    const password = studentIndex.trim();
+
+    if (!username || !password) {
+      onNotice?.({ message: 'Enter a valid student name and index to generate credentials.', variant: 'danger' });
+      return;
+    }
+
+    // client-side guard: ensure selected classId exists on the client
+    const classExists = classes.some((c) => c.id === studentClassId) || studentClassOptions.some((c) => c.id === studentClassId);
+    if (!classExists) {
+      onNotice?.({ message: 'Selected class is not available on the server. Reload classes via the meta endpoint and try again.', variant: 'danger' });
+      return;
+    }
+
+    const outgoing = {
       name: studentName.trim(),
       index: studentIndex.trim(),
-      username: studentUsername.trim(),
-      password: studentPassword.trim(),
       email: studentEmail.trim(),
       dateOfBirth: studentDateOfBirth,
       classId: studentClassId,
       parentName: parentName.trim(),
       parentPhone: parentPhone.trim(),
-    })
+    };
+
+    // helpful debug log for admin: shows exact payload being sent
+    // eslint-disable-next-line no-console
+    console.log('[admin/students] outgoing payload:', outgoing);
+
+    setIsAddingStudent(true);
+    apiPost('/admin/students', outgoing)
       .then(() => {
-        onNotice?.({ message: `Student ${studentName.trim()} added with login username ${studentUsername.trim()}.`, variant: 'success' });
+        onNotice?.({ message: `Student ${studentName.trim()} added with username ${username} and password ${password}.`, variant: 'success' });
         setStudentName('');
         setStudentIndex('');
         setStudentUsername('');
-        setStudentPassword(makePassword());
+        setStudentPassword('');
         setStudentEmail('');
         setStudentDateOfBirth('');
         setParentName('');
@@ -448,8 +482,8 @@ export default function StudentTeacherPage({ onNotice }: Props) {
               <div className="mt-5 grid gap-3 sm:grid-cols-2">
                 <input value={studentName} onChange={(event) => setStudentName(event.target.value)} placeholder="Student name" className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 placeholder:text-slate-400" />
                 <input value={studentIndex} onChange={(event) => setStudentIndex(event.target.value)} placeholder="Student index" className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 placeholder:text-slate-400" />
-                <input value={studentUsername} onChange={(event) => setStudentUsername(event.target.value)} placeholder="Issued username" className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 placeholder:text-slate-400" />
-                <CredentialField value={studentPassword} onChange={setStudentPassword} onGenerate={() => setStudentPassword(makePassword())} />
+                <input value={studentUsername} readOnly placeholder="Issued username" className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600 placeholder:text-slate-400" />
+                <input value={studentPassword} readOnly placeholder="Issued password" className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600 placeholder:text-slate-400" />
                 <input value={studentEmail} onChange={(event) => setStudentEmail(event.target.value)} placeholder="Email optional" className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 placeholder:text-slate-400 sm:col-span-2" />
                 <input type="date" value={studentDateOfBirth} onChange={(event) => setStudentDateOfBirth(event.target.value)} className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 placeholder:text-slate-400" />
                 <select value={studentClassId} onChange={(event) => setStudentClassId(event.target.value)} className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 placeholder:text-slate-400">
