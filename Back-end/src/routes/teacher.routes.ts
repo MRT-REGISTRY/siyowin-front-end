@@ -4,6 +4,10 @@ import { requireAuth, requireRoles } from '../middleware/auth.js';
 import { validateBody } from '../middleware/validate.js';
 import { repo } from '../data/repository.js';
 import { store } from '../data/store.js';
+import { asyncHandler } from '../middleware/asyncHandler.js';
+import { supabase } from '../config/supabase.js';
+
+const slugifyLocal = (v: string) => v.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
 
 const router = Router();
 
@@ -19,7 +23,7 @@ const teacherMarkSchema = z.object({
   note: z.string().optional(),
 });
 
-router.get('/dashboard', async (req, res) => {
+router.get('/dashboard', asyncHandler(async (req, res) => {
   const teacher = await repo.getTeacherById(req.user?.teacherId);
 
   if (!teacher) {
@@ -58,6 +62,62 @@ router.get('/dashboard', async (req, res) => {
     ? Math.round(marks.reduce((total, mark) => total + mark.mark, 0) / marks.length)
     : 0;
 
+  // Fetch all exams for teacher's subjects from DB (so assignments show even with 0 marks)
+  let dbExams: Array<{ id: string; classId: string; examType: string; examName: string; examDate: string; markedStudentCount: number }> = [];
+  if (supabase && subjectIds.size > 0) {
+    const { data: examRows } = await supabase
+      .from('exams')
+      .select('id,class_id,exam_type,title,exam_date')
+      .in('class_id', Array.from(subjectIds))
+      .order('exam_date', { ascending: false });
+
+    if (examRows && examRows.length > 0) {
+      const examIds = examRows.map((e) => e.id);
+      const { data: resultCounts } = await supabase
+        .from('results')
+        .select('exam_id')
+        .in('exam_id', examIds);
+
+      const countByExamId = new Map<string, number>();
+      for (const row of resultCounts ?? []) {
+        countByExamId.set(row.exam_id, (countByExamId.get(row.exam_id) ?? 0) + 1);
+      }
+
+      dbExams = examRows.map((e) => ({
+        id: e.id,
+        classId: e.class_id,
+        examType: e.exam_type,
+        examName: e.title,
+        examDate: e.exam_date,
+        markedStudentCount: countByExamId.get(e.id) ?? 0,
+      }));
+    }
+  }
+
+  const recentAssignments = dbExams.slice(0, 5).map((exam) => {
+    const examMarks = marks.filter((m) =>
+      m.subjectId === exam.classId &&
+      m.examType === exam.examType &&
+      m.examName === exam.examName &&
+      m.examDate === exam.examDate
+    );
+    
+    const topStudents = examMarks
+      .sort((a, b) => b.mark - a.mark)
+      .slice(0, 10)
+      .map((m) => ({
+        id: m.studentId,
+        name: m.studentName,
+        index: m.studentIndex,
+        mark: m.mark
+      }));
+      
+    return {
+      ...exam,
+      topStudents
+    };
+  });
+
   res.json({
     teacher,
     assignments,
@@ -81,17 +141,18 @@ router.get('/dashboard', async (req, res) => {
     }),
     students,
     examTypes: store.examTypes,
+    dbExams,
     overview: {
       studentsCount: students.length,
       subjectsCount: subjects.length,
       marksCount: marks.length,
       averageMark,
     },
-    recentMarks: marks.slice(0, 10),
+    recentAssignments,
   });
-});
+}));
 
-router.post('/marks', validateBody(teacherMarkSchema), async (req, res) => {
+router.post('/marks', validateBody(teacherMarkSchema), asyncHandler(async (req, res) => {
   const teacher = await repo.getTeacherById(req.user?.teacherId);
 
   if (!teacher) {
@@ -113,18 +174,32 @@ router.post('/marks', validateBody(teacherMarkSchema), async (req, res) => {
     return;
   }
 
-  const studentsByAssignment = await Promise.all(assignments.map((assignment) =>
-    repo.getStudents({ grade: assignment.grade, classId: assignment.classId || undefined }),
-  ));
-  const allowedStudents = studentsByAssignment.flat();
-  const targetStudent = allowedStudents.find((student) => student.id === req.body.studentId);
-  const targetStudentInSubjectClass = targetStudent
-    ? targetStudent.classId === subject.id || targetStudent.enrollments?.some((enrollment) => enrollment.classId === subject.id)
-    : false;
+  // Lightweight enrollment check — avoid fetching ALL students with ALL marks
+  if (supabase) {
+    const { data: studentRow } = await supabase
+      .from('students')
+      .select('id,class_id')
+      .eq('id', req.body.studentId)
+      .maybeSingle();
 
-  if (assignments.length > 0 && (!targetStudent || !targetStudentInSubjectClass)) {
-    res.status(403).json({ message: 'You can only manage marks for students enrolled in the selected class.' });
-    return;
+    if (!studentRow) {
+      res.status(404).json({ message: 'Student not found.' });
+      return;
+    }
+
+    // Check if student is in this class directly or via enrollment
+    if (studentRow.class_id !== subject.id) {
+      const { data: enrollment } = await supabase
+        .from('student_enrollments')
+        .select('id')
+        .eq('student_id', req.body.studentId)
+        .eq('class_id', subject.id)
+        .maybeSingle();
+      if (!enrollment) {
+        res.status(403).json({ message: 'You can only manage marks for students enrolled in the selected class.' });
+        return;
+      }
+    }
   }
 
   const classId = subject.id;
@@ -146,9 +221,10 @@ router.post('/marks', validateBody(teacherMarkSchema), async (req, res) => {
   }
 
   res.status(result.action === 'created' ? 201 : 200).json(result);
-});
+}));
 
-router.get('/students/:studentId/progress', async (req, res) => {
+
+router.get('/students/:studentId/progress', asyncHandler(async (req, res) => {
   const teacher = await repo.getTeacherById(req.user?.teacherId);
   if (!teacher) {
     res.status(404).json({ message: 'Teacher profile not found.' });
@@ -188,9 +264,9 @@ router.get('/students/:studentId/progress', async (req, res) => {
     overview,
     progress,
   });
-});
+}));
 
-router.delete('/marks', async (req, res) => {
+router.delete('/marks', asyncHandler(async (req, res) => {
   const teacher = await repo.getTeacherById(req.user?.teacherId);
   if (!teacher) {
     res.status(404).json({ message: 'Teacher profile not found.' });
@@ -210,6 +286,187 @@ router.delete('/marks', async (req, res) => {
   }
 
   res.json({ message: 'Mark deleted successfully.', student: result.student });
-});
+}));
+
+// Create a bare assignment (exam with no marks yet) — persists to DB
+router.post('/assignment', asyncHandler(async (req, res) => {
+  const teacher = await repo.getTeacherById(req.user?.teacherId);
+  if (!teacher) {
+    res.status(404).json({ message: 'Teacher profile not found.' });
+    return;
+  }
+
+  const { subjectId, examType, examName, examDate } = req.body;
+  if (!subjectId || !examType || !examName || !examDate) {
+    res.status(400).json({ message: 'subjectId, examType, examName, and examDate are required.' });
+    return;
+  }
+
+  const examId = `${subjectId}-${slugifyLocal(examType)}-${slugifyLocal(examName)}-${slugifyLocal(examDate)}`;
+
+  if (supabase) {
+    const { error } = await supabase.from('exams').upsert({
+      id: examId,
+      class_id: subjectId,
+      exam_type: examType,
+      title: examName,
+      exam_date: examDate,
+      total_marks: 100,
+    }, { onConflict: 'id' });
+    if (error) throw error;
+  }
+  // In-memory mode: UI already stores it locally in emptyAssignments state
+
+  res.status(201).json({ id: examId, subjectId, examType, examName, examDate, markedStudentCount: 0 });
+}));
+
+router.put('/marks/assignment', asyncHandler(async (req, res) => {
+  const teacher = await repo.getTeacherById(req.user?.teacherId);
+  if (!teacher) {
+    res.status(404).json({ message: 'Teacher profile not found.' });
+    return;
+  }
+
+  const { subjectId, oldExamType, oldExamName, oldExamDate, newExamType, newExamName, newExamDate } = req.body;
+  if (!subjectId || !oldExamName || !newExamName) {
+    res.status(400).json({ message: 'subjectId, oldExamName, and newExamName are required.' });
+    return;
+  }
+
+  // ── Supabase path: update exams table directly ──────────────────────────
+  if (supabase) {
+    let examQuery = supabase
+      .from('exams')
+      .select('id,exam_type,title,exam_date')
+      .eq('class_id', subjectId)
+      .eq('title', oldExamName);
+    if (oldExamType) examQuery = examQuery.eq('exam_type', oldExamType);
+    if (oldExamDate) examQuery = examQuery.eq('exam_date', oldExamDate);
+
+    const { data: exams, error: examFetchError } = await examQuery;
+    if (examFetchError) throw examFetchError;
+    if (!exams || exams.length === 0) {
+      res.json({ message: 'No matching exams found.', updatedCount: 0 });
+      return;
+    }
+
+    let updatedCount = 0;
+    for (const exam of exams) {
+      const { error: updateError } = await supabase
+        .from('exams')
+        .update({
+          title: newExamName,
+          exam_type: newExamType || exam.exam_type,
+          exam_date: newExamDate || exam.exam_date,
+        })
+        .eq('id', exam.id);
+      if (updateError) throw updateError;
+
+      // Count how many results are affected
+      const { count } = await supabase
+        .from('results')
+        .select('id', { count: 'exact', head: true })
+        .eq('exam_id', exam.id);
+      updatedCount += count ?? 0;
+    }
+
+    res.json({ message: `Assignment updated. ${updatedCount} mark(s) affected.`, updatedCount });
+    return;
+  }
+
+  // ── In-memory fallback: iterate student.marks ────────────────────────────
+  const allStudents = await repo.getStudents({});
+  let updatedCount = 0;
+  for (const student of allStudents) {
+    for (const mark of (student.marks ?? []) as any[]) {
+      if (
+        mark.subjectId === subjectId &&
+        mark.examName === oldExamName &&
+        (oldExamType ? mark.examType === oldExamType : true) &&
+        (oldExamDate ? mark.examDate === oldExamDate : true)
+      ) {
+        const updatedMark = {
+          ...mark,
+          examType: newExamType || mark.examType,
+          examName: newExamName,
+          examDate: newExamDate || mark.examDate,
+        };
+        await repo.upsertMark(student.id, updatedMark);
+        if (mark.examName !== updatedMark.examName || mark.examType !== updatedMark.examType || mark.examDate !== updatedMark.examDate) {
+          await repo.deleteMark({ studentId: student.id, subjectId, examType: mark.examType, examName: mark.examName, examDate: mark.examDate });
+        }
+        updatedCount++;
+      }
+    }
+  }
+  res.json({ message: `Assignment updated. ${updatedCount} mark(s) affected.`, updatedCount });
+}));
+
+router.delete('/marks/assignment', asyncHandler(async (req, res) => {
+  const teacher = await repo.getTeacherById(req.user?.teacherId);
+  if (!teacher) {
+    res.status(404).json({ message: 'Teacher profile not found.' });
+    return;
+  }
+
+  const { subjectId, examType, examName, examDate } = req.body;
+  if (!subjectId || !examName) {
+    res.status(400).json({ message: 'subjectId and examName are required.' });
+    return;
+  }
+
+  // ── Supabase path: delete from exams (cascades to results) ───────────────
+  if (supabase) {
+    let examQuery = supabase
+      .from('exams')
+      .select('id')
+      .eq('class_id', subjectId)
+      .eq('title', examName);
+    if (examType) examQuery = examQuery.eq('exam_type', examType);
+    if (examDate) examQuery = examQuery.eq('exam_date', examDate);
+
+    const { data: exams, error: examFetchError } = await examQuery;
+    if (examFetchError) throw examFetchError;
+    if (!exams || exams.length === 0) {
+      res.json({ message: 'No matching exams found.', deletedCount: 0 });
+      return;
+    }
+
+    const examIds = exams.map((e) => e.id);
+
+    // Count results before deleting for the response message
+    const { count: deletedCount } = await supabase
+      .from('results')
+      .select('id', { count: 'exact', head: true })
+      .in('exam_id', examIds);
+
+    // Delete results first (in case cascade is not set up), then exams
+    const { error: resultDeleteError } = await supabase.from('results').delete().in('exam_id', examIds);
+    if (resultDeleteError) throw resultDeleteError;
+    const { error: examDeleteError } = await supabase.from('exams').delete().in('id', examIds);
+    if (examDeleteError) throw examDeleteError;
+
+    res.json({ message: `Assignment deleted. ${deletedCount ?? 0} mark(s) removed.`, deletedCount: deletedCount ?? 0 });
+    return;
+  }
+
+  // ── In-memory fallback ────────────────────────────────────────────────────
+  const allStudents = await repo.getStudents({});
+  let deletedCount = 0;
+  for (const student of allStudents) {
+    for (const mark of (student.marks ?? []) as any[]) {
+      if (
+        mark.subjectId === subjectId &&
+        mark.examName === examName &&
+        (examType ? mark.examType === examType : true) &&
+        (examDate ? mark.examDate === examDate : true)
+      ) {
+        await repo.deleteMark({ studentId: student.id, subjectId, examType: mark.examType, examName: mark.examName, examDate: mark.examDate });
+        deletedCount++;
+      }
+    }
+  }
+  res.json({ message: `Assignment deleted. ${deletedCount} mark(s) removed.`, deletedCount });
+}));
 
 export default router;
