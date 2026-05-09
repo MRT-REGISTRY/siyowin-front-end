@@ -327,29 +327,29 @@ export default function TeacherMarksPage({ subjects, students, examTypes, dbExam
           {isSinhala ? 'ලකුණු බැලීමට හෝ එකතු කිරීමට පන්තියක් තෝරන්න.' : 'Select a class to manage assignments and grades.'}
         </p>
 
-        <div className="sd-mid-grid">
+        <div className="flex flex-col gap-4">
           {subjects.map((subject) => (
             <button
               key={subject.id}
               onClick={() => setSelectedClassId(subject.id)}
-              className="sdp-card p-6 text-left transition-all hover:border-[#1B3A8C] hover:shadow-md group flex items-center justify-between"
+              className="sdp-card p-5 text-left transition-all hover:border-[#1B3A8C] hover:shadow-md group flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 w-full"
             >
-              <div>
-                <div className="flex items-center gap-2 mb-2">
-                  <span className="rounded bg-slate-100 px-2 py-1 text-xs font-bold text-slate-600 uppercase">
+              <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4">
+                <div className="flex items-center gap-2 flex-shrink-0">
+                  <span className="rounded bg-slate-100 px-2.5 py-1 text-xs font-bold text-slate-600 uppercase">
                     {subject.grade}
                   </span>
-                  <span className="rounded bg-blue-50 px-2 py-1 text-xs font-bold text-blue-700 uppercase">
+                  <span className="rounded bg-blue-50 px-2.5 py-1 text-xs font-bold text-blue-700 uppercase">
                     {subject.medium}
                   </span>
                 </div>
                 <h3 className="text-base font-bold text-slate-800 group-hover:text-[#1B3A8C] transition-colors">{subject.name}</h3>
               </div>
-              <ChevronLeft size={20} className="text-slate-300 transform rotate-180 group-hover:text-[#1B3A8C] transition-colors" />
+              <ChevronLeft size={20} className="text-slate-300 transform rotate-180 group-hover:text-[#1B3A8C] transition-colors hidden sm:block" />
             </button>
           ))}
           {subjects.length === 0 && (
-            <div className="sdp-card col-span-full p-8 text-center text-sm text-slate-500">
+            <div className="sdp-card p-8 text-center text-sm text-slate-500">
               {isSinhala ? 'පන්ති කිසිවක් හමු නොවීය.' : 'No classes assigned.'}
             </div>
           )}
@@ -425,7 +425,7 @@ export default function TeacherMarksPage({ subjects, students, examTypes, dbExam
           </div>
         </div>
 
-        <div className="sd-mid-grid">
+        <div className="flex flex-col gap-4">
           {filteredAssignments.map((a, idx) => (
             <div
               key={idx}
@@ -473,7 +473,7 @@ export default function TeacherMarksPage({ subjects, students, examTypes, dbExam
             </div>
           ))}
           {filteredAssignments.length === 0 && (
-            <div className="sdp-card col-span-full p-8 text-center text-sm text-slate-500">
+            <div className="sdp-card p-8 text-center text-sm text-slate-500">
               {allKnownAssignments.length === 0 
                 ? (isSinhala ? 'පැවරුම් කිසිවක් හමු නොවීය.' : 'No assignments have been created yet.')
                 : (isSinhala ? 'ඔබගේ පෙරහන් වලට ගැළපෙන පැවරුම් හමු නොවීය.' : 'No assignments match your search.')}
@@ -621,7 +621,7 @@ export default function TeacherMarksPage({ subjects, students, examTypes, dbExam
           />
         </div>
 
-        <div className="border border-slate-200 rounded-xl overflow-hidden bg-white">
+        <div className="border border-slate-200 rounded-xl overflow-hidden bg-white overflow-x-auto">
           <table className="w-full text-left text-sm whitespace-nowrap">
             <thead className="bg-slate-50 text-slate-500 font-bold border-b border-slate-200 text-xs uppercase tracking-wider">
               <tr>

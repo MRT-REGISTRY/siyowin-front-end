@@ -6,7 +6,7 @@ import DashboardNavbar from '../dashboard/DashboardNavbar';
 import TeacherOverviewPage from './pages/TeacherOverviewPage';
 import TeacherClassesPage from './pages/TeacherClassesPage';
 import TeacherMarksPage from './pages/TeacherMarksPage';
-import { apiGet } from '@/utils/api';
+import { apiGet, getStoredUser } from '@/utils/api';
 import { useLanguage } from '@/components/LanguageProvider';
 
 const NAV_ITEMS = [
@@ -21,7 +21,15 @@ export default function TeacherDashboard() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   
-  const [teacher, setTeacher] = useState<any>(null);
+  const [teacher, setTeacher] = useState<any>(() => {
+    if (typeof window !== 'undefined') {
+      const u = getStoredUser();
+      if (u && u.role === 'teacher') {
+        return { name: u.name };
+      }
+    }
+    return null;
+  });
   const [overview, setOverview] = useState<any>(null);
   const [subjects, setSubjects] = useState<any[]>([]);
   const [students, setStudents] = useState<any[]>([]);
@@ -90,15 +98,18 @@ export default function TeacherDashboard() {
   })), [isSinhala]);
 
   // Create a synthetic profile for the Sidebar/Navbar to consume
-  const profile = useMemo(() => teacher ? {
-    name: teacher.name,
-    avatar: teacher.name.charAt(0).toUpperCase(),
-    grade: '',
-    classId: '',
-    role: isSinhala ? 'ගුරුවරයා' : 'Teacher',
-    term: 'Term 1',
-    year: new Date().getFullYear(),
-  } : null, [teacher, isSinhala]);
+  const profile = useMemo(() => {
+    const name = teacher?.name || 'Teacher';
+    return {
+      name: name,
+      avatar: name.charAt(0).toUpperCase(),
+      grade: '',
+      classId: '',
+      role: isSinhala ? 'ගුරුවරයා' : 'Teacher',
+      term: 'Term 1',
+      year: new Date().getFullYear(),
+    };
+  }, [teacher, isSinhala]);
 
   return (
     <div className="sd-root">
