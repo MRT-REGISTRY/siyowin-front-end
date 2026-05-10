@@ -2,7 +2,7 @@
 
 import type { ReactNode } from 'react';
 import { useEffect, useState } from 'react';
-import { KeyRound, Plus, ShieldCheck, Trash2, UserPlus, Users } from 'lucide-react';
+import { KeyRound, Plus, ShieldCheck, Trash2, UserPlus, Users, X } from 'lucide-react';
 
 import { apiDelete, apiGet, apiPatch, apiPost, getStoredUser } from '@/utils/api';
 import { AdminClassOption, AdminRole, AdminStudent, AdminStudentClassOption, AdminTeacher, RegisteredUser, TeacherAssignment } from '@/types';
@@ -80,9 +80,10 @@ export default function StudentTeacherPage({ onNotice }: Props) {
   const [isEnrollingStudent, setIsEnrollingStudent] = useState(false);
   const [isLinkingClassTeacher, setIsLinkingClassTeacher] = useState(false);
   const [expandedPanels, setExpandedPanels] = useState<{ classes: boolean; students: boolean; teachers: boolean; users: boolean }>({ classes: false, students: false, teachers: false, users: false });
+  const [modalOpen, setModalOpen] = useState<'classes' | 'students' | 'teachers' | 'users' | null>(null);
 
   const togglePanelExpand = (panelName: 'classes' | 'students' | 'teachers' | 'users') => {
-    setExpandedPanels((prev) => ({ ...prev, [panelName]: !prev[panelName] }));
+    setModalOpen(panelName);
   };
 
   const loadUsers = () => {
@@ -548,10 +549,11 @@ export default function StudentTeacherPage({ onNotice }: Props) {
           </div>
 
           <section className="grid gap-6 px-6 pb-6 lg:grid-cols-3 sm:px-8">
-            <RecordPanel title="Classes / batches" emptyLabel="No classes found." isExpanded={expandedPanels.classes} onToggleExpand={() => togglePanelExpand('classes')}>
-              {classes.map((classItem) => (
+            <RecordPanel title="Classes / batches" emptyLabel="No classes found." hasMore={classes.length > 5} onViewAll={() => setModalOpen('classes')}>
+              {classes.slice(0, 5).map((classItem, index) => (
                 <RecordRow
                   key={classItem.id}
+                  number={index + 1}
                   title={classItem.label}
                   detail={`${classItem.subjectName ?? 'Subject not set'} - ${classItem.medium} medium`}
                   onDelete={() => deleteClass(classItem)}
@@ -559,12 +561,13 @@ export default function StudentTeacherPage({ onNotice }: Props) {
               ))}
             </RecordPanel>
 
-            <RecordPanel title="Student records" emptyLabel="No students found." isExpanded={expandedPanels.students} onToggleExpand={() => togglePanelExpand('students')}>
-              {students.map((student) => {
+            <RecordPanel title="Student records" emptyLabel="No students found." hasMore={students.length > 5} onViewAll={() => setModalOpen('students')}>
+              {students.slice(0, 5).map((student, index) => {
                 const classItem = classes.find((item) => item.id === student.classId);
                 return (
                   <RecordRow
                     key={student.id}
+                    number={index + 1}
                     title={student.name}
                     detail={`${student.index} - ${classItem?.label ?? student.grade}`}
                     onDelete={() => deleteStudent(student)}
@@ -573,10 +576,11 @@ export default function StudentTeacherPage({ onNotice }: Props) {
               })}
             </RecordPanel>
 
-            <RecordPanel title="Teacher records" emptyLabel="No teachers found." isExpanded={expandedPanels.teachers} onToggleExpand={() => togglePanelExpand('teachers')}>
-              {teachers.map((teacher) => (
+            <RecordPanel title="Teacher records" emptyLabel="No teachers found." hasMore={teachers.length > 5} onViewAll={() => setModalOpen('teachers')}>
+              {teachers.slice(0, 5).map((teacher, index) => (
                 <RecordRow
                   key={teacher.id}
+                  number={index + 1}
                   title={teacher.name}
                   detail={teacher.assignments.map((assignment) => `${assignment.subject} ${assignment.grade}`).join(', ') || teacher.email}
                   onDelete={() => deleteTeacher(teacher)}
@@ -603,7 +607,7 @@ export default function StudentTeacherPage({ onNotice }: Props) {
                     </tr>
                   </thead>
                   <tbody>
-                    {(expandedPanels.users ? users : users.slice(0, 10)).map((user) => (
+                    {users.slice(0, 10).map((user) => (
                       <tr key={user.id} className="border-t border-slate-100">
                         <td className="px-4 py-3 font-semibold text-slate-900">{user.name}</td>
                         <td className="px-4 py-3 text-slate-700">{user.username}</td>
@@ -631,13 +635,148 @@ export default function StudentTeacherPage({ onNotice }: Props) {
               </div>
               {users.length > 10 && (
                 <div className="border-t border-slate-200 px-5 py-4">
-                  <button type="button" onClick={() => togglePanelExpand('users')} className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-100">
-                    {expandedPanels.users ? 'Show less' : 'See all'}
+                  <button type="button" onClick={() => setModalOpen('users')} className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-100">
+                    See all
                   </button>
                 </div>
               )}
             </div>
           </section>
+
+          {modalOpen === 'classes' && (
+            <RecordsModal title="All Classes / batches" onClose={() => setModalOpen(null)}>
+              <table className="w-full text-left text-sm">
+                <thead className="bg-slate-100 text-xs uppercase tracking-[0.15em] text-slate-500">
+                  <tr>
+                    <th className="px-4 py-3">#</th>
+                    <th className="px-4 py-3">Class</th>
+                    <th className="px-4 py-3">Subject</th>
+                    <th className="px-4 py-3">Medium</th>
+                    <th className="px-4 py-3 text-right">Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {classes.map((classItem, index) => (
+                    <tr key={classItem.id} className="border-t border-slate-100">
+                      <td className="px-4 py-3 font-semibold text-slate-900">{index + 1}</td>
+                      <td className="px-4 py-3 font-semibold text-slate-900">{classItem.label}</td>
+                      <td className="px-4 py-3 text-slate-700">{classItem.subjectName ?? 'Subject not set'}</td>
+                      <td className="px-4 py-3 text-slate-600">{classItem.medium} medium</td>
+                      <td className="px-4 py-3 text-right">
+                        <button type="button" onClick={() => deleteClass(classItem)} className="inline-flex items-center justify-center rounded-2xl border border-rose-200 bg-rose-50 px-3 py-2 text-rose-700 transition hover:bg-rose-100" aria-label={`Delete class ${classItem.label}`}>
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </RecordsModal>
+          )}
+
+          {modalOpen === 'students' && (
+            <RecordsModal title="All Student Records" onClose={() => setModalOpen(null)}>
+              <table className="w-full text-left text-sm">
+                <thead className="bg-slate-100 text-xs uppercase tracking-[0.15em] text-slate-500">
+                  <tr>
+                    <th className="px-4 py-3">#</th>
+                    <th className="px-4 py-3">Name</th>
+                    <th className="px-4 py-3">Index</th>
+                    <th className="px-4 py-3">Class</th>
+                    <th className="px-4 py-3 text-right">Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {students.map((student, index) => {
+                    const classItem = classes.find((item) => item.id === student.classId);
+                    return (
+                      <tr key={student.id} className="border-t border-slate-100">
+                        <td className="px-4 py-3 font-semibold text-slate-900">{index + 1}</td>
+                        <td className="px-4 py-3 font-semibold text-slate-900">{student.name}</td>
+                        <td className="px-4 py-3 text-slate-700">{student.index}</td>
+                        <td className="px-4 py-3 text-slate-600">{classItem?.label ?? student.grade}</td>
+                        <td className="px-4 py-3 text-right">
+                          <button type="button" onClick={() => deleteStudent(student)} className="inline-flex items-center justify-center rounded-2xl border border-rose-200 bg-rose-50 px-3 py-2 text-rose-700 transition hover:bg-rose-100" aria-label={`Delete student ${student.name}`}>
+                            <Trash2 className="h-4 w-4" />
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </RecordsModal>
+          )}
+
+          {modalOpen === 'teachers' && (
+            <RecordsModal title="All Teacher Records" onClose={() => setModalOpen(null)}>
+              <table className="w-full text-left text-sm">
+                <thead className="bg-slate-100 text-xs uppercase tracking-[0.15em] text-slate-500">
+                  <tr>
+                    <th className="px-4 py-3">#</th>
+                    <th className="px-4 py-3">Name</th>
+                    <th className="px-4 py-3">Email</th>
+                    <th className="px-4 py-3">Assignments</th>
+                    <th className="px-4 py-3 text-right">Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {teachers.map((teacher, index) => (
+                    <tr key={teacher.id} className="border-t border-slate-100">
+                      <td className="px-4 py-3 font-semibold text-slate-900">{index + 1}</td>
+                      <td className="px-4 py-3 font-semibold text-slate-900">{teacher.name}</td>
+                      <td className="px-4 py-3 text-slate-700">{teacher.email}</td>
+                      <td className="px-4 py-3 text-slate-600">{teacher.assignments.map((assignment) => `${assignment.subject} ${assignment.grade}`).join(', ') || 'No assignments'}</td>
+                      <td className="px-4 py-3 text-right">
+                        <button type="button" onClick={() => deleteTeacher(teacher)} className="inline-flex items-center justify-center rounded-2xl border border-rose-200 bg-rose-50 px-3 py-2 text-rose-700 transition hover:bg-rose-100" aria-label={`Delete teacher ${teacher.name}`}>
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </RecordsModal>
+          )}
+
+          {modalOpen === 'users' && (
+            <RecordsModal title="All Registered Logins" onClose={() => setModalOpen(null)}>
+              <table className="w-full text-left text-sm">
+                <thead className="bg-slate-100 text-xs uppercase tracking-[0.15em] text-slate-500">
+                  <tr>
+                    <th className="px-4 py-3">#</th>
+                    <th className="px-4 py-3">Name</th>
+                    <th className="px-4 py-3">Username</th>
+                    <th className="px-4 py-3">Role</th>
+                    <th className="px-4 py-3">Email</th>
+                    <th className="px-4 py-3">Status</th>
+                    <th className="px-4 py-3 text-right">Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {users.map((user, index) => (
+                    <tr key={user.id} className="border-t border-slate-100">
+                      <td className="px-4 py-3 font-semibold text-slate-900">{index + 1}</td>
+                      <td className="px-4 py-3 font-semibold text-slate-900">{user.name}</td>
+                      <td className="px-4 py-3 text-slate-700">{user.username}</td>
+                      <td className="px-4 py-3 capitalize text-slate-600">{user.role.replace('-', ' ')}</td>
+                      <td className="px-4 py-3 text-slate-600">{user.email}</td>
+                      <td className="px-4 py-3">
+                        <span className={`rounded-full px-3 py-1 text-xs font-semibold ${user.isActive === false ? 'bg-rose-50 text-rose-700' : 'bg-emerald-50 text-emerald-700'}`}>
+                          {user.isActive === false ? 'Inactive' : 'Active'}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-right">
+                        <button type="button" onClick={() => deleteUser(user)} className="inline-flex items-center justify-center rounded-2xl border border-rose-200 bg-rose-50 px-3 py-2 text-rose-700 transition hover:bg-rose-100" aria-label={`Delete login ${user.username}`}>
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </RecordsModal>
+          )}
         </section>
       </div>
     </div>
@@ -653,33 +792,33 @@ function Summary({ label, value }: { label: string; value: number }) {
   );
 }
 
-function RecordPanel({ title, emptyLabel, children, isExpanded, onToggleExpand }: { title: string; emptyLabel: string; children: ReactNode; isExpanded?: boolean; onToggleExpand?: () => void }) {
+function RecordPanel({ title, emptyLabel, children, hasMore, onViewAll }: { title: string; emptyLabel: string; children: ReactNode; hasMore: boolean; onViewAll?: () => void }) {
   const items = Array.isArray(children) ? children.filter(Boolean) : children ? [children] : [];
-  const displayLimit = 5;
-  const displayItems = isExpanded ? items : items.slice(0, displayLimit);
-  const hasMore = items.length > displayLimit;
 
   return (
     <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
       <h2 className="text-base font-bold text-slate-900">{title}</h2>
       <div className="mt-4 space-y-3">
-        {displayItems.length > 0 ? displayItems : <p className="rounded-2xl bg-slate-50 px-4 py-6 text-center text-sm text-slate-500">{emptyLabel}</p>}
+        {items.length > 0 ? items : <p className="rounded-2xl bg-slate-50 px-4 py-6 text-center text-sm text-slate-500">{emptyLabel}</p>}
       </div>
-      {hasMore && onToggleExpand && (
-        <button type="button" onClick={onToggleExpand} className="mt-4 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-100">
-          {isExpanded ? 'Show less' : 'See all'}
+      {hasMore && onViewAll && (
+        <button type="button" onClick={onViewAll} className="mt-4 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-100">
+          See all
         </button>
       )}
     </div>
   );
 }
 
-function RecordRow({ title, detail, onDelete }: { title: string; detail: string; onDelete: () => void }) {
+function RecordRow({ number, title, detail, onDelete }: { number: number; title: string; detail: string; onDelete: () => void }) {
   return (
     <div className="flex items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
-      <div className="min-w-0">
-        <p className="truncate text-sm font-semibold text-slate-900">{title}</p>
-        <p className="mt-1 truncate text-xs text-slate-500">{detail}</p>
+      <div className="flex items-center gap-3 min-w-0">
+        <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-sky-100 text-xs font-semibold text-sky-700">{number}</span>
+        <div className="min-w-0">
+          <p className="truncate text-sm font-semibold text-slate-900">{title}</p>
+          <p className="mt-1 truncate text-xs text-slate-500">{detail}</p>
+        </div>
       </div>
       <button type="button" onClick={onDelete} className="inline-flex shrink-0 items-center justify-center rounded-2xl border border-rose-200 bg-rose-50 px-3 py-2 text-rose-700 transition hover:bg-rose-100" aria-label={`Delete ${title}`}>
         <Trash2 className="h-4 w-4" />
@@ -711,3 +850,20 @@ function CredentialField({ value, onChange, onGenerate }: { value: string; onCha
   );
 }
 
+function RecordsModal({ title, children, onClose }: { title: string; children: ReactNode; onClose: () => void }) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+      <div className="w-full max-w-6xl max-h-[90vh] overflow-auto rounded-3xl border border-slate-200 bg-white shadow-lg">
+        <div className="sticky top-0 border-b border-slate-200 bg-white px-6 py-4 flex items-center justify-between">
+          <h2 className="text-xl font-bold text-slate-900">{title}</h2>
+          <button type="button" onClick={onClose} className="inline-flex items-center justify-center rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2 text-slate-700 transition hover:bg-slate-100" aria-label="Close modal">
+            <X className="h-5 w-5" />
+          </button>
+        </div>
+        <div className="overflow-x-auto">
+          {children}
+        </div>
+      </div>
+    </div>
+  );
+}
