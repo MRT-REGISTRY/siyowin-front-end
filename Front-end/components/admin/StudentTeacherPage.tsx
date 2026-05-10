@@ -81,6 +81,10 @@ export default function StudentTeacherPage({ onNotice }: Props) {
   const [isLinkingClassTeacher, setIsLinkingClassTeacher] = useState(false);
   const [expandedPanels, setExpandedPanels] = useState<{ classes: boolean; students: boolean; teachers: boolean; users: boolean }>({ classes: false, students: false, teachers: false, users: false });
   const [modalOpen, setModalOpen] = useState<'classes' | 'students' | 'teachers' | 'users' | null>(null);
+  const [classesSearch, setClassesSearch] = useState('');
+  const [studentsSearch, setStudentsSearch] = useState('');
+  const [teachersSearch, setTeachersSearch] = useState('');
+  const [usersSearch, setUsersSearch] = useState('');
 
   const togglePanelExpand = (panelName: 'classes' | 'students' | 'teachers' | 'users') => {
     setModalOpen(panelName);
@@ -549,8 +553,8 @@ export default function StudentTeacherPage({ onNotice }: Props) {
           </div>
 
           <section className="grid gap-6 px-6 pb-6 lg:grid-cols-3 sm:px-8">
-            <RecordPanel title="Classes / batches" emptyLabel="No classes found." hasMore={classes.length > 5} onViewAll={() => setModalOpen('classes')}>
-              {classes.slice(0, 5).map((classItem, index) => (
+            <RecordPanel title="Classes / batches" emptyLabel="No classes found." hasMore={classes.filter(c => c.label.toLowerCase().includes(classesSearch.toLowerCase())).length > 5} onViewAll={() => setModalOpen('classes')} searchValue={classesSearch} onSearchChange={setClassesSearch}>
+              {classes.filter(c => c.label.toLowerCase().includes(classesSearch.toLowerCase())).slice(0, 5).map((classItem, index) => (
                 <RecordRow
                   key={classItem.id}
                   number={index + 1}
@@ -561,8 +565,8 @@ export default function StudentTeacherPage({ onNotice }: Props) {
               ))}
             </RecordPanel>
 
-            <RecordPanel title="Student records" emptyLabel="No students found." hasMore={students.length > 5} onViewAll={() => setModalOpen('students')}>
-              {students.slice(0, 5).map((student, index) => {
+            <RecordPanel title="Student records" emptyLabel="No students found." hasMore={students.filter(s => s.name.toLowerCase().includes(studentsSearch.toLowerCase()) || s.index.toLowerCase().includes(studentsSearch.toLowerCase())).length > 5} onViewAll={() => setModalOpen('students')} searchValue={studentsSearch} onSearchChange={setStudentsSearch}>
+              {students.filter(s => s.name.toLowerCase().includes(studentsSearch.toLowerCase()) || s.index.toLowerCase().includes(studentsSearch.toLowerCase())).slice(0, 5).map((student, index) => {
                 const classItem = classes.find((item) => item.id === student.classId);
                 return (
                   <RecordRow
@@ -576,8 +580,8 @@ export default function StudentTeacherPage({ onNotice }: Props) {
               })}
             </RecordPanel>
 
-            <RecordPanel title="Teacher records" emptyLabel="No teachers found." hasMore={teachers.length > 5} onViewAll={() => setModalOpen('teachers')}>
-              {teachers.slice(0, 5).map((teacher, index) => (
+            <RecordPanel title="Teacher records" emptyLabel="No teachers found." hasMore={teachers.filter(t => t.name.toLowerCase().includes(teachersSearch.toLowerCase()) || t.email.toLowerCase().includes(teachersSearch.toLowerCase())).length > 5} onViewAll={() => setModalOpen('teachers')} searchValue={teachersSearch} onSearchChange={setTeachersSearch}>
+              {teachers.filter(t => t.name.toLowerCase().includes(teachersSearch.toLowerCase()) || t.email.toLowerCase().includes(teachersSearch.toLowerCase())).slice(0, 5).map((teacher, index) => (
                 <RecordRow
                   key={teacher.id}
                   number={index + 1}
@@ -594,6 +598,9 @@ export default function StudentTeacherPage({ onNotice }: Props) {
               <div className="border-b border-slate-200 px-5 py-4">
                 <h2 className="text-xl font-bold text-slate-900">All registered logins</h2>
               </div>
+              <div className="mb-4 flex gap-3">
+                <input type="text" value={usersSearch} onChange={(e) => setUsersSearch(e.target.value)} placeholder="Search by name, username, or email..." className="flex-1 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 placeholder:text-slate-400" />
+              </div>
               <div className="overflow-x-auto">
                 <table className="w-full text-left text-sm">
                   <thead className="bg-slate-100 text-xs uppercase tracking-[0.15em] text-slate-500">
@@ -607,7 +614,7 @@ export default function StudentTeacherPage({ onNotice }: Props) {
                     </tr>
                   </thead>
                   <tbody>
-                    {users.slice(0, 10).map((user) => (
+                    {users.filter(u => u.name.toLowerCase().includes(usersSearch.toLowerCase()) || u.username.toLowerCase().includes(usersSearch.toLowerCase()) || u.email.toLowerCase().includes(usersSearch.toLowerCase())).slice(0, 10).map((user) => (
                       <tr key={user.id} className="border-t border-slate-100">
                         <td className="px-4 py-3 font-semibold text-slate-900">{user.name}</td>
                         <td className="px-4 py-3 text-slate-700">{user.username}</td>
@@ -645,6 +652,9 @@ export default function StudentTeacherPage({ onNotice }: Props) {
 
           {modalOpen === 'classes' && (
             <RecordsModal title="All Classes / batches" onClose={() => setModalOpen(null)}>
+              <div className="border-b border-slate-200 p-4">
+                <input type="text" value={classesSearch} onChange={(e) => setClassesSearch(e.target.value)} placeholder="Search classes..." className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 placeholder:text-slate-400" />
+              </div>
               <table className="w-full text-left text-sm">
                 <thead className="bg-slate-100 text-xs uppercase tracking-[0.15em] text-slate-500">
                   <tr>
@@ -656,7 +666,7 @@ export default function StudentTeacherPage({ onNotice }: Props) {
                   </tr>
                 </thead>
                 <tbody>
-                  {classes.map((classItem, index) => (
+                  {classes.filter(c => c.label.toLowerCase().includes(classesSearch.toLowerCase())).map((classItem, index) => (
                     <tr key={classItem.id} className="border-t border-slate-100">
                       <td className="px-4 py-3 font-semibold text-slate-900">{index + 1}</td>
                       <td className="px-4 py-3 font-semibold text-slate-900">{classItem.label}</td>
@@ -676,6 +686,9 @@ export default function StudentTeacherPage({ onNotice }: Props) {
 
           {modalOpen === 'students' && (
             <RecordsModal title="All Student Records" onClose={() => setModalOpen(null)}>
+              <div className="border-b border-slate-200 p-4">
+                <input type="text" value={studentsSearch} onChange={(e) => setStudentsSearch(e.target.value)} placeholder="Search by name or index..." className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 placeholder:text-slate-400" />
+              </div>
               <table className="w-full text-left text-sm">
                 <thead className="bg-slate-100 text-xs uppercase tracking-[0.15em] text-slate-500">
                   <tr>
@@ -687,7 +700,7 @@ export default function StudentTeacherPage({ onNotice }: Props) {
                   </tr>
                 </thead>
                 <tbody>
-                  {students.map((student, index) => {
+                  {students.filter(s => s.name.toLowerCase().includes(studentsSearch.toLowerCase()) || s.index.toLowerCase().includes(studentsSearch.toLowerCase())).map((student, index) => {
                     const classItem = classes.find((item) => item.id === student.classId);
                     return (
                       <tr key={student.id} className="border-t border-slate-100">
@@ -710,6 +723,9 @@ export default function StudentTeacherPage({ onNotice }: Props) {
 
           {modalOpen === 'teachers' && (
             <RecordsModal title="All Teacher Records" onClose={() => setModalOpen(null)}>
+              <div className="border-b border-slate-200 p-4">
+                <input type="text" value={teachersSearch} onChange={(e) => setTeachersSearch(e.target.value)} placeholder="Search by name or email..." className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 placeholder:text-slate-400" />
+              </div>
               <table className="w-full text-left text-sm">
                 <thead className="bg-slate-100 text-xs uppercase tracking-[0.15em] text-slate-500">
                   <tr>
@@ -721,7 +737,7 @@ export default function StudentTeacherPage({ onNotice }: Props) {
                   </tr>
                 </thead>
                 <tbody>
-                  {teachers.map((teacher, index) => (
+                  {teachers.filter(t => t.name.toLowerCase().includes(teachersSearch.toLowerCase()) || t.email.toLowerCase().includes(teachersSearch.toLowerCase())).map((teacher, index) => (
                     <tr key={teacher.id} className="border-t border-slate-100">
                       <td className="px-4 py-3 font-semibold text-slate-900">{index + 1}</td>
                       <td className="px-4 py-3 font-semibold text-slate-900">{teacher.name}</td>
@@ -741,6 +757,9 @@ export default function StudentTeacherPage({ onNotice }: Props) {
 
           {modalOpen === 'users' && (
             <RecordsModal title="All Registered Logins" onClose={() => setModalOpen(null)}>
+              <div className="border-b border-slate-200 p-4">
+                <input type="text" value={usersSearch} onChange={(e) => setUsersSearch(e.target.value)} placeholder="Search by name, username, or email..." className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 placeholder:text-slate-400" />
+              </div>
               <table className="w-full text-left text-sm">
                 <thead className="bg-slate-100 text-xs uppercase tracking-[0.15em] text-slate-500">
                   <tr>
@@ -754,7 +773,7 @@ export default function StudentTeacherPage({ onNotice }: Props) {
                   </tr>
                 </thead>
                 <tbody>
-                  {users.map((user, index) => (
+                  {users.filter(u => u.name.toLowerCase().includes(usersSearch.toLowerCase()) || u.username.toLowerCase().includes(usersSearch.toLowerCase()) || u.email.toLowerCase().includes(usersSearch.toLowerCase())).map((user, index) => (
                     <tr key={user.id} className="border-t border-slate-100">
                       <td className="px-4 py-3 font-semibold text-slate-900">{index + 1}</td>
                       <td className="px-4 py-3 font-semibold text-slate-900">{user.name}</td>
@@ -792,12 +811,17 @@ function Summary({ label, value }: { label: string; value: number }) {
   );
 }
 
-function RecordPanel({ title, emptyLabel, children, hasMore, onViewAll }: { title: string; emptyLabel: string; children: ReactNode; hasMore: boolean; onViewAll?: () => void }) {
+function RecordPanel({ title, emptyLabel, children, hasMore, onViewAll, searchValue, onSearchChange }: { title: string; emptyLabel: string; children: ReactNode; hasMore: boolean; onViewAll?: () => void; searchValue?: string; onSearchChange?: (value: string) => void }) {
   const items = Array.isArray(children) ? children.filter(Boolean) : children ? [children] : [];
 
   return (
     <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
-      <h2 className="text-base font-bold text-slate-900">{title}</h2>
+      <div className="flex items-center justify-between gap-3">
+        <h2 className="text-base font-bold text-slate-900">{title}</h2>
+        {onSearchChange && (
+          <input type="text" value={searchValue || ''} onChange={(e) => onSearchChange(e.target.value)} placeholder="Search..." className="rounded-2xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400" />
+        )}
+      </div>
       <div className="mt-4 space-y-3">
         {items.length > 0 ? items : <p className="rounded-2xl bg-slate-50 px-4 py-6 text-center text-sm text-slate-500">{emptyLabel}</p>}
       </div>
