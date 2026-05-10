@@ -79,6 +79,11 @@ export default function StudentTeacherPage({ onNotice }: Props) {
   const [isAddingTeacher, setIsAddingTeacher] = useState(false);
   const [isEnrollingStudent, setIsEnrollingStudent] = useState(false);
   const [isLinkingClassTeacher, setIsLinkingClassTeacher] = useState(false);
+  const [expandedPanels, setExpandedPanels] = useState<{ classes: boolean; students: boolean; teachers: boolean; users: boolean }>({ classes: false, students: false, teachers: false, users: false });
+
+  const togglePanelExpand = (panelName: 'classes' | 'students' | 'teachers' | 'users') => {
+    setExpandedPanels((prev) => ({ ...prev, [panelName]: !prev[panelName] }));
+  };
 
   const loadUsers = () => {
     apiGet<{ users: RegisteredUser[] }>('/admin/users')
@@ -475,7 +480,7 @@ export default function StudentTeacherPage({ onNotice }: Props) {
             </section>
           </div>
 
-          <div className="grid gap-6 px-6 py-6 xl:grid-cols-[0.95fr_1.05fr] sm:px-8">
+          <div className="grid gap-6 px-6 py-6 xl:grid-cols-2 sm:px-8">
             <section className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
               <Header eyebrow="Student onboarding" title="Add student login" label="Admin" />
 
@@ -543,7 +548,7 @@ export default function StudentTeacherPage({ onNotice }: Props) {
           </div>
 
           <section className="grid gap-6 px-6 pb-6 lg:grid-cols-3 sm:px-8">
-            <RecordPanel title="Classes / batches" emptyLabel="No classes found.">
+            <RecordPanel title="Classes / batches" emptyLabel="No classes found." isExpanded={expandedPanels.classes} onToggleExpand={() => togglePanelExpand('classes')}>
               {classes.map((classItem) => (
                 <RecordRow
                   key={classItem.id}
@@ -554,7 +559,7 @@ export default function StudentTeacherPage({ onNotice }: Props) {
               ))}
             </RecordPanel>
 
-            <RecordPanel title="Student records" emptyLabel="No students found.">
+            <RecordPanel title="Student records" emptyLabel="No students found." isExpanded={expandedPanels.students} onToggleExpand={() => togglePanelExpand('students')}>
               {students.map((student) => {
                 const classItem = classes.find((item) => item.id === student.classId);
                 return (
@@ -568,7 +573,7 @@ export default function StudentTeacherPage({ onNotice }: Props) {
               })}
             </RecordPanel>
 
-            <RecordPanel title="Teacher records" emptyLabel="No teachers found.">
+            <RecordPanel title="Teacher records" emptyLabel="No teachers found." isExpanded={expandedPanels.teachers} onToggleExpand={() => togglePanelExpand('teachers')}>
               {teachers.map((teacher) => (
                 <RecordRow
                   key={teacher.id}
@@ -598,7 +603,7 @@ export default function StudentTeacherPage({ onNotice }: Props) {
                     </tr>
                   </thead>
                   <tbody>
-                    {users.map((user) => (
+                    {(expandedPanels.users ? users : users.slice(0, 10)).map((user) => (
                       <tr key={user.id} className="border-t border-slate-100">
                         <td className="px-4 py-3 font-semibold text-slate-900">{user.name}</td>
                         <td className="px-4 py-3 text-slate-700">{user.username}</td>
@@ -624,6 +629,13 @@ export default function StudentTeacherPage({ onNotice }: Props) {
                   </tbody>
                 </table>
               </div>
+              {users.length > 10 && (
+                <div className="border-t border-slate-200 px-5 py-4">
+                  <button type="button" onClick={() => togglePanelExpand('users')} className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-100">
+                    {expandedPanels.users ? 'Show less' : 'See all'}
+                  </button>
+                </div>
+              )}
             </div>
           </section>
         </section>
@@ -641,15 +653,23 @@ function Summary({ label, value }: { label: string; value: number }) {
   );
 }
 
-function RecordPanel({ title, emptyLabel, children }: { title: string; emptyLabel: string; children: ReactNode }) {
+function RecordPanel({ title, emptyLabel, children, isExpanded, onToggleExpand }: { title: string; emptyLabel: string; children: ReactNode; isExpanded?: boolean; onToggleExpand?: () => void }) {
   const items = Array.isArray(children) ? children.filter(Boolean) : children ? [children] : [];
+  const displayLimit = 5;
+  const displayItems = isExpanded ? items : items.slice(0, displayLimit);
+  const hasMore = items.length > displayLimit;
 
   return (
     <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
       <h2 className="text-base font-bold text-slate-900">{title}</h2>
       <div className="mt-4 space-y-3">
-        {items.length > 0 ? items : <p className="rounded-2xl bg-slate-50 px-4 py-6 text-center text-sm text-slate-500">{emptyLabel}</p>}
+        {displayItems.length > 0 ? displayItems : <p className="rounded-2xl bg-slate-50 px-4 py-6 text-center text-sm text-slate-500">{emptyLabel}</p>}
       </div>
+      {hasMore && onToggleExpand && (
+        <button type="button" onClick={onToggleExpand} className="mt-4 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-100">
+          {isExpanded ? 'Show less' : 'See all'}
+        </button>
+      )}
     </div>
   );
 }
