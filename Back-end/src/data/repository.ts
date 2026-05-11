@@ -38,6 +38,7 @@ import {
 import { demoPasswordHash } from './seed.js';
 
 type DbUser = AuthUser & { passwordHash: string; password_hash?: string };
+type UpsertMarkResult = { mark: AdminStudentMark; action: 'created' | 'updated' };
 
 const isMissingTable = (error: unknown) =>
   Boolean(
@@ -1139,7 +1140,7 @@ export const repo = {
   },
 
   async upsertMark(studentId: string, mark: AdminStudentMark) {
-    return withFallback(async () => {
+    return withFallback<UpsertMarkResult | null>(async () => {
       const classId = mark.classId ?? mark.subjectId;
       if (!classId) return null;
       
@@ -1155,13 +1156,22 @@ export const repo = {
       if (mark.examDate) examQuery = examQuery.eq('exam_date', mark.examDate);
 
       const { data: existingExams, error: examLookupError } = await examQuery;
-      if (existingExams && existingExams.length > 0) {
-        examId = existingExams[0].id;
+      const existingExam = existingExams?.[0];
+      if (existingExam) {
+        examId = existingExam.id;
       } else if (examLookupError && !isMissingTable(examLookupError)) {
         throw examLookupError;
       }
 
       const resultId = `${examId}-${studentId}`;
+      const { data: existingResults, error: resultLookupError } = await supabase!
+        .from('results')
+        .select('id')
+        .eq('exam_id', examId)
+        .eq('student_id', studentId)
+        .limit(1);
+      if (resultLookupError) throw resultLookupError;
+      const action = existingResults?.[0] ? 'updated' : 'created';
 
       // Run exam upsert and result upsert in parallel
       const [examResult, resultResult] = await Promise.all([
@@ -1186,7 +1196,7 @@ export const repo = {
 
       return {
         mark,
-        action: 'updated' as const,
+        action,
       };
     }, () => upsertMemoryMark(studentId, mark));
   },

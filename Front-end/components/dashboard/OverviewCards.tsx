@@ -56,7 +56,7 @@ export default function OverviewCards({ overview, latestItems, onOpenSubject }: 
               if (card.id === 'status') return;
               const latest = (latestItems ?? [])[idx];
               if (!latest) return;
-              if (latest.href && latest.type === 'link') {
+              if (latest.type === 'link' && latest.href) {
                 window.open(latest.href, '_blank');
                 return;
               }
