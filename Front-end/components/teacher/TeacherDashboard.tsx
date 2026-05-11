@@ -6,7 +6,7 @@ import DashboardNavbar from '../dashboard/DashboardNavbar';
 import TeacherOverviewPage from './pages/TeacherOverviewPage';
 import TeacherClassesPage from './pages/TeacherClassesPage';
 import TeacherMarksPage from './pages/TeacherMarksPage';
-import { apiGet, getStoredUser } from '@/utils/api';
+import { apiGet } from '@/utils/api';
 import { useLanguage } from '@/components/LanguageProvider';
 
 const NAV_ITEMS = [
@@ -21,37 +21,27 @@ export default function TeacherDashboard() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   
-  const [teacher, setTeacher] = useState<any>(() => {
-    if (typeof window !== 'undefined') {
-      const u = getStoredUser();
-      if (u && u.role === 'teacher') {
-        return { name: u.name };
-      }
-    }
-    return null;
-  });
+  const [teacher, setTeacher] = useState<any>(null);
   const [overview, setOverview] = useState<any>(null);
   const [subjects, setSubjects] = useState<any[]>([]);
   const [students, setStudents] = useState<any[]>([]);
-  const [recentAssignments, setRecentAssignments] = useState<any[]>([]);
+  const [recentMarks, setRecentMarks] = useState<any[]>([]);
   const [examTypes, setExamTypes] = useState<any[]>([]);
-  const [dbExams, setDbExams] = useState<any[]>([]);
   
   const [selectedClassId, setSelectedClassId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
-  const loadData = (showLoading = true) => {
-    if (showLoading) setLoading(true);
+  const loadData = () => {
+    setLoading(true);
     apiGet<any>('/teacher/dashboard')
       .then((data) => {
         setTeacher(data.teacher);
         setOverview(data.overview);
         setSubjects(data.subjects || []);
         setStudents(data.students || []);
-        setRecentAssignments(data.recentAssignments || []);
+        setRecentMarks(data.recentMarks || []);
         setExamTypes(data.examTypes || []);
-        setDbExams(data.dbExams || []);
         setError('');
       })
       .catch((err) => {
@@ -62,32 +52,20 @@ export default function TeacherDashboard() {
       });
   };
 
-  const refreshData = () => loadData(false);
-
   useEffect(() => {
-    const savedNav = localStorage.getItem('siyowin_teacher_nav');
-    const savedClassId = localStorage.getItem('siyowin_teacher_class');
-    if (savedNav) setActiveNav(savedNav);
-    if (savedClassId) setSelectedClassId(savedClassId);
-    
     loadData();
   }, []);
-
 
   const handleNavChange = (navId: string) => {
     if (navId !== 'marks') {
       setSelectedClassId(null);
-      localStorage.removeItem('siyowin_teacher_class');
     }
     setActiveNav(navId);
-    localStorage.setItem('siyowin_teacher_nav', navId);
   };
 
   const openClassMarks = (classId: string) => {
     setSelectedClassId(classId);
     setActiveNav('marks');
-    localStorage.setItem('siyowin_teacher_class', classId);
-    localStorage.setItem('siyowin_teacher_nav', 'marks');
   };
 
   const localizedNavItems = useMemo(() => NAV_ITEMS.map(item => ({
@@ -98,18 +76,15 @@ export default function TeacherDashboard() {
   })), [isSinhala]);
 
   // Create a synthetic profile for the Sidebar/Navbar to consume
-  const profile = useMemo(() => {
-    const name = teacher?.name || 'Teacher';
-    return {
-      name: name,
-      avatar: name.charAt(0).toUpperCase(),
-      grade: '',
-      classId: '',
-      role: isSinhala ? 'ගුරුවරයා' : 'Teacher',
-      term: 'Term 1',
-      year: new Date().getFullYear(),
-    };
-  }, [teacher, isSinhala]);
+  const profile = useMemo(() => teacher ? {
+    name: teacher.name,
+    avatar: teacher.name.charAt(0).toUpperCase(),
+    grade: '',
+    classId: '',
+    role: isSinhala ? 'ගුරුවරයා' : 'Teacher',
+    term: 'Term 1',
+    year: new Date().getFullYear(),
+  } : null, [teacher, isSinhala]);
 
   return (
     <div className="sd-root">
@@ -129,7 +104,8 @@ export default function TeacherDashboard() {
         <DashboardNavbar
           onMenuToggle={() => setSidebarOpen(true)}
           profile={profile as any}
-          showSearch={false}
+          searchValue={searchQuery}
+          onSearchChange={setSearchQuery}
         />
 
         <main className="sd-content">
@@ -148,7 +124,7 @@ export default function TeacherDashboard() {
                   </p>
                 </div>
               </div>
-              <TeacherOverviewPage overview={overview} recentAssignments={recentAssignments} />
+              <TeacherOverviewPage overview={overview} recentMarks={recentMarks} />
             </>
           )}
 
@@ -160,10 +136,9 @@ export default function TeacherDashboard() {
             <TeacherMarksPage 
               subjects={subjects} 
               students={students} 
-              examTypes={examTypes}
-              dbExams={dbExams}
+              examTypes={examTypes} 
               initialSubjectId={selectedClassId} 
-              onRefresh={refreshData}
+              onRefresh={loadData}
             />
           )}
         </main>
