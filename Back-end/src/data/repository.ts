@@ -26,6 +26,7 @@ import {
   deleteUser as deleteMemoryUser,
   filterStudents as filterMemoryStudents,
   findUserByEmail as findMemoryUserByEmail,
+  findUserByUsername as findMemoryUserByUsername,
   findUserById as findMemoryUserById,
   getDashboardOverview as getMemoryDashboardOverview,
   getStudentProfile as getMemoryStudentProfile,
@@ -72,6 +73,19 @@ export const repo = {
       if (!data) return undefined;
       return mapUser(data);
     }, () => findMemoryUserByEmail(email));
+  },
+  async findUserByUsername(username: string) {
+    return withFallback(async () => {
+      const identifier = username.trim().toLowerCase();
+      const { data, error } = await supabase!
+        .from('users')
+        .select('id,name,username,email,role,student_id,teacher_id,password_hash,is_active')
+        .eq('username', identifier)
+        .maybeSingle();
+      if (error) throw error;
+      if (!data) return undefined;
+      return mapUser(data);
+    }, () => findMemoryUserByUsername(username));
   },
   
   async findUserById(id: string) {

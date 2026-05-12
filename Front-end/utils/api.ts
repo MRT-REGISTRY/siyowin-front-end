@@ -42,7 +42,7 @@ export type LoginResponse = {
   };
 };
 
-export const login = (input: { email: string; password: string; role?: LoginRole }) =>
+export const login = (input: { email?: string; username?: string; password: string; role?: LoginRole }) =>
   apiRequest<LoginResponse>('/auth/login', {
     method: 'POST',
     body: JSON.stringify(input),
