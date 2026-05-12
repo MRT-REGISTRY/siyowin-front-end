@@ -17,8 +17,8 @@ const studentSchema = z.object({
   index: z.string().min(1),
   classId: z.string().min(1),
   dateOfBirth: z.string().optional(),
-  username: z.string().optional(),
-  password: z.string().optional(),
+  username: z.string().min(1),
+  password: z.string().min(6),
   email: z.string().email().optional().or(z.literal('')),
   parentName: z.string().optional(),
   parentPhone: z.string().optional(),
@@ -77,23 +77,6 @@ const markSchema = z.object({
 const bulkMarksSchema = z.object({
   csvText: z.string().min(1),
 });
-
-const buildStudentUsername = (name: string, dateOfBirth?: string) => {
-  const normalizedName = name
-    .trim()
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '');
-
-  if (!dateOfBirth) return normalizedName;
-
-  const parsedDate = new Date(dateOfBirth);
-  if (Number.isNaN(parsedDate.getTime())) return normalizedName;
-
-  const month = String(parsedDate.getMonth() + 1).padStart(2, '0');
-  const day = String(parsedDate.getDate()).padStart(2, '0');
-
-  return `${normalizedName}${month}${day}`;
-};
 
 router.get('/meta', asyncHandler(async (req, res) => {
   const grade = typeof req.query.grade === 'string' ? req.query.grade : '';
@@ -232,11 +215,8 @@ router.delete('/enrollments', asyncHandler(async (req, res) => {
 }));
 // student registering //
 router.post('/students', validateBody(studentSchema), asyncHandler(async (req, res) => {
-  console.log('[admin/students] incoming payload:', JSON.stringify(req.body));
   const existing = (await repo.getStudents({})).find((student) => student.index === req.body.index);
-  const normalizedName = req.body.name.trim();
-  const normalizedIndex = req.body.index.trim();
-  const normalizedUsername = buildStudentUsername(normalizedName, req.body.dateOfBirth?.trim() || undefined);
+  const normalizedUsername = req.body.username.trim().toLowerCase();
   const normalizedEmail = req.body.email?.trim().toLowerCase() || `${normalizedUsername}@siyowin.local`;
   const existingUserByUsername = await repo.findUserByEmail(normalizedUsername);
   const existingUserByEmail = await repo.findUserByEmail(normalizedEmail);
@@ -256,7 +236,7 @@ router.post('/students', validateBody(studentSchema), asyncHandler(async (req, r
     return;
   }
 
-  const { password: _password, username: _username, email, ...studentInput } = req.body as z.infer<typeof studentSchema>;
+  const { username, password, email, ...studentInput } = req.body as z.infer<typeof studentSchema>;
   const normalizedDateOfBirth = studentInput.dateOfBirth?.trim() || undefined;
   if (normalizedDateOfBirth && Number.isNaN(Date.parse(normalizedDateOfBirth))) {
     res.status(400).json({ message: 'Invalid dateOfBirth. Use a valid date format (YYYY-MM-DD).' });
@@ -264,11 +244,9 @@ router.post('/students', validateBody(studentSchema), asyncHandler(async (req, r
   }
   const normalizedStudentInput = {
     ...studentInput,
-    name: normalizedName,
-    index: normalizedIndex,
     dateOfBirth: normalizedDateOfBirth,
   };
-  const passwordHash = bcrypt.hashSync(normalizedIndex, 10);
+  const passwordHash = bcrypt.hashSync(password, 10);
 
   try {
     if (existing) {
