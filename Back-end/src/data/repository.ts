@@ -1,5 +1,16 @@
 import { supabase } from '../config/supabase.js';
-import { AdminStudent, AdminStudentMark, AdminTeacher, AuthUser, LeaderboardEntry, RegisteredUser, SubjectRecord, TeacherAssignment } from '../types.js';
+import {
+  AdminStudent,
+  AdminStudentMark,
+  AdminTeacher,
+  AuthUser,
+  LeaderboardEntry,
+  RegisteredUser,
+  SubjectModule,
+  SubjectModuleItem,
+  SubjectRecord,
+  TeacherAssignment,
+} from '../types.js';
 import { createId } from '../utils/ids.js';
 import {
   createUser as createMemoryUser,
@@ -28,6 +39,7 @@ import {
 import { demoPasswordHash } from './seed.js';
 
 type DbUser = AuthUser & { passwordHash: string; password_hash?: string };
+type UpsertMarkResult = { mark: AdminStudentMark; action: 'created' | 'updated' };
 
 const isMissingTable = (error: unknown) =>
   Boolean(
@@ -140,6 +152,92 @@ export const repo = {
   async getSubjectById(subjectId: string) {
     const subjects = await this.getSubjects();
     return subjects.find((subject) => subject.id === subjectId);
+  },
+
+  async getSubjectModules(subjectId: string): Promise<SubjectModule[]> {
+    return withFallback(async () => {
+      const { data: modules, error: modulesError } = await supabase!
+        .from('subject_modules')
+        .select('id,class_id,title,sort_order,is_active,created_at')
+        .eq('class_id', subjectId)
+        .eq('is_active', true)
+        .order('sort_order', { ascending: true })
+        .order('created_at', { ascending: true });
+
+      if (modulesError) throw modulesError;
+      const moduleRows = modules ?? [];
+      if (moduleRows.length === 0) return [];
+
+      const moduleIds = moduleRows.map((module) => module.id);
+      const { data: items, error: itemsError } = await supabase!
+        .from('subject_module_items')
+        .select('id,module_id,title,item_type,href,sort_order,is_active,created_at')
+        .in('module_id', moduleIds)
+        .eq('is_active', true)
+        .order('sort_order', { ascending: true })
+        .order('created_at', { ascending: true });
+
+      if (itemsError) throw itemsError;
+
+      const itemsByModuleId = new Map<string, SubjectModuleItem[]>();
+      (items ?? []).forEach((item) => {
+        const moduleItems = itemsByModuleId.get(item.module_id) ?? [];
+        moduleItems.push({
+          id: item.id,
+          title: item.title,
+          type: mapModuleItemType(item.item_type),
+          href: item.href ?? undefined,
+          moduleId: item.module_id,
+          createdAt: item.created_at ?? null,
+        });
+        itemsByModuleId.set(item.module_id, moduleItems);
+      });
+
+      return moduleRows.map((module) => ({
+        id: module.id,
+        title: module.title,
+        items: itemsByModuleId.get(module.id) ?? [],
+      }));
+    }, () => buildMemorySubjectModules(subjectId));
+  },
+
+  async getLatestModuleItemsForStudent(studentId: string | undefined, limit = 2) {
+    if (!studentId) return [];
+
+    return withFallback(async () => {
+      const classIds = await getActiveClassIdsForStudent(studentId);
+      if (classIds.length === 0) return [];
+
+      const { data: modules, error: modulesError } = await supabase!
+        .from('subject_modules')
+        .select('id,class_id')
+        .in('class_id', classIds);
+      if (modulesError) throw modulesError;
+      const moduleRows = modules ?? [];
+      const moduleIds = moduleRows.map((m) => m.id);
+      if (moduleIds.length === 0) return [];
+
+      const { data: items, error: itemsError } = await supabase!
+        .from('subject_module_items')
+        .select('id,module_id,title,item_type,href,created_at')
+        .in('module_id', moduleIds)
+        .eq('is_active', true)
+        .order('created_at', { ascending: false })
+        .limit(limit);
+      if (itemsError) throw itemsError;
+
+      const classByModule = new Map((moduleRows ?? []).map((m) => [m.id, m.class_id]));
+
+      return (items ?? []).map((item) => ({
+        id: item.id,
+        title: item.title,
+        type: mapModuleItemType(item.item_type),
+        href: item.href ?? undefined,
+        moduleId: item.module_id,
+        classId: classByModule.get(item.module_id) ?? undefined,
+        createdAt: item.created_at ?? null,
+      }));
+    }, () => []);
   },
 
   async getStudentSubjectResults(studentId: string | undefined, subjectId: string) {
@@ -1056,46 +1154,67 @@ export const repo = {
   },
 
   async upsertMark(studentId: string, mark: AdminStudentMark) {
-    return withFallback(async () => {
-      const student = await findStudentForMark(studentId);
-      if (!student) return null;
+    return withFallback<UpsertMarkResult | null>(async () => {
       const classId = mark.classId ?? mark.subjectId;
       if (!classId) return null;
-      const examId = `${classId}-${slugify(mark.examType)}-${slugify(mark.examName)}-${slugify(mark.examDate)}`;
-      const resultId = `${examId}-${student.id}`;
-      const { data: existingResult, error: existingError } = await supabase!
+      
+      let examId = `${classId}-${slugify(mark.examType)}-${slugify(mark.examName)}-${slugify(mark.examDate)}`;
+      
+      // Look up if an exam with this name already exists (since IDs don't change on rename)
+      let examQuery = supabase!
+        .from('exams')
+        .select('id')
+        .eq('class_id', classId)
+        .eq('exam_type', mark.examType)
+        .eq('title', mark.examName);
+      if (mark.examDate) examQuery = examQuery.eq('exam_date', mark.examDate);
+
+      const { data: existingExams, error: examLookupError } = await examQuery;
+      const existingExam = existingExams?.[0];
+      if (existingExam) {
+        examId = existingExam.id;
+      } else if (examLookupError && !isMissingTable(examLookupError)) {
+        throw examLookupError;
+      }
+
+      const resultId = `${examId}-${studentId}`;
+      const { data: existingResults, error: resultLookupError } = await supabase!
         .from('results')
         .select('id')
         .eq('exam_id', examId)
-        .eq('student_id', student.id)
-        .maybeSingle();
-      if (existingError && !isMissingTable(existingError)) throw existingError;
+        .eq('student_id', studentId)
+        .limit(1);
+      if (resultLookupError) throw resultLookupError;
+      const action = existingResults?.[0] ? 'updated' : 'created';
 
-      const { error: examError } = await supabase!.from('exams').upsert({
-        id: examId,
-        class_id: classId,
-        exam_type: mark.examType,
-        title: mark.examName,
-        exam_date: mark.examDate,
-        total_marks: 100,
-      });
-      if (examError) throw examError;
-      const { error: resultError } = await supabase!.from('results').upsert({
-        id: resultId,
-        exam_id: examId,
-        student_id: student.id,
-        marks_obtained: mark.mark,
-        is_absent: false,
-      }, { onConflict: 'exam_id,student_id' });
-      if (resultError) throw resultError;
+      // Run exam upsert and result upsert in parallel
+      const [examResult, resultResult] = await Promise.all([
+        supabase!.from('exams').upsert({
+          id: examId,
+          class_id: classId,
+          exam_type: mark.examType,
+          title: mark.examName,
+          exam_date: mark.examDate,
+          total_marks: 100,
+        }),
+        supabase!.from('results').upsert({
+          id: resultId,
+          exam_id: examId,
+          student_id: studentId,
+          marks_obtained: mark.mark,
+          is_absent: false,
+        }, { onConflict: 'exam_id,student_id' }),
+      ]);
+      if (examResult.error) throw examResult.error;
+      if (resultResult.error) throw resultResult.error;
 
       return {
-        student: mapStudentWithData(student, new Map((await this.getClasses()).map((classItem) => [classItem.id, classItem])), [mark], []),
         mark,
-        action: existingResult ? ('updated' as const) : ('created' as const),
+        action,
       };
     }, () => upsertMemoryMark(studentId, mark));
   },
+
 
   async deleteMark(params: { studentId: string; subjectId: string; examType: string; examName: string; examDate?: string }) {
     return withFallback(async () => {
@@ -1278,6 +1397,63 @@ const mapClassAsSubject = (classItem: import('../types.js').AdminClassOption, te
     isActive: classItem.isActive ?? true,
     createdAt: null,
   };
+};
+
+const mapModuleItemType = (value: string | null | undefined): SubjectModuleItem['type'] => {
+  if (value === 'mark' || value === 'link' || value === 'text') return value;
+  return 'text';
+};
+
+const buildMemorySubjectModules = (subjectId: string): SubjectModule[] => {
+  const subject = getMemorySubjectById(subjectId);
+  if (!subject) return [];
+
+  return [
+    {
+      id: `${subjectId}-general`,
+      title: 'General',
+      items: [
+        {
+          id: `${subjectId}-general-mark`,
+          title: 'paper:85%',
+          type: 'mark',
+        },
+        {
+          id: `${subjectId}-general-link`,
+          title: 'Revision topic',
+          type: 'link',
+          href: 'https://example.com/revision-topic',
+        },
+        {
+          id: `${subjectId}-general-text`,
+          title: 'Read this note before the next class.',
+          type: 'text',
+        },
+      ],
+    },
+    {
+      id: `${subjectId}-lecture`,
+      title: 'Lecture',
+      items: [
+        {
+          id: `${subjectId}-lecture-mark`,
+          title: 'paper:92%',
+          type: 'mark',
+        },
+      ],
+    },
+    ...subject.recentHomeworks.map((homework, index) => ({
+      id: `${subjectId}-homework-${index + 1}`,
+      title: homework.dueDate,
+      items: [
+        {
+          id: homework.id,
+          title: homework.title,
+          type: 'text' as const,
+        },
+      ],
+    })),
+  ];
 };
 
 const normalizeAssignments = (value: unknown, subject: string, grade: string): TeacherAssignment[] => {

@@ -8,6 +8,7 @@ import { publicUser } from '../data/store.js';
 import { repo } from '../data/repository.js';
 import { requireAuth } from '../middleware/auth.js';
 import { validateBody } from '../middleware/validate.js';
+import { asyncHandler } from '../middleware/asyncHandler.js';
 
 const router = Router();
 
@@ -17,6 +18,7 @@ const loginSchema = z.object({
   password: z.string().min(1),
   role: z.enum(['student', 'teacher', 'admin', 'super-admin']).optional(),
 });
+
 
 router.post('/login', validateBody(loginSchema), async (req, res) => {
   const { email, username, password, role } = req.body as z.infer<typeof loginSchema>;
@@ -83,7 +85,7 @@ router.post('/login', validateBody(loginSchema), async (req, res) => {
     token,
     user: publicUser(user),
   });
-});
+}));
 
 router.get('/me', requireAuth, (req, res) => {
   res.json({ user: req.user });

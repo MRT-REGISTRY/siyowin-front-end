@@ -1,372 +1,173 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
-import { BookOpenCheck, LogOut, Search, Users } from 'lucide-react';
-import { AdminExamType, AdminStudent, AdminSubjectOption, AdminTeacher, TeacherAssignment } from '@/types';
-import { apiGet, apiPost, clearSession } from '@/utils/api';
-import ProgressChart from '@/components/dashboard/ProgressChart';
+import { useEffect, useState, useMemo } from 'react';
+import DashboardSidebar from '../dashboard/DashboardSidebar';
+import DashboardNavbar from '../dashboard/DashboardNavbar';
+import TeacherOverviewPage from './pages/TeacherOverviewPage';
+import TeacherClassesPage from './pages/TeacherClassesPage';
+import TeacherMarksPage from './pages/TeacherMarksPage';
+import { apiGet, getStoredUser } from '@/utils/api';
+import { useLanguage } from '@/components/LanguageProvider';
 
-type TeacherOverview = {
-  studentsCount: number;
-  subjectsCount: number;
-  marksCount: number;
-  averageMark: number;
-};
-
-type RecentMark = {
-  studentId: string;
-  studentName: string;
-  studentIndex: string;
-  subjectId: string;
-  subjectName: string;
-  examType: string;
-  examName: string;
-  examDate: string;
-  mark: number;
-  note?: string;
-};
-
-type StudentProgressOverview = {
-  averageMark: number;
-  bestSubject: string;
-  subjectsCount: number;
-  examsCount: number;
-};
-
-type StudentProgressPoint = {
-  month: string;
-  score: number;
-  classAvg: number;
-};
-
-type StudentProgressResponse = {
-  student: {
-    id: string;
-    name: string;
-    index: string;
-    grade: string;
-    classId: string;
-    term: string;
-    year: number;
-  };
-  overview: StudentProgressOverview;
-  progress: StudentProgressPoint[];
-};
+const NAV_ITEMS = [
+  { id: 'dashboard', label: 'Dashboard', icon: 'layout-dashboard' },
+  { id: 'classes', label: 'My Classes', icon: 'book-open' },
+  { id: 'marks', label: 'Marks', icon: 'trophy' },
+];
 
 export default function TeacherDashboard() {
-  const [teacher, setTeacher] = useState<AdminTeacher | null>(null);
-  const [overview, setOverview] = useState<TeacherOverview | null>(null);
-  const [subjects, setSubjects] = useState<AdminSubjectOption[]>([]);
-  const [assignments, setAssignments] = useState<TeacherAssignment[]>([]);
-  const [students, setStudents] = useState<AdminStudent[]>([]);
-  const [examTypes, setExamTypes] = useState<AdminExamType[]>([]);
-  const [recentMarks, setRecentMarks] = useState<RecentMark[]>([]);
-  const [selectedSubjectId, setSelectedSubjectId] = useState('');
-  const [selectedStudentId, setSelectedStudentId] = useState('');
-  const [selectedExamType, setSelectedExamType] = useState('');
-  const [examName, setExamName] = useState('Class Test');
-  const [examDate, setExamDate] = useState('2026-05-14');
-  const [markValue, setMarkValue] = useState('');
-  const [note, setNote] = useState('');
-  const [query, setQuery] = useState('');
-  const [notice, setNotice] = useState('');
+  const { isSinhala } = useLanguage();
+  const [activeNav, setActiveNav] = useState('dashboard');
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  
+  const [teacher, setTeacher] = useState<any>(() => {
+    if (typeof window !== 'undefined') {
+      const u = getStoredUser();
+      if (u && u.role === 'teacher') {
+        return { name: u.name };
+      }
+    }
+    return null;
+  });
+  const [overview, setOverview] = useState<any>(null);
+  const [subjects, setSubjects] = useState<any[]>([]);
+  const [students, setStudents] = useState<any[]>([]);
+  const [recentAssignments, setRecentAssignments] = useState<any[]>([]);
+  const [examTypes, setExamTypes] = useState<any[]>([]);
+  const [dbExams, setDbExams] = useState<any[]>([]);
+  
+  const [selectedClassId, setSelectedClassId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
-  const [studentProgress, setStudentProgress] = useState<StudentProgressResponse | null>(null);
-  const [progressLoading, setProgressLoading] = useState(false);
+  const [error, setError] = useState('');
 
-  const selectedSubject = subjects.find((subject) => subject.id === selectedSubjectId);
-  const filteredStudents = useMemo(() => {
-    const normalized = query.trim().toLowerCase();
-    return students.filter((student) => {
-      const matchesClass =
-        !selectedSubjectId ||
-        student.classId === selectedSubjectId ||
-        student.enrollments?.some((enrollment) => enrollment.classId === selectedSubjectId);
-      const matchesQuery =
-        !normalized ||
-        student.name.toLowerCase().includes(normalized) ||
-        student.index.toLowerCase().includes(normalized);
-
-      return matchesClass && matchesQuery;
-    });
-  }, [query, selectedSubjectId, students]);
-  const selectedStudent = students.find((student) => student.id === selectedStudentId);
-
-  const loadDashboard = () => {
-    setLoading(true);
-    apiGet<{
-      teacher: AdminTeacher;
-      assignments: TeacherAssignment[];
-      subjects: AdminSubjectOption[];
-      students: AdminStudent[];
-      examTypes: AdminExamType[];
-      overview: TeacherOverview;
-      recentMarks: RecentMark[];
-    }>('/teacher/dashboard')
+  const loadData = (showLoading = true) => {
+    if (showLoading) setLoading(true);
+    apiGet<any>('/teacher/dashboard')
       .then((data) => {
         setTeacher(data.teacher);
-        setAssignments(data.assignments ?? data.teacher.assignments ?? []);
-        setSubjects(data.subjects);
-        setStudents(data.students);
-        setExamTypes(data.examTypes);
         setOverview(data.overview);
-        setRecentMarks(data.recentMarks);
-        setSelectedSubjectId(data.subjects[0]?.id ?? '');
-        setSelectedStudentId(data.students[0]?.id ?? '');
-        setSelectedExamType(data.examTypes[0]?.id ?? '');
+        setSubjects(data.subjects || []);
+        setStudents(data.students || []);
+        setRecentAssignments(data.recentAssignments || []);
+        setExamTypes(data.examTypes || []);
+        setDbExams(data.dbExams || []);
+        setError('');
       })
-      .catch((error) => setNotice(error instanceof Error ? error.message : 'Teacher dashboard could not be loaded.'))
-      .finally(() => setLoading(false));
+      .catch((err) => {
+        setError(err instanceof Error ? err.message : 'Unable to load dashboard.');
+      })
+      .finally(() => {
+        setLoading(false);
+      });
   };
 
+  const refreshData = () => loadData(false);
+
   useEffect(() => {
-    loadDashboard();
+    const savedNav = localStorage.getItem('siyowin_teacher_nav');
+    const savedClassId = localStorage.getItem('siyowin_teacher_class');
+    if (savedNav) setActiveNav(savedNav);
+    if (savedClassId) setSelectedClassId(savedClassId);
+    
+    loadData();
   }, []);
 
-  useEffect(() => {
-    if (!selectedStudentId) return;
-    setProgressLoading(true);
-    apiGet<StudentProgressResponse>(`/teacher/students/${selectedStudentId}/progress`)
-      .then((data) => setStudentProgress(data))
-      .catch((error) => setNotice(error instanceof Error ? error.message : 'Student progress could not be loaded.'))
-      .finally(() => setProgressLoading(false));
-  }, [selectedStudentId]);
 
-  useEffect(() => {
-    if (!filteredStudents.some((student) => student.id === selectedStudentId)) {
-      setSelectedStudentId(filteredStudents[0]?.id ?? '');
+  const handleNavChange = (navId: string) => {
+    if (navId !== 'marks') {
+      setSelectedClassId(null);
+      localStorage.removeItem('siyowin_teacher_class');
     }
-  }, [filteredStudents, selectedStudentId]);
-
-  const saveMark = () => {
-    const mark = Number(markValue);
-
-    if (!selectedStudent || !selectedSubject || !selectedExamType || Number.isNaN(mark)) {
-      setNotice('Select a student, subject, exam type, and valid mark.');
-      return;
-    }
-
-    apiPost('/teacher/marks', {
-      studentId: selectedStudent.id,
-      subjectId: selectedSubject.id,
-      examType: selectedExamType,
-      examName: examName.trim() || 'Class Test',
-      examDate,
-      mark,
-      note: note.trim(),
-    })
-      .then(() => {
-        setNotice(`Saved ${selectedSubject.name} mark for ${selectedStudent.name}.`);
-        setMarkValue('');
-        setNote('');
-        loadDashboard();
-      })
-      .catch((error) => setNotice(error instanceof Error ? error.message : 'Mark could not be saved.'));
+    setActiveNav(navId);
+    localStorage.setItem('siyowin_teacher_nav', navId);
   };
 
-  const logout = () => {
-    clearSession();
-    window.location.href = '/';
+  const openClassMarks = (classId: string) => {
+    setSelectedClassId(classId);
+    setActiveNav('marks');
+    localStorage.setItem('siyowin_teacher_class', classId);
+    localStorage.setItem('siyowin_teacher_nav', 'marks');
   };
 
-  if (loading) {
-    return (
-      <main className="flex min-h-screen items-center justify-center bg-slate-50 text-slate-700">
-        Loading teacher dashboard...
-      </main>
-    );
-  }
+  const localizedNavItems = useMemo(() => NAV_ITEMS.map(item => ({
+    ...item,
+    label: isSinhala 
+      ? (item.id === 'dashboard' ? 'පුවරුව' : item.id === 'classes' ? 'මගේ පන්ති' : 'ලකුණු') 
+      : item.label
+  })), [isSinhala]);
+
+  // Create a synthetic profile for the Sidebar/Navbar to consume
+  const profile = useMemo(() => {
+    const name = teacher?.name || 'Teacher';
+    return {
+      name: name,
+      avatar: name.charAt(0).toUpperCase(),
+      grade: '',
+      classId: '',
+      role: isSinhala ? 'ගුරුවරයා' : 'Teacher',
+      term: 'Term 1',
+      year: new Date().getFullYear(),
+    };
+  }, [teacher, isSinhala]);
 
   return (
-    <main className="min-h-screen bg-slate-50 text-slate-900">
-      <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
-        <header className="flex flex-col gap-4 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-sky-700">Teacher dashboard</p>
-            <h1 className="mt-2 text-3xl font-black tracking-tight">Welcome, {teacher?.name}</h1>
-            <p className="mt-1 text-sm text-slate-600">
-              {assignments.length > 0
-                ? assignments.map((assignment) => `${assignment.subject} - ${assignment.grade} - ${assignment.classId.toUpperCase()} - ${assignment.medium}`).join(', ')
-                : `${teacher?.subject} - ${teacher?.grade}`}
-            </p>
-          </div>
-          <button onClick={logout} className="inline-flex items-center justify-center gap-2 rounded-2xl border border-slate-200 px-4 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-100">
-            <LogOut className="h-4 w-4" />
-            Sign out
-          </button>
-        </header>
+    <div className="sd-root">
+      <DashboardSidebar
+        navItems={localizedNavItems}
+        activeNav={activeNav}
+        onNavChange={handleNavChange}
+        isOpen={sidebarOpen}
+        onClose={() => setSidebarOpen(false)}
+        profile={profile as any}
+      />
+      {sidebarOpen && (
+        <div className="sd-overlay" onClick={() => setSidebarOpen(false)} aria-hidden="true" />
+      )}
 
-        {notice && (
-          <div className="mt-4 rounded-2xl border border-sky-200 bg-sky-50 px-4 py-3 text-sm font-medium text-sky-800">
-            {notice}
-          </div>
-        )}
+      <div className="sd-main-wrapper">
+        <DashboardNavbar
+          onMenuToggle={() => setSidebarOpen(true)}
+          profile={profile as any}
+          showSearch={false}
+        />
 
-        <section className="mt-6 grid gap-4 md:grid-cols-4">
-          {[
-            ['Students', overview?.studentsCount ?? 0],
-            ['Subjects', overview?.subjectsCount ?? 0],
-            ['Marks Added', overview?.marksCount ?? 0],
-            ['Average Mark', `${overview?.averageMark ?? 0}%`],
-          ].map(([label, value]) => (
-            <div key={label} className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
-              <p className="text-xs uppercase tracking-[0.18em] text-slate-500">{label}</p>
-              <p className="mt-2 text-3xl font-black text-slate-900">{value}</p>
-            </div>
-          ))}
-        </section>
-
-        <section className="mt-6 grid gap-6 lg:grid-cols-[0.95fr_1.05fr]">
-          <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
-            <div className="flex items-center gap-2">
-              <BookOpenCheck className="h-5 w-5 text-sky-700" />
-              <h2 className="text-xl font-bold">Add or update marks</h2>
-            </div>
-
-            <div className="mt-5 grid gap-3 sm:grid-cols-2">
-              <select value={selectedSubjectId} onChange={(event) => setSelectedSubjectId(event.target.value)} className="rounded-2xl border border-slate-200 px-4 py-3 text-sm">
-                {subjects.map((subject) => <option key={subject.id} value={subject.id}>{subject.name} - {subject.classLabel ?? subject.grade ?? ''}</option>)}
-              </select>
-              <select value={selectedExamType} onChange={(event) => setSelectedExamType(event.target.value)} className="rounded-2xl border border-slate-200 px-4 py-3 text-sm">
-                {examTypes.map((exam) => <option key={exam.id} value={exam.id}>{exam.label}</option>)}
-              </select>
-              <input value={examName} onChange={(event) => setExamName(event.target.value)} className="rounded-2xl border border-slate-200 px-4 py-3 text-sm" placeholder="Exam name" />
-              <input type="date" value={examDate} onChange={(event) => setExamDate(event.target.value)} className="rounded-2xl border border-slate-200 px-4 py-3 text-sm" />
-              <input value={markValue} onChange={(event) => setMarkValue(event.target.value)} inputMode="numeric" className="rounded-2xl border border-slate-200 px-4 py-3 text-sm" placeholder="Mark" />
-              <input value={note} onChange={(event) => setNote(event.target.value)} className="rounded-2xl border border-slate-200 px-4 py-3 text-sm" placeholder="Optional note" />
-            </div>
-
-            {selectedSubject && (
-              <div className="mt-4 grid gap-3 rounded-2xl border border-slate-200 bg-slate-50 p-4 sm:grid-cols-2">
-                <ClassDetail label="Class" value={selectedSubject.classLabel ?? selectedSubject.name} />
-                <ClassDetail label="Grade" value={selectedSubject.grade ?? 'Not set'} />
-                <ClassDetail label="Medium" value={selectedSubject.medium ?? 'Not set'} />
-                <ClassDetail label="Schedule" value={selectedSubject.schedule ?? 'Not set'} />
-                <ClassDetail label="Students" value={String(selectedSubject.studentCount ?? filteredStudents.length)} />
-                <ClassDetail label="Fee" value={selectedSubject.fee !== undefined ? `Rs. ${selectedSubject.fee}` : 'Not set'} />
-              </div>
-            )}
-
-            <div className="mt-5 rounded-2xl border border-slate-200 bg-slate-50 p-4">
-              <div className="flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-3">
-                <Search className="h-4 w-4 text-slate-400" />
-                <input value={query} onChange={(event) => setQuery(event.target.value)} className="w-full bg-transparent text-sm outline-none" placeholder="Search students" />
-              </div>
-
-              <div className="mt-3 max-h-72 space-y-2 overflow-auto">
-                {filteredStudents.map((student) => (
-                  <button
-                    key={student.id}
-                    onClick={() => setSelectedStudentId(student.id)}
-                    className={`flex w-full items-center justify-between rounded-2xl border px-4 py-3 text-left transition ${selectedStudentId === student.id ? 'border-sky-300 bg-sky-50' : 'border-slate-200 bg-white hover:bg-slate-50'}`}
-                  >
-                    <span>
-                      <strong className="block text-sm text-slate-900">{student.name}</strong>
-                      <span className="text-xs text-slate-500">{student.index}</span>
-                    </span>
-                    <Users className="h-4 w-4 text-slate-400" />
-                  </button>
-                ))}
-                {filteredStudents.length === 0 && (
-                  <p className="rounded-2xl border border-dashed border-slate-200 px-4 py-6 text-center text-sm text-slate-500">
-                    No students are enrolled in the selected class.
+        <main className="sd-content">
+          {loading && <p className="sdp-card">{isSinhala ? 'පුවරුව පූරණය වෙමින්...' : 'Loading dashboard...'}</p>}
+          {!loading && error && <p className="sdp-card text-red-600">{error}</p>}
+          
+          {activeNav === 'dashboard' && !loading && !error && (
+            <>
+              <div className="sd-greeting">
+                <div>
+                  <h1 className="sd-greeting-title">
+                    {isSinhala ? 'ආයුබෝවන්' : 'Welcome'}, <span className="sd-highlight">{teacher?.name}!</span>
+                  </h1>
+                  <p className="sd-greeting-sub">
+                    {isSinhala ? 'මෙන්න ඔබගේ පන්තිවල සාරාංශයක්.' : "Here's a summary of your classes."}
                   </p>
-                )}
-              </div>
-            </div>
-
-            <button onClick={saveMark} className="mt-5 rounded-2xl bg-sky-700 px-5 py-3 text-sm font-bold text-white transition hover:bg-sky-600">
-              Save mark for {selectedStudent?.name ?? 'student'}
-            </button>
-          </div>
-
-          <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
-            <h2 className="text-xl font-bold">Recent subject marks</h2>
-            <div className="mt-4 overflow-hidden rounded-2xl border border-slate-200">
-              <table className="w-full text-left text-sm">
-                <thead className="bg-slate-100 text-xs uppercase tracking-[0.15em] text-slate-500">
-                  <tr>
-                    <th className="px-4 py-3">Student</th>
-                    <th className="px-4 py-3">Exam</th>
-                    <th className="px-4 py-3">Mark</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {recentMarks.map((mark) => (
-                    <tr key={`${mark.studentId}-${mark.subjectId}-${mark.examType}-${mark.examName}-${mark.examDate}`} className="border-t border-slate-100">
-                      <td className="px-4 py-3">
-                        <strong className="block text-slate-900">{mark.studentName}</strong>
-                        <span className="text-xs text-slate-500">{mark.studentIndex}</span>
-                      </td>
-                      <td className="px-4 py-3 text-slate-600">{mark.examName}</td>
-                      <td className="px-4 py-3 font-bold text-slate-900">{mark.mark}%</td>
-                    </tr>
-                  ))}
-                  {recentMarks.length === 0 && (
-                    <tr>
-                      <td colSpan={3} className="px-4 py-6 text-center text-slate-500">No marks added yet.</td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </section>
-
-        <section className="mt-6 grid gap-6 lg:grid-cols-[0.4fr_0.6fr]">
-          <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
-            <h2 className="text-xl font-bold">Student progress</h2>
-            <p className="mt-1 text-sm text-slate-500">
-              {selectedStudent?.name ? `Showing insights for ${selectedStudent.name}.` : 'Select a student to view progress.'}
-            </p>
-            {progressLoading && (
-              <p className="mt-4 text-sm text-slate-500">Loading progress...</p>
-            )}
-            {!progressLoading && studentProgress && (
-              <div className="mt-4 space-y-3">
-                <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
-                  <p className="text-xs uppercase tracking-[0.18em] text-slate-500">Average mark</p>
-                  <p className="mt-1 text-2xl font-black text-slate-900">{studentProgress.overview.averageMark}%</p>
-                </div>
-                <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
-                  <p className="text-xs uppercase tracking-[0.18em] text-slate-500">Best subject</p>
-                  <p className="mt-1 text-base font-semibold text-slate-900">{studentProgress.overview.bestSubject}</p>
-                </div>
-                <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
-                  <p className="text-xs uppercase tracking-[0.18em] text-slate-500">Exams tracked</p>
-                  <p className="mt-1 text-base font-semibold text-slate-900">{studentProgress.overview.examsCount}</p>
-                </div>
-                <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
-                  <p className="text-xs uppercase tracking-[0.18em] text-slate-500">Subjects tracked</p>
-                  <p className="mt-1 text-base font-semibold text-slate-900">{studentProgress.overview.subjectsCount}</p>
                 </div>
               </div>
-            )}
-          </div>
+              <TeacherOverviewPage overview={overview} recentAssignments={recentAssignments} />
+            </>
+          )}
 
-          <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
-            <h2 className="text-xl font-bold">Progress tracker</h2>
-            <div className="mt-4">
-              {studentProgress?.progress?.length ? (
-                <ProgressChart data={studentProgress.progress} />
-              ) : (
-                <div className="rounded-2xl border border-dashed border-slate-200 px-4 py-8 text-center text-sm text-slate-500">
-                  No progress data yet.
-                </div>
-              )}
-            </div>
-          </div>
-        </section>
+          {activeNav === 'classes' && !loading && !error && (
+            <TeacherClassesPage subjects={subjects} students={students} />
+          )}
+
+          {activeNav === 'marks' && !loading && !error && (
+            <TeacherMarksPage 
+              subjects={subjects} 
+              students={students} 
+              examTypes={examTypes}
+              dbExams={dbExams}
+              initialSubjectId={selectedClassId} 
+              onRefresh={refreshData}
+            />
+          )}
+        </main>
       </div>
-    </main>
-  );
-}
-
-function ClassDetail({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3">
-      <p className="text-xs uppercase tracking-[0.14em] text-slate-500">{label}</p>
-      <p className="mt-1 text-sm font-bold text-slate-900">{value}</p>
     </div>
   );
 }
