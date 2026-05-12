@@ -25,7 +25,7 @@ interface LmsLoginModalProps {
 export default function LmsLoginModal({ isOpen, onClose }: LmsLoginModalProps) {
   const [step, setStep]         = useState<Step>('choose')
   const [role, setRole]         = useState<Role>(null)
-  const [email, setEmail]       = useState('')
+  const [identifier, setIdentifier] = useState('')
   const [password, setPassword] = useState('')
   const [showPw, setShowPw]     = useState(false)
   const [loading, setLoading]   = useState(false)
@@ -42,7 +42,7 @@ export default function LmsLoginModal({ isOpen, onClose }: LmsLoginModalProps) {
       setVisible(false)
       const t = setTimeout(() => {
         setStep('choose'); setRole(null)
-        setEmail(''); setPassword('')
+        setIdentifier(''); setPassword('')
         setShowPw(false); setLoading(false); setError('')
       }, 380)
       return () => clearTimeout(t)
@@ -66,7 +66,7 @@ export default function LmsLoginModal({ isOpen, onClose }: LmsLoginModalProps) {
   }, [onClose])
 
   const selectRole = (r: Role) => { setRole(r); setStep('login'); setError('') }
-  const handleBack = () => { setStep('choose'); setEmail(''); setPassword(''); setError('') }
+  const handleBack = () => { setStep('choose'); setIdentifier(''); setPassword(''); setError('') }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -76,7 +76,10 @@ export default function LmsLoginModal({ isOpen, onClose }: LmsLoginModalProps) {
     setError('')
 
     try {
-      const result = await login({ email, password, role })
+      const loginPayload = role === 'student'
+        ? { username: identifier, password, role }
+        : { email: identifier, password, role }
+      const result = await login(loginPayload)
       window.localStorage.setItem('siyowin_token', result.token)
       window.localStorage.setItem('siyowin_user', JSON.stringify(result.user))
       window.location.href = getDashboardPathForRole(result.user.role)
@@ -258,13 +261,18 @@ export default function LmsLoginModal({ isOpen, onClose }: LmsLoginModalProps) {
                 </p>
               )}
 
-              {/* Username */}
+              {/* Identifier (Username for students, Email for teachers/admin) */}
               <div>
-                <label className="mb-1.5 block text-xs font-semibold text-gray-600">Username or Email</label>
+                <label className="mb-1.5 block text-xs font-semibold text-gray-600">
+                  {role === 'student' ? 'Username' : 'Email'}
+                </label>
                 <input
                   ref={emailRef}
-                  type="text" value={email} onChange={(e) => setEmail(e.target.value)}
-                  required placeholder="username or you@siyowin.lk"
+                  type={role === 'student' ? 'text' : 'email'}
+                  value={identifier}
+                  onChange={(e) => setIdentifier(e.target.value)}
+                  required
+                  placeholder={role === 'student' ? 'Enter your username' : 'you@siyowin.lk'}
                   className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-800 outline-none transition-all duration-200 placeholder:text-gray-400 focus:border-transparent focus:bg-white"
                   style={{ boxShadow: `0 0 0 0px ${roleRing}`, outline: 'none' }}
                   onFocus={(e) => { e.target.style.boxShadow = `0 0 0 3px ${roleRing}` }}
