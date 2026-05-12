@@ -164,7 +164,6 @@ export default function Gallery({ images }: { images: SiteGalleryImage[] }) {
               width={1200}
               height={800}
               className="h-auto max-h-[90vh] w-full object-contain"
-              priority
             />
           </div>
         </div>

@@ -104,7 +104,6 @@ export default function Articles({ articles }: { articles: SiteArticle[] }) {
                 alt={activeArticle.title}
                 fill
                 className="object-contain"
-                priority
                 sizes="(max-width: 1024px) 100vw, 1024px"
               />
             </div>

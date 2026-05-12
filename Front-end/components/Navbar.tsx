@@ -1,6 +1,7 @@
 'use client'
 
 import Link from 'next/link'
+import Image from 'next/image'
 import { useState, useEffect } from 'react'
 import LmsLoginModal from './LmsLoginModal'
 import { useLanguage } from './LanguageProvider'
@@ -36,7 +37,14 @@ export default function Navbar() {
 
             {/* Logo */}
             <div className="flex-shrink-0">
-              <img src="/photos/logo.png" alt="Siyowin Logo" className="h-16 w-auto" />
+              <Image
+                src="/photos/logo.png"
+                alt="Siyowin Logo"
+                width={160}
+                height={64}
+                className="h-16 w-auto"
+                priority
+              />
             </div>
 
             {/* ── Desktop Menu ── */}

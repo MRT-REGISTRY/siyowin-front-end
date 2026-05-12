@@ -11,6 +11,8 @@ import Footer from '@/components/Footer'
 import TawkToWidget from '@/components/TawkToWidget'
 import { getSiteContent } from '@/utils/siteContent'
 
+export const revalidate = 3600
+
 export default async function Home() {
   const content = await getSiteContent()
 
