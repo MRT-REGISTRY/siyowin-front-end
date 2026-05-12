@@ -18,8 +18,14 @@ const loginSchema = z.object({
   role: z.enum(['student', 'teacher', 'admin', 'super-admin']).optional(),
 });
 
+// here this login will be used for all roles
+// no need of seperate email and username logins,
+// email can handle username also -> check findUserByEmail function
 router.post('/login', validateBody(loginSchema), asyncHandler(async (req, res) => {
   const { email, password, role } = req.body as z.infer<typeof loginSchema>;
+  console.log("==================================");
+  console.log(`Login attempt for email: ${email}, role: ${role || 'any'}`);
+  console.log("==================================");
   const user = await repo.findUserByEmail(email);
 
   if (!user || user.isActive === false || !bcrypt.compareSync(password, user.passwordHash)) {
