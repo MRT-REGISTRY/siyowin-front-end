@@ -45,7 +45,7 @@ router.post('/login', validateBody(loginSchema), asyncHandler(async (req, res) =
     token,
     user: publicUser(user),
   });
-}));
+});
 
 router.get('/me', requireAuth, (req, res) => {
   res.json({ user: req.user });

@@ -59,6 +59,7 @@ const withFallback = async <T>(query: () => Promise<T>, fallback: () => T | Prom
   }
 };
 
+// Here line this 'email' will contain either email or username
 export const repo = {
   async findUserByEmail(email: string) {
     return withFallback(async () => {
@@ -68,6 +69,7 @@ export const repo = {
         .select('id,name,username,email,role,student_id,teacher_id,password_hash,is_active')
         .or(`email.eq.${identifier},username.eq.${identifier}`)
         .maybeSingle();
+      // ".or(`email.eq.${identifier},username.eq.${identifier}`)" can handle both email and username logins
       if (error) throw error;
       if (!data) return undefined;
       return mapUser(data);
