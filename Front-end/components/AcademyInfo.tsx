@@ -45,6 +45,7 @@ export default function AcademyInfo({
                   fill
                   className="object-cover"
                   sizes="(max-width: 1024px) 80vw, 45vw"
+                  priority
                 />
               </div>
             </div>

@@ -226,7 +226,7 @@ export default function LecturerCarousel({
                   <Image src={lecturer.image} alt={toSinhalaTeacherName(lecturer.name, isSinhala)} fill
                     className="object-contain object-bottom transition-transform duration-700 ease-out"
                     style={{ transform: isCenter ? 'scale(1)' : 'scale(0.95)' }}
-                    sizes={isCenter ? '300px' : '240px'}
+                    sizes={isCenter ? '300px' : '240px'} priority={isCenter}
                   />
                   {isCenter && (
                     <div className="absolute inset-x-0 bottom-0 h-12"

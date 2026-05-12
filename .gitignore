@@ -9,7 +9,6 @@ Front-end/.next/
 dist/
 build/
 coverage/
-*.tsbuildinfo
 
 # Environment variables
 .env

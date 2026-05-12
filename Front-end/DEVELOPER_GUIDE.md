@@ -102,10 +102,14 @@ cd Back-end
 npm install
 # Start in dev (watch)
 npm run dev
+
+# Optionally create DB schema (if using Supabase) and seed via scripts
+npm run db:setup      # runs SQL files using scripts/run-sql.ts
+npm run db:seed:api   # seeds app_users and demo data via Supabase API
 ```
 
 - Environment variables (see `Back-end/.env.example`):
-  - `PORT`, `CORS_ORIGIN`, `JWT_SECRET`, `JWT_EXPIRES_IN`, `SUPABASE_URL`, `SUPABASE_PUBLISHABLE_KEY`, `SUPABASE_SECRET_KEY`, `SUPABASE_JWT_SECRET`.
+  - `SUPABASE_URL`, `SUPABASE_PUBLISHABLE_KEY`, `SUPABASE_SECRET_KEY`, `SUPABASE_JWT_SECRET`, `SUPABASE_DB_URL`.
 
 ## Useful file references
 

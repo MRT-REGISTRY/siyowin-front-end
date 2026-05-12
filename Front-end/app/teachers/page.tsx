@@ -1,7 +1,6 @@
 'use client';
 
 import { useState } from "react";
-import Image from "next/image";
 import { ArrowRight, Award, BookOpen, GraduationCap, Search, X } from "lucide-react";
 import Navbar from "@/components/Navbar";
 import { useLanguage } from "@/components/LanguageProvider";
@@ -124,12 +123,10 @@ export default function TeachersPage() {
                 >
                   <div className="absolute inset-0 bg-gradient-to-b from-transparent to-black/10" />
                   {t.photo ? (
-                    <Image
+                    <img
                       src={t.photo}
                       alt={toSinhalaTeacherName(t.name, isSinhala)}
-                      fill
-                      sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, (max-width: 1280px) 33vw, 25vw"
-                      className="object-cover object-top"
+                      className="absolute inset-0 h-full w-full object-cover object-top"
                     />
                   ) : (
                     <div
@@ -190,12 +187,10 @@ export default function TeachersPage() {
                 style={{ backgroundColor: selectedTeacher.photoBg }}
               >
                 {selectedTeacher.photo ? (
-                  <Image
+                  <img
                     src={selectedTeacher.photo}
                     alt={toSinhalaTeacherName(selectedTeacher.name, isSinhala)}
-                    fill
-                    sizes="224px"
-                    className="object-cover object-top"
+                    className="h-full w-full object-cover object-top"
                   />
                 ) : (
                   <div

@@ -1,7 +1,6 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
-import Image from 'next/image'
 import { X, GraduationCap, BookOpen, Eye, EyeOff, ArrowLeft, LogIn, ChevronRight, ShieldCheck } from 'lucide-react'
 import { getDashboardPathForRole, login } from '@/utils/api'
 
@@ -146,11 +145,9 @@ export default function LmsLoginModal({ isOpen, onClose }: LmsLoginModalProps) {
           
           <div className="flex flex-col items-center">
             {/* Real logo */}
-            <Image
+            <img
               src="/photos/logo.png"
               alt="Siyowin Logo"
-              width={120}
-              height={48}
               className="h-12 w-auto object-contain"
             />
             <p className="mt-1 text-xs text-gray-400">

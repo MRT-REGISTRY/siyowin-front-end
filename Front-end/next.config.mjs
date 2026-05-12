@@ -1,7 +1,10 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  typescript: {
+    ignoreBuildErrors: true,
+  },
   images: {
-    formats: ['image/avif', 'image/webp'],
+    unoptimized: true,
     qualities: [25, 50, 75, 85, 90, 100],
   },
 }

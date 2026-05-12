@@ -1,17 +1,6 @@
-import { createClient } from '@supabase/supabase-js';
+import { createClient } from '@/utils/supabase/server';
 import { SiteContent, SiteLecturerSection } from '@/types/siteContent';
 import { lecturerSections } from '@/data/teachers';
-
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? process.env.SUPABASE_URL;
-const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ?? process.env.SUPABASE_PUBLISHABLE_KEY;
-const publicSupabase = supabaseUrl && supabaseKey
-  ? createClient(supabaseUrl, supabaseKey, {
-      auth: {
-        autoRefreshToken: false,
-        persistSession: false,
-      },
-    })
-  : null;
 
 const localHeroImages = [
   { id: 'hero-1', src: '/photos/bggrund (1).jpg', alt: 'Siyowin academy classroom event', width: 2048, height: 2048 },
@@ -93,16 +82,13 @@ const fallbackSiteContent: SiteContent = {
 };
 
 const getRows = async <T>(table: string, orderColumn = 'display_order') => {
-  const fallback = getFallbackRows(table);
-
-  if (!publicSupabase) {
-    return (fallback ?? []) as T[];
-  }
-
   try {
-    const { data, error } = await publicSupabase.from(table).select('*').order(orderColumn, { ascending: true });
+    const supabase = await createClient();
+    const { data, error } = await supabase.from(table).select('*').order(orderColumn, { ascending: true });
 
     if (error) {
+      const fallback = getFallbackRows(table);
+
       if (fallback) {
         return fallback as T[];
       }
@@ -112,6 +98,8 @@ const getRows = async <T>(table: string, orderColumn = 'display_order') => {
 
     return (data ?? []) as T[];
   } catch {
+    const fallback = getFallbackRows(table);
+
     if (fallback) {
       return fallback as T[];
     }
