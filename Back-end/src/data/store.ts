@@ -45,6 +45,9 @@ export const findUserByEmail = (email: string) =>
     return user.email.toLowerCase() === normalized || user.username.toLowerCase() === normalized;
   });
 
+export const findUserByUsername = (username: string) =>
+  store.users.find((user) => user.username.toLowerCase() === username.trim().toLowerCase());
+
 export const findUserById = (id: string) => store.users.find((user) => user.id === id);
 
 export const getStudentProfile = (studentId?: string) => {
