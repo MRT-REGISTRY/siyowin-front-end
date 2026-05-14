@@ -234,11 +234,11 @@ export default function LecturerCarousel({
                   )}
                 </div>
                 <div className="px-5 py-4 text-center" style={{ backgroundColor: lecturer.infoBg }}>
-                  <h3 className="font-semibold text-gray-600" style={{ fontSize: isCenter ? '0.8rem' : '0.7rem' }}>
+                  <h3 className="font-extrabold text-gray-900" style={{ fontSize: isCenter ? '1.25rem' : '1.05rem' }}>
                     {toSinhalaTeacherName(lecturer.name, isSinhala)}
                   </h3>
-                  <p className="mt-1 font-extrabold leading-tight"
-                    style={{ color: lecturer.accent, fontSize: isCenter ? '1.2rem' : '1rem' }}>
+                  <p className="mt-1 font-semibold leading-tight"
+                    style={{ color: lecturer.accent, fontSize: isCenter ? '1.05rem' : '0.9rem' }}>
                     {toSinhalaSubject(lecturer.subject, isSinhala)}
                   </p>
                   {isCenter && (
@@ -291,8 +291,8 @@ export default function LecturerCarousel({
                       style={{ background: `linear-gradient(to top, ${lecturer.infoBg}, transparent)` }} />
                   </div>
                   <div className="px-5 py-5 text-center" style={{ backgroundColor: lecturer.infoBg }}>
-                    <h3 className="text-sm font-semibold text-gray-600">{toSinhalaTeacherName(lecturer.name, isSinhala)}</h3>
-                    <p className="mt-1 text-xl font-extrabold leading-tight" style={{ color: lecturer.accent }}>{toSinhalaSubject(lecturer.subject, isSinhala)}</p>
+                    <h3 className="text-xl font-extrabold text-gray-900">{toSinhalaTeacherName(lecturer.name, isSinhala)}</h3>
+                    <p className="mt-1 text-base font-semibold leading-tight" style={{ color: lecturer.accent }}>{toSinhalaSubject(lecturer.subject, isSinhala)}</p>
                     <div className="mx-auto my-2 h-[2px] w-8 rounded-full" style={{ backgroundColor: lecturer.accent + '55' }} />
                     <p className="text-xs leading-5 text-gray-500">{toSinhalaSubject(lecturer.credentials, isSinhala)}</p>
                   </div>

@@ -47,42 +47,87 @@ export default function Footer() {
 
   return (
     <footer className="relative bg-[#0d1117] text-white">
-      {/* Top accent bar — brand gradient */}
+      {/* Top accent bar */}
       <div
         className="h-1 w-full"
         style={{ background: 'linear-gradient(to right, #D9232D, #F47920, #1B3A8C)' }}
       />
 
-      <div className="relative mx-auto max-w-7xl px-4 pt-12 pb-8 sm:px-6 lg:px-8">
+      {/* ── MOBILE layout (hidden on lg+) ── */}
+      <div className="lg:hidden mx-auto max-w-xl px-4 py-10 sm:px-6">
+        <div className="flex flex-col items-center text-center gap-4">
+          {/* Logo */}
+          <div className="inline-block rounded-xl bg-white p-3 shadow-lg">
+            <Image src="/photos/logo.png" alt="Siyowin Logo" width={140} height={50} className="h-10 w-auto object-contain" />
+          </div>
 
-        {/* ── Main grid ── */}
-        <div className="grid grid-cols-1 gap-10 sm:grid-cols-2 lg:grid-cols-3">
+          {/* Socials */}
+          <div className="flex gap-3">
+            {socials.map((s) => (
+              <Link
+                key={s.label}
+                href={s.href}
+                aria-label={s.label}
+                target="_blank"
+                rel="noreferrer"
+                className="flex h-9 w-9 items-center justify-center rounded-full text-gray-400 transition-all duration-300 hover:bg-[#D9232D] hover:text-white"
+                style={{ backgroundColor: 'rgba(255,255,255,0.06)' }}
+              >
+                {s.icon}
+              </Link>
+            ))}
+          </div>
+
+          {/* Contact — compact */}
+          <div className="flex flex-col items-center gap-2 text-sm text-gray-400">
+            <a href="tel:+94705281466" className="flex items-center gap-1.5 hover:text-white transition-colors">
+              <svg className="h-3.5 w-3.5 text-[#F47920]" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
+              </svg>
+              070 528 1466
+            </a>
+            <a href="mailto:info@siyowin.lk" className="flex items-center gap-1.5 hover:text-white transition-colors">
+              <svg className="h-3.5 w-3.5 text-[#F47920]" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+              </svg>
+              info@siyowin.lk
+            </a>
+          </div>
+
+          {/* Copyright */}
+          <p className="text-xs text-gray-600">
+            © {new Date().getFullYear()} Siyowin. Developed by{' '}
+            <a href="https://skey7tech.mrt.lk" target="_blank" rel="noreferrer" className="text-gray-400 hover:text-white transition-colors">
+              Skey7Tech
+            </a>
+            .
+          </p>
+        </div>
+      </div>
+
+      {/* ── DESKTOP layout (hidden below lg) ── */}
+      <div className="hidden lg:block relative mx-auto max-w-7xl px-4 pt-12 pb-8 sm:px-6 lg:px-8">
+        <div className="grid grid-cols-3 gap-10">
 
           {/* Brand column */}
-          <div className="flex flex-col items-center text-center sm:col-span-2 sm:items-start sm:text-left lg:col-span-1">
-            {/* Logo */}
+          <div className="flex flex-col items-start text-left">
             <div className="mb-5 inline-block rounded-xl bg-white p-3 shadow-lg">
-              <Image
-                src="/photos/logo.png"
-                alt="Siyowin Logo"
-                width={160}
-                height={60}
-                className="h-12 w-auto object-contain"
-              />
+              <Image src="/photos/logo.png" alt="Siyowin Logo" width={160} height={60} className="h-12 w-auto object-contain" />
             </div>
             <p className="mb-6 text-sm leading-relaxed text-gray-400">
               {isSinhala
                 ? 'විශේෂඥ ගුරු මණ්ඩලය, සැලසුම්ගත ඉගෙනුම් පහසුකම් සහ ගුණාත්මක අධ්‍යාපනය තුළින් සිසුන්ගේ අධ්‍යාපනික අරමුණු සාර්ථක කර ගැනීමට සහාය වෙමු.'
-                : 'Empowering students to achieve their academic goals through excellence in education, experienced faculty, and modern learning facilities. Branches: Palladeniya Road, Kegalle and Behind Commercial Bank, Kegalle.'}
+                : 'Empowering students to achieve their academic goals through excellence in education, experienced faculty, and modern learning facilities.'}
             </p>
-
-            <div className="flex justify-center gap-3 sm:justify-start">
+            <div className="flex gap-3">
               {socials.map((s) => (
                 <Link
                   key={s.label}
                   href={s.href}
                   aria-label={s.label}
-                  className="flex h-9 w-9 items-center justify-center rounded-full bg-white/8 text-gray-400 transition-all duration-300 hover:scale-110 hover:bg-[#D9232D] hover:text-white"
+                  target="_blank"
+                  rel="noreferrer"
+                  className="flex h-9 w-9 items-center justify-center rounded-full text-gray-400 transition-all duration-300 hover:scale-110 hover:bg-[#D9232D] hover:text-white"
                   style={{ backgroundColor: 'rgba(255,255,255,0.06)' }}
                 >
                   {s.icon}
@@ -92,16 +137,16 @@ export default function Footer() {
           </div>
 
           {/* Quick Links */}
-          <div className="flex flex-col items-center text-center sm:items-start sm:text-left">
+          <div className="flex flex-col">
             <h4 className="mb-5 text-sm font-bold uppercase tracking-widest text-white">
               {isSinhala ? 'ඉක්මන් සබැඳි' : 'Quick Links'}
             </h4>
-            <ul className="flex flex-col items-center space-y-2.5 sm:items-start">
+            <ul className="flex flex-col space-y-2.5">
               {quickLinks.map((link) => (
                 <li key={link.label}>
                   <Link
                     href={link.href}
-                    className="group flex items-center justify-center gap-2 text-sm text-gray-400 transition-colors duration-200 hover:text-white sm:justify-start"
+                    className="group flex items-center gap-2 text-sm text-gray-400 transition-colors duration-200 hover:text-white"
                   >
                     <span
                       className="h-1.5 w-1.5 flex-shrink-0 rounded-full transition-colors duration-200 group-hover:bg-[#F47920]"
@@ -115,38 +160,35 @@ export default function Footer() {
           </div>
 
           {/* Locations + Contact */}
-          <div className="flex flex-col items-center text-center sm:items-start sm:text-left">
-            <div className="w-full">
-              <h4 className="mb-5 text-sm font-bold uppercase tracking-widest text-white">
-                {isSinhala ? 'අපගේ ස්ථාන' : 'Find Us'}
-              </h4>
-              <ul className="flex flex-col items-center space-y-4 sm:items-start">
-                {locations.map((loc) => (
-                  <li key={loc.name} className="flex flex-col items-center gap-2 sm:flex-row sm:items-start sm:gap-3">
-                    <span className="mt-0.5 flex-shrink-0">
-                      <svg className="h-4 w-4 text-[#F47920]" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-                      </svg>
-                    </span>
-                    <div>
-                      <p className="text-sm font-semibold text-gray-200">{loc.name}</p>
-                      <p className="text-xs text-gray-500">{loc.address}</p>
-                    </div>
-                  </li>
-                ))}
-              </ul>
-            </div>
+          <div className="flex flex-col">
+            <h4 className="mb-5 text-sm font-bold uppercase tracking-widest text-white">
+              {isSinhala ? 'අපගේ ස්ථාන' : 'Find Us'}
+            </h4>
+            <ul className="flex flex-col space-y-4">
+              {locations.map((loc) => (
+                <li key={loc.name} className="flex items-start gap-3">
+                  <span className="mt-0.5 flex-shrink-0">
+                    <svg className="h-4 w-4 text-[#F47920]" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                    </svg>
+                  </span>
+                  <div>
+                    <p className="text-sm font-semibold text-gray-200">{loc.name}</p>
+                    <p className="text-xs text-gray-500">{loc.address}</p>
+                  </div>
+                </li>
+              ))}
+            </ul>
 
-            {/* Contact info */}
-            <div className="mt-5 flex flex-col items-center space-y-2 sm:items-start">
-              <a href="tel:+94705281466" className="flex items-center justify-center gap-2 text-sm text-gray-400 transition-colors duration-200 hover:text-white sm:justify-start">
+            <div className="mt-5 flex flex-col space-y-2">
+              <a href="tel:+94705281466" className="flex items-center gap-2 text-sm text-gray-400 transition-colors duration-200 hover:text-white">
                 <svg className="h-4 w-4 flex-shrink-0 text-[#F47920]" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
                 </svg>
                 070 528 1466
               </a>
-              <a href="mailto:info@siyowin.lk" className="flex items-center justify-center gap-2 text-sm text-gray-400 transition-colors duration-200 hover:text-white sm:justify-start">
+              <a href="mailto:info@siyowin.lk" className="flex items-center gap-2 text-sm text-gray-400 transition-colors duration-200 hover:text-white">
                 <svg className="h-4 w-4 flex-shrink-0 text-[#F47920]" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
                 </svg>
@@ -156,51 +198,25 @@ export default function Footer() {
           </div>
         </div>
 
-        <div className="pointer-events-none hidden lg:flex lg:flex-col lg:gap-2 lg:absolute lg:top-12 lg:right-8">
-          <div className="flex h-24 w-24 flex-col items-center gap-1 rounded-lg border border-white/10 bg-white/5 p-1">
-            <p className="text-[9px] font-semibold uppercase tracking-widest text-gray-400">B1</p>
-            <iframe
-              title="Palladeniya Road, Kegalle"
-              src="https://www.google.com/maps?q=Palladeniya%20Road%2C%20Kegalle&output=embed"
-              className="h-full w-full rounded-md"
-              loading="lazy"
-              referrerPolicy="no-referrer-when-downgrade"
-            />
-          </div>
-          <div className="flex h-24 w-24 flex-col items-center gap-1 rounded-lg border border-white/10 bg-white/5 p-1">
-            <p className="text-[9px] font-semibold uppercase tracking-widest text-gray-400">B2</p>
-            <iframe
-              title="Behind Commercial Bank, Kegalle"
-              src="https://www.google.com/maps?q=Behind%20Commercial%20Bank%2C%20Kegalle&output=embed"
-              className="h-full w-full rounded-md"
-              loading="lazy"
-              referrerPolicy="no-referrer-when-downgrade"
-            />
-          </div>
-        </div>
-
-        {/* ── Divider ── */}
+        {/* Divider */}
         <div
           className="my-8 h-px w-full"
           style={{ background: 'linear-gradient(to right, transparent, rgba(255,255,255,0.08), transparent)' }}
         />
 
-        {/* ── Bottom bar ── */}
-        <div className="flex flex-col items-center justify-between gap-4 text-center text-xs text-gray-500 sm:flex-row sm:text-left">
-          <p>
-            © {new Date().getFullYear()} Siyowin Higher Education Institute.
-            <br className="sm:hidden" /> All rights reserved. Developed by{' '}
-            <a
-              href="https://skey7tech.mrt.lk"
-              target="_blank"
-              rel="noreferrer"
-              className="font-semibold text-gray-300 transition-colors duration-200 hover:text-white"
-            >
-              Skey7Tech
-            </a>
-            .
-          </p>
-        </div>
+        {/* Bottom bar */}
+        <p className="text-xs text-gray-500">
+          © {new Date().getFullYear()} Siyowin Higher Education Institute. All rights reserved. Developed by{' '}
+          <a
+            href="https://skey7tech.mrt.lk"
+            target="_blank"
+            rel="noreferrer"
+            className="font-semibold text-gray-300 transition-colors duration-200 hover:text-white"
+          >
+            Skey7Tech
+          </a>
+          .
+        </p>
       </div>
     </footer>
   )

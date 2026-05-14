@@ -145,7 +145,7 @@ export default function TeachersPage() {
                 </div>
 
                 <div className="p-5">
-                  <h3 className="text-lg font-bold text-gray-900">{toSinhalaTeacherName(t.name, isSinhala)}</h3>
+                  <h3 className="text-xl font-bold text-gray-900">{toSinhalaTeacherName(t.name, isSinhala)}</h3>
                   <p className="mt-0.5 text-sm font-semibold" style={{ color: t.accent }}>
                     {toSinhalaSubject(t.subject, isSinhala)}
                   </p>
