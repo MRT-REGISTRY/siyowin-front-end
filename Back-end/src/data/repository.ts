@@ -40,6 +40,19 @@ import { demoPasswordHash } from './seed.js';
 
 type DbUser = AuthUser & { passwordHash: string; password_hash?: string };
 type UpsertMarkResult = { mark: AdminStudentMark; action: 'created' | 'updated' };
+type PublicMarksheetLookup = {
+  subject: { id: string; name: string; classLabel?: string | null; teacher?: string | null };
+  assignment: {
+    subjectId: string;
+    examType: string;
+    examName: string;
+    examDate: string;
+    totalMarks: number | null;
+  };
+  student?: { id: string; name: string; username: string; index: string };
+  mark: number | null;
+  status: 'awaiting-username' | 'pending' | 'present' | 'absent';
+};
 
 const isMissingTable = (error: unknown) =>
   Boolean(
@@ -327,6 +340,140 @@ export const repo = {
           updatedAt: null,
         }))
         .sort((a, b) => String(b.examDate).localeCompare(String(a.examDate)));
+    });
+  },
+
+  async getPublicMarksheet(params: { subjectId: string; examType: string; examName: string; examDate: string; username?: string }) {
+    const subject = await this.getSubjectById(params.subjectId);
+    if (!subject) return undefined;
+
+    const assignment = {
+      subjectId: subject.id,
+      examType: params.examType,
+      examName: params.examName,
+      examDate: params.examDate,
+      totalMarks: 100,
+    };
+
+    if (!params.username?.trim()) {
+      return {
+        subject: {
+          id: subject.id,
+          name: subject.name,
+          classLabel: subject.classLabel ?? null,
+          teacher: subject.teacher ?? null,
+        },
+        assignment,
+        mark: null,
+        status: 'awaiting-username' as const,
+      } satisfies PublicMarksheetLookup;
+    }
+
+    return withFallback(async () => {
+      const identifier = params.username?.trim();
+      if (!identifier) return undefined;
+
+      const normalizedIdentifier = identifier.toLowerCase();
+
+      const { data: studentByIdOrIndex, error: studentLookupError } = await supabase!
+        .from('students')
+        .select('id,name,index_number')
+        .or(`id.eq.${identifier},index_number.eq.${identifier}`)
+        .maybeSingle();
+      if (studentLookupError) throw studentLookupError;
+
+      const { data: userByUsername, error: userLookupError } = await supabase!
+        .from('users')
+        .select('id,name,username,student_id,role')
+        .or(`username.eq.${normalizedIdentifier},id.eq.${identifier}`)
+        .maybeSingle();
+      if (userLookupError) throw userLookupError;
+
+      let student: { id: string; name: string; index_number: string } | null = studentByIdOrIndex ?? null;
+      if (!student && userByUsername?.role === 'student' && userByUsername.student_id) {
+        const { data: studentByUserId, error: linkedStudentError } = await supabase!
+          .from('students')
+          .select('id,name,index_number')
+          .eq('id', userByUsername.student_id)
+          .maybeSingle();
+        if (linkedStudentError) throw linkedStudentError;
+        student = studentByUserId ?? null;
+      }
+
+      if (!student) return undefined;
+
+      const user = userByUsername?.role === 'student' ? userByUsername : undefined;
+
+      const { data: exam, error: examError } = await supabase!
+        .from('exams')
+        .select('id,total_marks')
+        .eq('class_id', params.subjectId)
+        .eq('exam_type', params.examType)
+        .eq('title', params.examName)
+        .eq('exam_date', params.examDate)
+        .maybeSingle();
+      if (examError) throw examError;
+
+      const { data: result, error: resultError } = await supabase!
+        .from('results')
+        .select('marks_obtained,is_absent')
+        .eq('student_id', student.id)
+        .eq('exam_id', exam?.id ?? '')
+        .maybeSingle();
+      if (resultError) throw resultError;
+
+      return {
+        subject: {
+          id: subject.id,
+          name: subject.name,
+          classLabel: subject.classLabel ?? null,
+          teacher: subject.teacher ?? null,
+        },
+        assignment: {
+          ...assignment,
+          totalMarks: exam?.total_marks ?? assignment.totalMarks,
+        },
+        student: {
+          id: student.id,
+          name: student.name,
+          username: user?.username ?? identifier,
+          index: student.index_number,
+        },
+        mark: result && !result.is_absent && result.marks_obtained !== null ? Number(result.marks_obtained) : null,
+        status: !result ? 'pending' : result.is_absent ? 'absent' : 'present',
+      } satisfies PublicMarksheetLookup;
+    }, () => {
+      const student = store.students.find((item) => item.id === params.username?.trim() || item.index === params.username?.trim());
+      if (!student) return undefined;
+
+      // Get user info if available, but don't require it - we can still show marks with just student record
+      const user = store.users.find((item) => item.studentId === student.id && item.role === 'student')
+        ?? store.users.find((item) => item.username.toLowerCase() === params.username!.trim().toLowerCase());
+
+      const mark = student.marks.find((item) =>
+        item.subjectId === params.subjectId &&
+        item.examType === params.examType &&
+        item.examName === params.examName &&
+        item.examDate === params.examDate,
+      );
+
+      return {
+        subject: {
+          id: subject.id,
+          name: subject.name,
+          classLabel: subject.classLabel ?? null,
+          teacher: subject.teacher ?? null,
+        },
+        assignment,
+        student: {
+          id: student.id,
+          name: student.name,
+          username: user?.username ?? `student_${student.id}`,
+          index: student.index,
+        },
+        mark: mark?.mark ?? null,
+        status: mark ? 'present' : 'pending',
+      } satisfies PublicMarksheetLookup;
     });
   },
 
@@ -842,7 +989,7 @@ export const repo = {
     return withFallback(async () => {
       const student = buildStudent(input.student);
       const normalizedDateOfBirth = typeof student.dateOfBirth === 'string' && student.dateOfBirth.trim()
-        ? student.dateOfBirth.trim()
+        ? student.dateOfBirth
         : null;
       const user = buildUser({
         name: student.name,
@@ -897,7 +1044,6 @@ export const repo = {
         student,
         user: mapUser({
           id: user.id,
-          name: user.name,
           username: user.username,
           email: user.email,
           role: user.role,
