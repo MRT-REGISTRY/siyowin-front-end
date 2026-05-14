@@ -55,63 +55,92 @@ export default function HeroSection({
 
   return (
     <div className="relative h-screen w-full overflow-hidden">
-      {/* Background Image with Overlay */}
-      <Image
-        src={selectedImage.src}
-        alt={selectedImage.alt}
-        fill
-        priority
-        sizes="(max-width: 768px) 100vw, (max-width: 1200px) 100vw, 100vw"
-        className="object-cover"
-        quality={85}
-      />
+      {/* Background Image Slider with cinematic Ken Burns cross-fade */}
+      {bgImages.map((img, i) => (
+        <Image
+          key={img.src}
+          src={img.src}
+          alt={img.alt}
+          fill
+          priority={i === 0}
+          sizes="(max-width: 768px) 100vw, (max-width: 1200px) 100vw, 100vw"
+          className={`object-cover transition-all duration-[1500ms] ease-in-out ${
+            i === currentImageIndex
+              ? 'opacity-100 scale-100 translate-x-0'
+              : 'opacity-0 scale-105 pointer-events-none translate-x-0'
+          }`}
+          quality={85}
+        />
+      ))}
 
-      {/* Dark Overlay */}
-      <div className="absolute inset-0 bg-black/40"></div>
+      {/* Layered Overlay — darker at top for readability, lighter at bottom */}
+      <div className="absolute inset-0 bg-gradient-to-b from-black/60 via-black/35 to-black/20" />
 
       {/* Content */}
       <div className="absolute inset-0 z-10 flex flex-col items-center justify-center text-center px-4">
-        <h1 className="text-4xl md:text-6xl font-bold text-white mb-4 drop-shadow-lg">
+
+        <h1 className="text-4xl md:text-6xl lg:text-7xl font-black text-white mb-4 drop-shadow-lg leading-tight tracking-tight">
           {isSinhala ? 'සාදරයෙන් පිළිගනිමු' : 'WELCOME TO'}{' '}
-          <span className="text-red" style={{ color: 'red' , fontWeight: 'bold' }}>SIYOWIN</span>
+          <span
+            className="block md:inline bg-gradient-to-r from-[#F47920] to-[#ff6b35] bg-clip-text text-transparent drop-shadow-none"
+            style={{ WebkitTextStroke: '0px' }}
+          >
+            SIYOWIN
+          </span>
         </h1>
-        <p className="text-lg md:text-xl text-gray-100 mb-8 drop-shadow-md">
+        <p className="text-lg md:text-xl text-gray-200 mb-10 drop-shadow-md max-w-xl leading-relaxed">
           {isSinhala ? 'උසස් අධ්‍යාපනයෙන් දරුවන්ගේ අනාගතය දිරිමත් කරමින්' : 'Inspiring Minds Through Excellence in Education'}
         </p>
-        <button
-          onClick={() => window.dispatchEvent(new CustomEvent('open-lms-login'))}
-          className="group relative overflow-hidden rounded-md bg-gradient-to-r from-[#D9232D] to-[#F47920] px-8 py-3.5 text-sm font-bold text-white shadow-lg shadow-orange-400/40 transition-all duration-300 hover:-translate-y-0.5 hover:shadow-xl hover:shadow-orange-400/50 active:scale-95 cursor-pointer"
-        >
-          <span className="relative z-10 flex items-center gap-2">
-            {isSinhala ? 'LMS පිවිසුම' : 'LMS Login'}
-          </span>
-          <span className="absolute inset-0 translate-x-full bg-white/20 transition-transform duration-500 group-hover:translate-x-0" />
-        </button>
+
+        <div className="flex items-center justify-center">
+          <button
+            onClick={() => window.dispatchEvent(new CustomEvent('open-lms-login'))}
+            className="group relative overflow-hidden rounded-full bg-gradient-to-r from-[#D9232D] via-[#F47920] to-[#D9232D] bg-[length:200%_auto] px-10 py-4 text-sm font-black uppercase tracking-wider text-white shadow-2xl shadow-orange-500/30 transition-all duration-500 hover:bg-[right_center] hover:scale-[1.04] hover:shadow-orange-500/50 active:scale-95 cursor-pointer flex items-center justify-center"
+          >
+            <span className="relative z-10">
+              {isSinhala ? 'LMS පිවිසුම' : 'LMS LOGIN'}
+            </span>
+            <span className="absolute inset-0 translate-x-full bg-gradient-to-r from-transparent via-white/25 to-transparent transition-transform duration-1000 group-hover:-translate-x-full" />
+          </button>
+        </div>
       </div>
 
       {/* Navigation Buttons */}
-      <button
-        onClick={handlePrevious}
-        disabled={bgImages.length < 2}
-        className="absolute left-4 top-1/2 z-20 transform -translate-y-1/2 bg-white/30 hover:bg-white/50 text-white p-2 rounded-full transition duration-200"
-        aria-label="Previous image"
-      >
-        <ChevronLeft size={32} />
-      </button>
+      {bgImages.length > 1 && (
+        <>
+          <button
+            onClick={handlePrevious}
+            className="absolute left-4 top-1/2 z-20 -translate-y-1/2 flex h-10 w-10 items-center justify-center rounded-full bg-black/30 text-white backdrop-blur-sm transition-all duration-200 hover:bg-black/50 hover:scale-105"
+            aria-label="Previous image"
+          >
+            <ChevronLeft size={22} />
+          </button>
 
-      <button
-        onClick={handleNext}
-        disabled={bgImages.length < 2}
-        className="absolute right-4 top-1/2 z-20 transform -translate-y-1/2 bg-white/30 hover:bg-white/50 text-white p-2 rounded-full transition duration-200"
-        aria-label="Next image"
-      >
-        <ChevronRight size={32} />
-      </button>
+          <button
+            onClick={handleNext}
+            className="absolute right-4 top-1/2 z-20 -translate-y-1/2 flex h-10 w-10 items-center justify-center rounded-full bg-black/30 text-white backdrop-blur-sm transition-all duration-200 hover:bg-black/50 hover:scale-105"
+            aria-label="Next image"
+          >
+            <ChevronRight size={22} />
+          </button>
 
-      {/* Image Counter */}
-      <div className="absolute bottom-24 left-1/2 z-20 transform -translate-x-1/2 bg-black/50 text-white px-4 py-2 rounded-full text-sm md:bottom-28">
-        {currentImageIndex + 1} / {bgImages.length}
-      </div>
+          {/* Dot Indicators instead of plain counter */}
+          <div className="absolute bottom-32 left-1/2 z-20 -translate-x-1/2 flex items-center gap-2 md:bottom-36">
+            {bgImages.map((_, i) => (
+              <button
+                key={i}
+                onClick={() => setCurrentImageIndex(i)}
+                aria-label={`Go to image ${i + 1}`}
+                className={`h-1.5 rounded-full transition-all duration-300 ${
+                  i === currentImageIndex
+                    ? 'w-6 bg-white'
+                    : 'w-1.5 bg-white/40 hover:bg-white/70'
+                }`}
+              />
+            ))}
+          </div>
+        </>
+      )}
 
       {/* Bottom Wave Divider */}
       <div className="pointer-events-none absolute inset-x-0 bottom-0 z-10 h-20 overflow-hidden md:h-28">

@@ -31,11 +31,11 @@ export default async function Home() {
         </div>
         <TimetablePreview />
         <Gallery images={content.galleryImages} />
-        <Articles articles={content.articles} />
+        {/* <Articles articles={content.articles} /> */}
         <ContactSection />
         <FaqSection />
         <Footer />
-        <TawkToWidget />
+        {/* <TawkToWidget /> */}
       </main>
   )
 }
