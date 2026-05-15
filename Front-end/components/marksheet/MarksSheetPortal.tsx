@@ -1,7 +1,7 @@
 'use client';
 
 import { FormEvent, useEffect, useMemo, useState } from 'react';
-import { useSearchParams } from 'next/navigation';
+import { useSearchParams, useRouter } from 'next/navigation';
 import { ArrowRight, Loader2, ShieldCheck, User } from 'lucide-react';
 import { apiRequest } from '@/utils/api';
 import Image from 'next/image';
@@ -35,6 +35,7 @@ const toQuery = (params: Record<string, string>) => new URLSearchParams(params).
 
 export default function MarksSheetPortal() {
   const searchParams = useSearchParams();
+  const router = useRouter();
   const subjectId = searchParams.get('subjectId')?.trim() ?? '';
   const examType = searchParams.get('examType')?.trim() ?? '';
   const examName = searchParams.get('examName')?.trim() ?? '';
@@ -102,7 +103,8 @@ export default function MarksSheetPortal() {
               alt="Institute Logo"
               width={180}
               height={100}
-              className="h-auto w-36 object-contain sm:w-44"
+              onClick={() => router.push('/')}
+              className="h-auto w-36 object-contain sm:w-44 cursor-pointer"
             />
             <div className="inline-flex items-center gap-2 rounded-full bg-[#1B3A8C]/10 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.2em] text-[#1B3A8C]">
               <ShieldCheck size={14} />
