@@ -1298,6 +1298,25 @@ export const repo = {
     }, () => deleteMemoryUser(userId));
   },
 
+  async updateUserRole(userId: string, newRole: string) {
+    return withFallback(async () => {
+      const { data, error } = await supabase!
+        .from('users')
+        .update({ role: newRole })
+        .eq('id', userId)
+        .select('id,name,username,email,role,student_id,teacher_id,is_active')
+        .maybeSingle();
+      if (error) throw error;
+      if (!data) return undefined;
+      return mapUser(data);
+    }, () => {
+      // For memory fallback, find and update the user
+      const user = findMemoryUserById(userId);
+      if (!user) return undefined;
+      return { ...user, role: newRole as any };
+    });
+  },
+
   async deleteStudent(studentId: string) {
     return withFallback(async () => {
       const { data: existing, error: lookupError } = await supabase!
