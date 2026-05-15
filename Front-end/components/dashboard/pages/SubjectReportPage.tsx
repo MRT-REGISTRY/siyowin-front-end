@@ -34,59 +34,30 @@ export default function SubjectReportPage({ subject, onBack }: Props) {
         if (!mounted) return;
         const nextModules = response.modules ?? [];
         const recentResults = (resultResp?.recentResults ?? resultResp?.results ?? []) as any[];
-        // Merge recent results into modules where possible, avoiding duplicates
-        const modulesWithResults = [...nextModules];
-        const unmatchedResults: any[] = [];
+        const nextModuleIds = new Set(nextModules.map((module) => module.id));
 
-        recentResults.forEach((r) => {
-          // create item
-          const item = {
-            id: r.examId,
-            title: `${r.examTitle} — ${r.marksObtained !== null ? `${r.marksObtained}/${r.totalMarks ?? '—'}` : 'Absent'}`,
-            type: 'mark' as const,
-            moduleId: undefined as string | undefined,
-            createdAt: r.createdAt ?? r.examDate ?? null,
-          };
+        const resultModules = recentResults
+          .filter((r) => !r.isAbsent && r.marksObtained !== null)
+          .filter((r, index, all) => all.findIndex((candidate) => candidate.examId === r.examId) === index)
+          .map((r) => ({
+            id: `result-${r.examId}`,
+            title: r.examTitle,
+            items: [{
+              id: r.examId,
+              title: `${r.examTitle}: ${r.marksObtained}/${r.totalMarks ?? 100}`,
+              type: 'mark' as const,
+              createdAt: r.createdAt ?? r.examDate ?? null,
+            }],
+          }));
 
-          // detect if this result already exists in any module (match by examTitle or date)
-          const alreadyExists = modulesWithResults.some((m) =>
-            m.items && m.items.some((it: any) =>
-              String(it.id) === String(item.id) ||
-              String(it.title).toLowerCase().includes(String(r.examTitle).toLowerCase()) ||
-              (it.createdAt && String(it.createdAt) === String(item.createdAt)) ||
-              (it.moduleId && String(it.moduleId) === String(item.moduleId))
-            )
-          );
+        const mergedModules = [
+          ...nextModules,
+          ...resultModules.filter((module) => !nextModuleIds.has(module.id)),
+        ];
 
-          if (alreadyExists) return;
-
-          const matched = modulesWithResults.find((m) =>
-            String(m.title).toLowerCase().includes(String(r.examTitle).toLowerCase()) ||
-            String(m.title).toLowerCase().includes(String(r.examType).toLowerCase()) ||
-            (m.items && m.items.some((it: any) => String(it.title).toLowerCase().includes(String(r.examTitle).toLowerCase())))
-          );
-
-          if (matched) {
-            item.moduleId = matched.id;
-            matched.items = [item, ...matched.items];
-          } else {
-            unmatchedResults.push(item);
-          }
-        });
-
-        if (unmatchedResults.length > 0) {
-          modulesWithResults.unshift({ id: 'recent-results', title: 'Results', items: unmatchedResults });
-        }
-
-        setModules(modulesWithResults);
+        setModules(mergedModules);
         setResults(recentResults);
-        setExpandedModules(modulesWithResults.slice(0, 2).map((module) => module.id));
-      })
-      .then((response) => {
-        if (!mounted) return;
-        const nextModules = response.modules ?? [];
-        setModules(nextModules);
-        setExpandedModules(nextModules.slice(0, 2).map((module) => module.id));
+        setExpandedModules(mergedModules.slice(0, 3).map((module) => module.id));
       })
       .catch((fetchError) => {
         if (!mounted) return;
