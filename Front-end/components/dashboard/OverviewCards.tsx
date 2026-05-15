@@ -1,36 +1,46 @@
 'use client';
 
 import { BookOpen, FileText, Star } from 'lucide-react';
-import { DashboardOverview, SubjectModuleItem } from '@/types';
+import { DashboardOverview, SubjectModuleItem, SubjectExamResult } from '@/types';
 import { useLanguage } from '@/components/LanguageProvider';
 
 interface Props {
   overview: DashboardOverview | null;
   latestItems?: SubjectModuleItem[];
+  latestResults?: SubjectExamResult[];
   onOpenSubject?: (subjectId: string) => void;
 }
 
-export default function OverviewCards({ overview, latestItems, onOpenSubject }: Props) {
+export default function OverviewCards({ overview, latestItems, latestResults, onOpenSubject }: Props) {
   const { isSinhala } = useLanguage();
   const average = overview?.averageMark ?? 0;
-  const cards = [
+  // If latestResults provided, render up to 3 most recent result cards
+  const resultCards = (latestResults ?? []).slice(0, 3).map((res, i) => ({
+    id: `result-${i}`,
+    label: res.examTitle,
+    value: res.marksObtained !== null && res.marksObtained !== undefined ? `${res.marksObtained}/${res.totalMarks ?? '—'}` : (isSinhala ? 'වාර්ථකයි' : 'Absent'),
+    sub: res.examDate ?? res.createdAt ?? '',
+    icon: FileText,
+    color: i === 0 ? 'red' : i === 1 ? 'orange' : 'dark',
+    classId: (res as any).classId,
+  }));
+
+  const cards = resultCards.length > 0 ? resultCards : [
     {
       id: 'marks',
       label: isSinhala ? 'මෑතකදී එක් කළ ලකුණු' : 'Recently Added Marks',
-      value: '12',
-      sub: isSinhala ? 'Dummy link for now' : 'Dummy link for now',
+      value: (latestItems ?? [])[0]?.title ?? (isSinhala ? 'නෑ' : '-'),
+      sub: (latestItems ?? [])[0]?.createdAt ?? '',
       icon: FileText,
       color: 'red',
-      href: '#recent-marks',
     },
     {
       id: 'materials',
       label: isSinhala ? 'මෑතකදී එක් කළ අධ්‍යයන ද්‍රව්‍ය' : 'Recently Added Materials',
-      value: '08',
-      sub: isSinhala ? 'Dummy link for now' : 'Dummy link for now',
+      value: (latestItems ?? [])[1]?.title ?? (isSinhala ? 'නෑ' : '-'),
+      sub: (latestItems ?? [])[1]?.createdAt ?? '',
       icon: BookOpen,
       color: 'orange',
-      href: '#recent-materials',
     },
     {
       id: 'status',
@@ -54,6 +64,16 @@ export default function OverviewCards({ overview, latestItems, onOpenSubject }: 
             className={`sd-overview-card sd-card-${card.color} text-left`}
             onClick={() => {
               if (card.id === 'status') return;
+              // Prefer explicit card navigation metadata (used for result cards)
+              if ((card as any).classId && onOpenSubject) {
+                onOpenSubject((card as any).classId);
+                return;
+              }
+              // If card has a href, open it
+              if ((card as any).href) {
+                window.open((card as any).href, '_blank');
+                return;
+              }
               const latest = (latestItems ?? [])[idx];
               if (!latest) return;
               if (latest.type === 'link' && latest.href) {
@@ -75,8 +95,8 @@ export default function OverviewCards({ overview, latestItems, onOpenSubject }: 
             </div>
             <div className="sd-overview-card-body">
               <p className="sd-overview-label">{card.label}</p>
-              <p className="sd-overview-value">{(latestItems ?? [])[idx]?.title ?? card.value}</p>
-              <p className="sd-overview-sub">{(latestItems ?? [])[idx]?.createdAt ?? card.sub}</p>
+              <p className="sd-overview-value">{card.value}</p>
+              <p className="sd-overview-sub">{card.sub}</p>
             </div>
             <div className={`sd-card-glow sd-glow-${card.color}`} />
           </button>

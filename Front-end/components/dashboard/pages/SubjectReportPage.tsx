@@ -12,6 +12,7 @@ interface Props {
 
 export default function SubjectReportPage({ subject, onBack }: Props) {
   const [modules, setModules] = useState<ApiSubjectModule[]>([]);
+  const [results, setResults] = useState<any[]>([]);
   const [expandedModules, setExpandedModules] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -25,7 +26,62 @@ export default function SubjectReportPage({ subject, onBack }: Props) {
     setModules([]);
     setExpandedModules([]);
 
-    apiGet<{ subjectId: string; modules: ApiSubjectModule[] }>(`/dashboard/subjects/${subject.id}/modules`)
+    Promise.all([
+      apiGet<{ subjectId: string; modules: ApiSubjectModule[] }>(`/dashboard/subjects/${subject.id}/modules`),
+      apiGet(`/dashboard/subjects/${subject.id}/results`).catch(() => ({ recentResults: [], results: [] })),
+    ])
+      .then(([response, resultResp]: any) => {
+        if (!mounted) return;
+        const nextModules = response.modules ?? [];
+        const recentResults = (resultResp?.recentResults ?? resultResp?.results ?? []) as any[];
+        // Merge recent results into modules where possible, avoiding duplicates
+        const modulesWithResults = [...nextModules];
+        const unmatchedResults: any[] = [];
+
+        recentResults.forEach((r) => {
+          // create item
+          const item = {
+            id: r.examId,
+            title: `${r.examTitle} — ${r.marksObtained !== null ? `${r.marksObtained}/${r.totalMarks ?? '—'}` : 'Absent'}`,
+            type: 'mark' as const,
+            moduleId: undefined as string | undefined,
+            createdAt: r.createdAt ?? r.examDate ?? null,
+          };
+
+          // detect if this result already exists in any module (match by examTitle or date)
+          const alreadyExists = modulesWithResults.some((m) =>
+            m.items && m.items.some((it: any) =>
+              String(it.id) === String(item.id) ||
+              String(it.title).toLowerCase().includes(String(r.examTitle).toLowerCase()) ||
+              (it.createdAt && String(it.createdAt) === String(item.createdAt)) ||
+              (it.moduleId && String(it.moduleId) === String(item.moduleId))
+            )
+          );
+
+          if (alreadyExists) return;
+
+          const matched = modulesWithResults.find((m) =>
+            String(m.title).toLowerCase().includes(String(r.examTitle).toLowerCase()) ||
+            String(m.title).toLowerCase().includes(String(r.examType).toLowerCase()) ||
+            (m.items && m.items.some((it: any) => String(it.title).toLowerCase().includes(String(r.examTitle).toLowerCase())))
+          );
+
+          if (matched) {
+            item.moduleId = matched.id;
+            matched.items = [item, ...matched.items];
+          } else {
+            unmatchedResults.push(item);
+          }
+        });
+
+        if (unmatchedResults.length > 0) {
+          modulesWithResults.unshift({ id: 'recent-results', title: 'Results', items: unmatchedResults });
+        }
+
+        setModules(modulesWithResults);
+        setResults(recentResults);
+        setExpandedModules(modulesWithResults.slice(0, 2).map((module) => module.id));
+      })
       .then((response) => {
         if (!mounted) return;
         const nextModules = response.modules ?? [];

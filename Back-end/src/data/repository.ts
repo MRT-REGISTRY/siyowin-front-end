@@ -217,7 +217,7 @@ export const repo = {
     }, () => buildMemorySubjectModules(subjectId));
   },
 
-  async getLatestModuleItemsForStudent(studentId: string | undefined, limit = 2) {
+  async getLatestModuleItemsForStudent(studentId: string | undefined, limit = 3) {
     if (!studentId) return [];
 
     return withFallback(async () => {
@@ -254,6 +254,76 @@ export const repo = {
         createdAt: item.created_at ?? null,
       }));
     }, () => []);
+  },
+
+  async getLatestResultsForStudent(studentId: string | undefined, limit = 3) {
+    if (!studentId) return [];
+
+    return withFallback(async () => {
+      const classIds = await getActiveClassIdsForStudent(studentId);
+      if (classIds.length === 0) return [];
+
+      const { data: exams, error: examsError } = await supabase!
+        .from('exams')
+        .select('id,class_id,title,exam_type,exam_date,total_marks,created_at')
+        .in('class_id', classIds)
+        .order('exam_date', { ascending: false })
+        .limit(limit);
+      if (examsError) throw examsError;
+      const examRows = exams ?? [];
+      if (examRows.length === 0) return [];
+
+      const examIds = examRows.map((e) => e.id);
+      const { data: results, error: resultsError } = await supabase!
+        .from('results')
+        .select('id,exam_id,student_id,marks_obtained,is_absent,created_at,updated_at')
+        .eq('student_id', studentId)
+        .in('exam_id', examIds)
+        .order('created_at', { ascending: false });
+      if (resultsError) throw resultsError;
+
+      const resultByExamId = new Map((results ?? []).map((r) => [r.exam_id, r]));
+
+      return (examRows ?? [])
+        .map((exam) => {
+          const result = resultByExamId.get(exam.id);
+          if (!result) return null;
+          return {
+            classId: exam.class_id,
+            examId: exam.id,
+            examTitle: exam.title,
+            examType: exam.exam_type,
+            examDate: exam.exam_date,
+            totalMarks: exam.total_marks ?? null,
+            marksObtained: result.is_absent ? null : result.marks_obtained ?? null,
+            isAbsent: Boolean(result.is_absent),
+            status: result.is_absent ? 'absent' : 'present',
+            createdAt: result.created_at ?? exam.created_at ?? null,
+            updatedAt: result.updated_at ?? null,
+          };
+        })
+        .filter((item) => item !== null)
+        .slice(0, limit) as any[];
+    }, () => {
+      const student = store.students.find((s) => s.id === studentId || s.index === studentId);
+      if (!student) return [];
+      return student.marks
+        .map((m) => ({
+          classId: m.classId ?? undefined,
+          examId: `${m.subjectId}-${m.examType}-${m.examName}`,
+          examTitle: m.examName,
+          examType: m.examType,
+          examDate: m.examDate,
+          totalMarks: 100,
+          marksObtained: m.mark ?? null,
+          isAbsent: false,
+          status: 'present',
+          createdAt: null,
+          updatedAt: null,
+        }))
+        .sort((a, b) => String(b.examDate).localeCompare(String(a.examDate)))
+        .slice(0, limit);
+    });
   },
 
   async getStudentSubjectResults(studentId: string | undefined, subjectId: string) {
@@ -1586,55 +1656,40 @@ const mapModuleItemType = (value: string | null | undefined): SubjectModuleItem[
 };
 
 const buildMemorySubjectModules = (subjectId: string): SubjectModule[] => {
-  const subject = getMemorySubjectById(subjectId);
-  if (!subject) return [];
+  // Build modules dynamically from in-memory marks instead of hardcoding topic names
+  // Collect all marks related to this subject/class from students
+  const allMarks = store.students.flatMap((s) => s.marks.map((m) => ({ studentId: s.id, studentName: s.name, ...m })));
+  const relevant = allMarks.filter((m) => m.subjectId === subjectId || m.classId === subjectId);
+  if (relevant.length === 0) return [];
 
-  return [
-    {
-      id: `${subjectId}-general`,
-      title: 'General',
-      items: [
-        {
-          id: `${subjectId}-general-mark`,
-          title: 'paper:85%',
-          type: 'mark',
-        },
-        {
-          id: `${subjectId}-general-link`,
-          title: 'Revision topic',
-          type: 'link',
-          href: 'https://example.com/revision-topic',
-        },
-        {
-          id: `${subjectId}-general-text`,
-          title: 'Read this note before the next class.',
-          type: 'text',
-        },
-      ],
-    },
-    {
-      id: `${subjectId}-lecture`,
-      title: 'Lecture',
-      items: [
-        {
-          id: `${subjectId}-lecture-mark`,
-          title: 'paper:92%',
-          type: 'mark',
-        },
-      ],
-    },
-    ...subject.recentHomeworks.map((homework, index) => ({
-      id: `${subjectId}-homework-${index + 1}`,
-      title: homework.dueDate,
-      items: [
-        {
-          id: homework.id,
-          title: homework.title,
-          type: 'text' as const,
-        },
-      ],
+  // Group by assignment key (examType + examName + examDate)
+  const groups = new Map<string, { examName: string; examType: string; examDate?: string; items: any[] }>();
+  relevant.forEach((m) => {
+    const key = `${m.examType}::${m.examName}::${m.examDate ?? ''}`;
+    const existing = groups.get(key) ?? { examName: m.examName, examType: m.examType, examDate: m.examDate, items: [] };
+    existing.items.push(m);
+    groups.set(key, existing);
+  });
+
+  const assignments = Array.from(groups.values()).sort((a, b) => {
+    if (!a.examDate && !b.examDate) return 0;
+    if (!a.examDate) return 1;
+    if (!b.examDate) return -1;
+    return String(b.examDate).localeCompare(String(a.examDate));
+  });
+
+  return assignments.map((asg, idx) => ({
+    id: `${subjectId}-assignment-${idx + 1}`,
+    title: asg.examName || asg.examType,
+    items: asg.items.map((m: any, itemIdx: number) => ({
+      id: `${subjectId}-assignment-${idx + 1}-item-${itemIdx + 1}`,
+      title: `${m.examName}: ${m.mark !== null && m.mark !== undefined ? `${m.mark}` : 'Absent'}`,
+      type: 'mark' as const,
+      moduleId: `${subjectId}-assignment-${idx + 1}`,
+      classId: m.classId ?? undefined,
+      createdAt: m.examDate ?? null,
     })),
-  ];
+  }));
 };
 
 const normalizeAssignments = (value: unknown, subject: string, grade: string): TeacherAssignment[] => {
