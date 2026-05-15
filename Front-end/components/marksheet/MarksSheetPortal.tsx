@@ -93,8 +93,8 @@ export default function MarksSheetPortal() {
   const scoreLabel = result?.status === 'absent' ? 'Absent' : markValue === null ? 'Pending' : `${markValue}/${totalMarks}`;
 
   return (
-    <main className="h-screen overflow-hidden bg-gradient-to-br from-slate-50 to-slate-100 px-4 py-3 sm:px-6 lg:px-8">
-      <div className="flex h-full items-center justify-center">
+    <main className="min-h-[100dvh] overflow-y-auto bg-gradient-to-br from-slate-50 to-slate-100 px-4 py-4 sm:h-screen sm:overflow-hidden sm:px-6 lg:px-8">
+      <div className="flex min-h-full items-start justify-center sm:items-center">
         {/* Main Card */}
         <div className="w-full max-w-5xl rounded-3xl border border-white bg-white p-5 shadow-[0_24px_80px_-40px_rgba(15,23,42,0.15)] sm:p-6 lg:p-7">
           <div className="mb-4 flex flex-col items-center gap-3 text-center">
@@ -112,7 +112,7 @@ export default function MarksSheetPortal() {
             </div>
           </div>
 
-          <div className="max-h-[calc(100vh-7.5rem)] overflow-hidden">
+          <div className="sm:max-h-[calc(100vh-7.5rem)] sm:overflow-y-auto sm:pr-1">
           {pageError && (
             <div className="mb-4 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-2.5 text-sm font-medium text-amber-800">
               {pageError}
