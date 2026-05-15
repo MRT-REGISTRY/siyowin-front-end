@@ -51,6 +51,7 @@ type PublicMarksheetLookup = {
   };
   student?: { id: string; name: string; username: string; index: string };
   mark: number | null;
+  rank: number | null;
   status: 'awaiting-username' | 'pending' | 'present' | 'absent';
 };
 
@@ -365,6 +366,7 @@ export const repo = {
         },
         assignment,
         mark: null,
+        rank: null,
         status: 'awaiting-username' as const,
       } satisfies PublicMarksheetLookup;
     }
@@ -422,6 +424,20 @@ export const repo = {
         .maybeSingle();
       if (resultError) throw resultError;
 
+      // Calculate rank: count how many students have a higher mark
+      let rank: number | null = null;
+      if (result && !result.is_absent && result.marks_obtained !== null) {
+        const { data: higherMarks, error: rankError } = await supabase!
+          .from('results')
+          .select('marks_obtained')
+          .eq('exam_id', exam?.id ?? '')
+          .gt('marks_obtained', result.marks_obtained)
+          .neq('is_absent', true);
+        if (!rankError && higherMarks) {
+          rank = (higherMarks?.length ?? 0) + 1;
+        }
+      }
+
       return {
         subject: {
           id: subject.id,
@@ -440,6 +456,7 @@ export const repo = {
           index: student.index_number,
         },
         mark: result && !result.is_absent && result.marks_obtained !== null ? Number(result.marks_obtained) : null,
+        rank,
         status: !result ? 'pending' : result.is_absent ? 'absent' : 'present',
       } satisfies PublicMarksheetLookup;
     }, () => {
@@ -457,6 +474,21 @@ export const repo = {
         item.examDate === params.examDate,
       );
 
+      // Calculate rank: count students with higher marks for the same exam
+      let rank: number | null = null;
+      if (mark?.mark !== null && mark?.mark !== undefined) {
+        const higherMarksCount = store.students.reduce((count, otherStudent) => {
+          const otherMark = otherStudent.marks.find((m) =>
+            m.subjectId === params.subjectId &&
+            m.examType === params.examType &&
+            m.examName === params.examName &&
+            m.examDate === params.examDate,
+          );
+          return otherMark && otherMark.mark !== null && otherMark.mark > mark.mark ? count + 1 : count;
+        }, 0);
+        rank = higherMarksCount + 1;
+      }
+
       return {
         subject: {
           id: subject.id,
@@ -472,6 +504,7 @@ export const repo = {
           index: student.index,
         },
         mark: mark?.mark ?? null,
+        rank,
         status: mark ? 'present' : 'pending',
       } satisfies PublicMarksheetLookup;
     });
