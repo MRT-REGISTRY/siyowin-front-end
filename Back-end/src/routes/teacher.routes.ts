@@ -111,12 +111,14 @@ router.get('/dashboard', asyncHandler(async (req, res) => {
     : 0;
 
   // Fetch all exams for teacher's subjects from DB (so assignments show even with 0 marks)
+  // Exclude homework - it's only managed in the Classes tab
   let dbExams: Array<{ id: string; classId: string; examType: string; examName: string; examDate: string; markedStudentCount: number }> = [];
   if (supabase && subjectIds.size > 0) {
     const { data: examRows } = await supabase
       .from('exams')
       .select('id,class_id,exam_type,title,exam_date')
       .in('class_id', Array.from(subjectIds))
+      .neq('exam_type', 'homework')
       .order('exam_date', { ascending: false });
 
     if (examRows && examRows.length > 0) {

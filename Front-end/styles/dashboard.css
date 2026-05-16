@@ -380,7 +380,6 @@
   .sd-content { padding: 16px; gap: 18px; }
   .sd-overview-grid { grid-template-columns: 1fr 1fr; gap: 12px; }
   .sd-subjects-grid { grid-template-columns: 1fr; }
-  .sd-search-bar { display: none; }
   .sd-navbar { padding: 0 16px; }
   .sd-overview-value { font-size: 22px; }
   .sd-greeting-title { font-size: 18px; }
