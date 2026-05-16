@@ -23,6 +23,54 @@ const teacherMarkSchema = z.object({
   note: z.string().optional(),
 });
 
+const resourceSchema = z.object({
+  classId: z.string().min(1),
+  moduleId: z.string().min(1),
+  title: z.string().min(1).max(200),
+  href: z.string().url(),
+  type: z.enum(['document', 'video', 'link']),
+});
+
+const topicSchema = z.object({
+  classId: z.string().min(1),
+  title: z.string().min(1).max(150),
+});
+
+const homeworkSchema = z.object({
+  classId: z.string().min(1),
+  title: z.string().min(1).max(150),
+  dueDate: z.string().min(1),
+});
+
+const homeworkCompletionSchema = z.object({
+  classId: z.string().min(1),
+  homeworkId: z.string().min(1),
+  studentId: z.string().min(1),
+  isDone: z.boolean(),
+});
+
+const getTeacherAssignmentAccess = (teacher: any) => {
+  const assignments = teacher.assignments.length > 0
+    ? teacher.assignments
+    : [{ subject: teacher.subject, grade: teacher.grade, classId: '', medium: '' }];
+
+  return {
+    assignments,
+    assignedSubjectNames: new Set(assignments.map((assignment: any) => String(assignment.subject ?? '').toLowerCase())),
+    assignedClassIds: new Set(assignments.map((assignment: any) => assignment.classId).filter(Boolean)),
+  };
+};
+
+const canManageSubject = (teacher: any, subject: any) => {
+  const { assignedSubjectNames, assignedClassIds } = getTeacherAssignmentAccess(teacher);
+  return (
+    assignedClassIds.has(subject.id) ||
+    subject.teacher === teacher.name ||
+    assignedSubjectNames.has(String(subject.name ?? '').toLowerCase()) ||
+    String(subject.name ?? '').toLowerCase() === String(teacher.subject ?? '').toLowerCase()
+  );
+};
+
 router.get('/dashboard', asyncHandler(async (req, res) => {
   const teacher = await repo.getTeacherById(req.user?.teacherId);
 
@@ -221,6 +269,261 @@ router.post('/marks', validateBody(teacherMarkSchema), asyncHandler(async (req, 
   }
 
   res.status(result.action === 'created' ? 201 : 200).json(result);
+}));
+
+router.post('/resources', validateBody(resourceSchema), asyncHandler(async (req, res) => {
+  const teacher = await repo.getTeacherById(req.user?.teacherId);
+
+  if (!teacher) {
+    res.status(404).json({ message: 'Teacher profile not found.' });
+    return;
+  }
+
+  const subject = await repo.getSubjectById(req.body.classId);
+  if (!subject) {
+    res.status(404).json({ message: 'Class subject not found.' });
+    return;
+  }
+
+  if (!canManageSubject(teacher, subject)) {
+    res.status(403).json({ message: 'You can only add resources to your assigned classes.' });
+    return;
+  }
+
+  const resource = await repo.createSubjectResource({
+    classId: subject.id,
+    moduleId: req.body.moduleId,
+    title: req.body.title,
+    href: req.body.href,
+    type: req.body.type,
+  });
+
+  res.status(201).json({ resource });
+}));
+
+router.post('/topics', validateBody(topicSchema), asyncHandler(async (req, res) => {
+  const teacher = await repo.getTeacherById(req.user?.teacherId);
+
+  if (!teacher) {
+    res.status(404).json({ message: 'Teacher profile not found.' });
+    return;
+  }
+
+  const subject = await repo.getSubjectById(req.body.classId);
+  if (!subject) {
+    res.status(404).json({ message: 'Class subject not found.' });
+    return;
+  }
+
+  if (!canManageSubject(teacher, subject)) {
+    res.status(403).json({ message: 'You can only add topics to your assigned classes.' });
+    return;
+  }
+
+  const topic = await repo.createSubjectTopic({
+    classId: subject.id,
+    title: req.body.title,
+  });
+
+  res.status(201).json({ topic });
+}));
+
+router.delete('/resources/:classId/:resourceId', asyncHandler(async (req, res) => {
+  const teacher = await repo.getTeacherById(req.user?.teacherId);
+
+  if (!teacher) {
+    res.status(404).json({ message: 'Teacher profile not found.' });
+    return;
+  }
+
+  const classId = req.params.classId;
+  const resourceId = req.params.resourceId;
+  if (typeof classId !== 'string' || typeof resourceId !== 'string' || !classId || !resourceId) {
+    res.status(400).json({ message: 'classId and resourceId are required.' });
+    return;
+  }
+
+  const subject = await repo.getSubjectById(classId);
+  if (!subject) {
+    res.status(404).json({ message: 'Class subject not found.' });
+    return;
+  }
+
+  if (!canManageSubject(teacher, subject)) {
+    res.status(403).json({ message: 'You can only delete resources from your assigned classes.' });
+    return;
+  }
+
+  const deleted = await repo.deleteSubjectResource(subject.id, resourceId);
+  if (!deleted) {
+    res.status(404).json({ message: 'Resource not found.' });
+    return;
+  }
+
+  res.json({ message: 'Resource deleted successfully.' });
+}));
+
+router.delete('/topics/:classId/:moduleId', asyncHandler(async (req, res) => {
+  const teacher = await repo.getTeacherById(req.user?.teacherId);
+
+  if (!teacher) {
+    res.status(404).json({ message: 'Teacher profile not found.' });
+    return;
+  }
+
+  const classId = req.params.classId;
+  const moduleId = req.params.moduleId;
+  if (typeof classId !== 'string' || typeof moduleId !== 'string' || !classId || !moduleId) {
+    res.status(400).json({ message: 'classId and moduleId are required.' });
+    return;
+  }
+
+  const subject = await repo.getSubjectById(classId);
+  if (!subject) {
+    res.status(404).json({ message: 'Class subject not found.' });
+    return;
+  }
+
+  if (!canManageSubject(teacher, subject)) {
+    res.status(403).json({ message: 'You can only delete topics from your assigned classes.' });
+    return;
+  }
+
+  const deleted = await repo.deleteSubjectTopic(subject.id, moduleId);
+  if (!deleted) {
+    res.status(404).json({ message: 'Topic not found.' });
+    return;
+  }
+
+  res.json({ message: 'Topic deleted successfully.' });
+}));
+
+router.get('/homework/:classId', asyncHandler(async (req, res) => {
+  const teacher = await repo.getTeacherById(req.user?.teacherId);
+
+  if (!teacher) {
+    res.status(404).json({ message: 'Teacher profile not found.' });
+    return;
+  }
+
+  const classId = req.params.classId;
+  if (typeof classId !== 'string' || !classId) {
+    res.status(400).json({ message: 'classId is required.' });
+    return;
+  }
+
+  const subject = await repo.getSubjectById(classId);
+  if (!subject) {
+    res.status(404).json({ message: 'Class subject not found.' });
+    return;
+  }
+
+  if (!canManageSubject(teacher, subject)) {
+    res.status(403).json({ message: 'You can only view homework for your assigned classes.' });
+    return;
+  }
+
+  const homeworks = await repo.getClassHomeworks(subject.id);
+  res.json({ homeworks });
+}));
+
+router.post('/homework', validateBody(homeworkSchema), asyncHandler(async (req, res) => {
+  const teacher = await repo.getTeacherById(req.user?.teacherId);
+
+  if (!teacher) {
+    res.status(404).json({ message: 'Teacher profile not found.' });
+    return;
+  }
+
+  const subject = await repo.getSubjectById(req.body.classId);
+  if (!subject) {
+    res.status(404).json({ message: 'Class subject not found.' });
+    return;
+  }
+
+  if (!canManageSubject(teacher, subject)) {
+    res.status(403).json({ message: 'You can only add homework to your assigned classes.' });
+    return;
+  }
+
+  const homework = await repo.createHomework({
+    classId: subject.id,
+    title: req.body.title,
+    dueDate: req.body.dueDate,
+    createdBy: req.user?.id,
+  });
+
+  res.status(201).json({ homework });
+}));
+
+router.patch('/homework/completion', validateBody(homeworkCompletionSchema), asyncHandler(async (req, res) => {
+  const teacher = await repo.getTeacherById(req.user?.teacherId);
+
+  if (!teacher) {
+    res.status(404).json({ message: 'Teacher profile not found.' });
+    return;
+  }
+
+  const subject = await repo.getSubjectById(req.body.classId);
+  if (!subject) {
+    res.status(404).json({ message: 'Class subject not found.' });
+    return;
+  }
+
+  if (!canManageSubject(teacher, subject)) {
+    res.status(403).json({ message: 'You can only update homework for your assigned classes.' });
+    return;
+  }
+
+  const updated = await repo.setHomeworkCompletion({
+    classId: subject.id,
+    homeworkId: req.body.homeworkId,
+    studentId: req.body.studentId,
+    isDone: req.body.isDone,
+    updatedBy: req.user?.id,
+  });
+
+  if (!updated) {
+    res.status(404).json({ message: 'Homework not found.' });
+    return;
+  }
+
+  res.json({ message: 'Homework completion updated.' });
+}));
+
+router.delete('/homework/:classId/:homeworkId', asyncHandler(async (req, res) => {
+  const teacher = await repo.getTeacherById(req.user?.teacherId);
+
+  if (!teacher) {
+    res.status(404).json({ message: 'Teacher profile not found.' });
+    return;
+  }
+
+  const classId = req.params.classId;
+  const homeworkId = req.params.homeworkId;
+  if (typeof classId !== 'string' || typeof homeworkId !== 'string' || !classId || !homeworkId) {
+    res.status(400).json({ message: 'classId and homeworkId are required.' });
+    return;
+  }
+
+  const subject = await repo.getSubjectById(classId);
+  if (!subject) {
+    res.status(404).json({ message: 'Class subject not found.' });
+    return;
+  }
+
+  if (!canManageSubject(teacher, subject)) {
+    res.status(403).json({ message: 'You can only delete homework from your assigned classes.' });
+    return;
+  }
+
+  const deleted = await repo.deleteHomework(subject.id, homeworkId);
+  if (!deleted) {
+    res.status(404).json({ message: 'Homework not found.' });
+    return;
+  }
+
+  res.json({ message: 'Homework deleted successfully.' });
 }));
 
 

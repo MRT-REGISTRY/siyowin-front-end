@@ -23,10 +23,11 @@ export type SubjectHomeworkItem = {
   title: string;
   dueDate: string;
   completedDate?: string;
+  createdAt?: string | null;
   status: 'completed' | 'pending';
 };
 
-export type SubjectModuleItemType = 'mark' | 'link' | 'text';
+export type SubjectModuleItemType = 'mark' | 'link' | 'text' | 'document' | 'video';
 
 export type SubjectModuleItem =
   | {
@@ -40,7 +41,7 @@ export type SubjectModuleItem =
   | {
       id: string;
       title: string;
-      type: 'link';
+      type: 'link' | 'document' | 'video';
       href: string;
       moduleId?: string;
       classId?: string;

@@ -4,12 +4,12 @@ CREATE SCHEMA public;
 CREATE EXTENSION IF NOT EXISTS pgcrypto;
 
 CREATE TYPE user_role AS ENUM ('student', 'teacher', 'admin', 'super-admin');
-CREATE TYPE exam_type_enum AS ENUM ('term-test', 'day-paper', 'month-test', 'quiz', 'practical');
+CREATE TYPE exam_type_enum AS ENUM ('term-test', 'day-paper', 'month-test', 'quiz', 'practical', 'homework');
 CREATE TYPE report_status AS ENUM ('pending', 'sent', 'failed');
 CREATE TYPE report_channel AS ENUM ('whatsapp', 'email', 'both');
 CREATE TYPE enrollment_status AS ENUM ('active', 'completed', 'cancelled');
 CREATE TYPE teacher_assignment_role AS ENUM ('primary', 'assistant');
-CREATE TYPE subject_module_item_type AS ENUM ('mark', 'link', 'text');
+CREATE TYPE subject_module_item_type AS ENUM ('mark', 'link', 'text', 'document', 'video');
 
 CREATE TABLE users (
     id TEXT PRIMARY KEY,

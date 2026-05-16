@@ -40,6 +40,20 @@ import { demoPasswordHash } from './seed.js';
 
 type DbUser = AuthUser & { passwordHash: string; password_hash?: string };
 type UpsertMarkResult = { mark: AdminStudentMark; action: 'created' | 'updated' };
+type CreateSubjectResourceInput = {
+  classId: string;
+  moduleId: string;
+  title: string;
+  href: string;
+  type: 'document' | 'video' | 'link';
+};
+type HomeworkCompletionInput = {
+  classId: string;
+  homeworkId: string;
+  studentId: string;
+  isDone: boolean;
+  updatedBy?: string;
+};
 type PublicMarksheetLookup = {
   subject: { id: string; name: string; classLabel?: string | null; teacher?: string | null };
   assignment: {
@@ -214,7 +228,434 @@ export const repo = {
         title: module.title,
         items: itemsByModuleId.get(module.id) ?? [],
       }));
-    }, () => buildMemorySubjectModules(subjectId));
+    }, () => {
+      const storedModules = store.subjectModules.filter((module) => module.id.startsWith(`${subjectId}:`));
+      return [...storedModules, ...buildMemorySubjectModules(subjectId)];
+    });
+  },
+
+  async createSubjectTopic(input: { classId: string; title: string }) {
+    const title = input.title.trim();
+
+    return withFallback(async () => {
+      const { count, error: countError } = await supabase!
+        .from('subject_modules')
+        .select('id', { count: 'exact', head: true })
+        .eq('class_id', input.classId);
+
+      if (countError) throw countError;
+
+      const moduleId = createId('mod');
+      const { data, error } = await supabase!
+        .from('subject_modules')
+        .insert({
+          id: moduleId,
+          class_id: input.classId,
+          title,
+          sort_order: count ?? 0,
+          is_active: true,
+        })
+        .select('id,title')
+        .single();
+
+      if (error) throw error;
+
+      return {
+        id: data.id,
+        title: data.title,
+        items: [],
+      } as SubjectModule;
+    }, () => {
+      const module: SubjectModule = {
+        id: `${input.classId}:${createId('mod')}`,
+        title,
+        items: [],
+      };
+      store.subjectModules.push(module);
+      return module;
+    });
+  },
+
+  async createSubjectResource(input: CreateSubjectResourceInput) {
+    const title = input.title.trim();
+    const href = input.href.trim();
+    const resourceType = input.type;
+
+    return withFallback(async () => {
+      const { data: module, error: moduleError } = await supabase!
+        .from('subject_modules')
+        .select('id,class_id')
+        .eq('id', input.moduleId)
+        .eq('class_id', input.classId)
+        .eq('is_active', true)
+        .maybeSingle();
+
+      if (moduleError) throw moduleError;
+      if (!module) throw new Error('Topic not found for this class.');
+
+      const { count, error: countError } = await supabase!
+        .from('subject_module_items')
+        .select('id', { count: 'exact', head: true })
+        .eq('module_id', input.moduleId);
+
+      if (countError) throw countError;
+
+      const itemId = createId('res');
+      const { data, error } = await supabase!
+        .from('subject_module_items')
+        .insert({
+          id: itemId,
+          module_id: input.moduleId,
+          title,
+          item_type: resourceType,
+          href,
+          sort_order: count ?? 0,
+          is_active: true,
+        })
+        .select('id,module_id,title,item_type,href,created_at')
+        .single();
+
+      if (error) throw error;
+
+      return {
+        id: data.id,
+        title: data.title,
+        type: mapModuleItemType(data.item_type),
+        href: data.href,
+        moduleId: data.module_id,
+        classId: input.classId,
+        createdAt: data.created_at ?? null,
+      } as SubjectModuleItem;
+    }, () => {
+      const module = store.subjectModules.find((item) => item.id === input.moduleId && item.id.startsWith(`${input.classId}:`));
+      if (!module) {
+        throw new Error('Topic not found for this class.');
+      }
+
+      const item: SubjectModuleItem = {
+        id: createId('res'),
+        title,
+        type: resourceType,
+        href,
+        moduleId: input.moduleId,
+        classId: input.classId,
+        createdAt: new Date().toISOString(),
+      };
+
+      module.items.push(item);
+      return item;
+    });
+  },
+
+  async deleteSubjectResource(classId: string, resourceId: string) {
+    return withFallback(async () => {
+      const { data: modules, error: modulesError } = await supabase!
+        .from('subject_modules')
+        .select('id')
+        .eq('class_id', classId);
+
+      if (modulesError) throw modulesError;
+
+      const moduleIds = (modules ?? []).map((module) => module.id);
+      if (moduleIds.length === 0) return false;
+
+      const { data: existingItem, error: itemLookupError } = await supabase!
+        .from('subject_module_items')
+        .select('id')
+        .eq('id', resourceId)
+        .in('module_id', moduleIds)
+        .maybeSingle();
+
+      if (itemLookupError) throw itemLookupError;
+      if (!existingItem) return false;
+
+      const { error } = await supabase!
+        .from('subject_module_items')
+        .delete()
+        .eq('id', resourceId)
+        .in('module_id', moduleIds);
+
+      if (error) throw error;
+      return true;
+    }, () => {
+      const module = store.subjectModules.find((item) => item.id.startsWith(`${classId}:`) && item.items.some((resource) => resource.id === resourceId));
+      if (!module) return false;
+
+      const initialLength = module.items.length;
+      module.items = module.items.filter((item) => item.id !== resourceId);
+      return module.items.length !== initialLength;
+    });
+  },
+
+  async deleteSubjectTopic(classId: string, moduleId: string) {
+    return withFallback(async () => {
+      const { data: module, error: moduleLookupError } = await supabase!
+        .from('subject_modules')
+        .select('id')
+        .eq('id', moduleId)
+        .eq('class_id', classId)
+        .maybeSingle();
+
+      if (moduleLookupError) throw moduleLookupError;
+      if (!module) return false;
+
+      const { error } = await supabase!
+        .from('subject_modules')
+        .delete()
+        .eq('id', moduleId)
+        .eq('class_id', classId);
+
+      if (error) throw error;
+      return true;
+    }, () => {
+      const initialLength = store.subjectModules.length;
+      store.subjectModules = store.subjectModules.filter((module) => !(module.id === moduleId && module.id.startsWith(`${classId}:`)));
+      return store.subjectModules.length !== initialLength;
+    });
+  },
+
+  async createHomework(input: { classId: string; title: string; dueDate: string; createdBy?: string }) {
+    const title = input.title.trim();
+    const dueDate = input.dueDate.trim();
+
+    return withFallback(async () => {
+      const homeworkId = `${input.classId}-homework-${slugify(title)}-${slugify(dueDate) || Date.now()}`;
+      const { data: exam, error: examError } = await supabase!
+        .from('exams')
+        .upsert({
+          id: homeworkId,
+          class_id: input.classId,
+          exam_type: 'homework',
+          title,
+          exam_date: dueDate,
+          total_marks: null,
+          created_by: input.createdBy ?? null,
+        }, { onConflict: 'id' })
+        .select('id,class_id,title,exam_date,created_at')
+        .single();
+
+      if (examError) throw examError;
+
+      const studentIds = await getActiveStudentIdsForClass(input.classId);
+      if (studentIds.length > 0) {
+        const { error: recordError } = await supabase!
+          .from('homework_records')
+          .upsert(studentIds.map((studentId) => ({
+            id: `${homeworkId}-${studentId}`,
+            exam_id: homeworkId,
+            student_id: studentId,
+            is_done: false,
+            updated_by: input.createdBy ?? null,
+          })), { onConflict: 'exam_id,student_id' });
+
+        if (recordError) throw recordError;
+      }
+
+      return {
+        id: exam.id,
+        classId: exam.class_id,
+        title: exam.title,
+        dueDate: exam.exam_date,
+        createdAt: exam.created_at ?? null,
+        records: studentIds.map((studentId) => ({ studentId, isDone: false })),
+      };
+    }, () => {
+      const homework = {
+        id: createId('hw'),
+        classId: input.classId,
+        title,
+        dueDate,
+        records: store.students
+          .filter((student) => student.classId === input.classId || student.enrollments?.some((enrollment) => enrollment.classId === input.classId))
+          .map((student) => ({ studentId: student.id, isDone: false, updatedAt: new Date().toISOString() })),
+      };
+      store.homeworkAssignments.unshift(homework);
+      return { ...homework, createdAt: null };
+    });
+  },
+
+  async getClassHomeworks(classId: string) {
+    return withFallback(async () => {
+      const { data: exams, error: examError } = await supabase!
+        .from('exams')
+        .select('id,class_id,title,exam_date,created_at')
+        .eq('class_id', classId)
+        .eq('exam_type', 'homework')
+        .order('exam_date', { ascending: false });
+
+      if (examError) throw examError;
+      const examRows = exams ?? [];
+      if (examRows.length === 0) return [];
+
+      const examIds = examRows.map((exam) => exam.id);
+      const { data: records, error: recordError } = await supabase!
+        .from('homework_records')
+        .select('id,exam_id,student_id,is_done,updated_at')
+        .in('exam_id', examIds);
+
+      if (recordError) throw recordError;
+
+      const recordsByExamId = new Map<string, typeof records>();
+      (records ?? []).forEach((record) => {
+        recordsByExamId.set(record.exam_id, [record, ...(recordsByExamId.get(record.exam_id) ?? [])]);
+      });
+
+      return examRows.map((exam) => {
+        const homeworkRecords = recordsByExamId.get(exam.id) ?? [];
+        return {
+          id: exam.id,
+          classId: exam.class_id,
+          title: exam.title,
+          dueDate: exam.exam_date,
+          createdAt: exam.created_at ?? null,
+          completedCount: homeworkRecords.filter((record) => record.is_done).length,
+          totalCount: homeworkRecords.length,
+          records: homeworkRecords.map((record) => ({
+            id: record.id,
+            studentId: record.student_id,
+            isDone: Boolean(record.is_done),
+            updatedAt: record.updated_at ?? null,
+          })),
+        };
+      });
+    }, () => store.homeworkAssignments
+      .filter((homework) => homework.classId === classId)
+      .map((homework) => ({
+        ...homework,
+        createdAt: null,
+        completedCount: homework.records.filter((record) => record.isDone).length,
+        totalCount: homework.records.length,
+        records: homework.records.map((record) => ({
+          id: `${homework.id}-${record.studentId}`,
+          ...record,
+        })),
+      })));
+  },
+
+  async getStudentSubjectHomeworks(studentId: string | undefined, classId: string) {
+    if (!studentId) return [];
+
+    return withFallback(async () => {
+      const { data: exams, error: examError } = await supabase!
+        .from('exams')
+        .select('id,class_id,title,exam_date,created_at')
+        .eq('class_id', classId)
+        .eq('exam_type', 'homework')
+        .order('created_at', { ascending: false });
+
+      if (examError) throw examError;
+
+      const homeworkRows = exams ?? [];
+      if (homeworkRows.length === 0) return [];
+
+      const { data: records, error: recordError } = await supabase!
+        .from('homework_records')
+        .select('exam_id,student_id,is_done,updated_at')
+        .eq('student_id', studentId)
+        .in('exam_id', homeworkRows.map((homework) => homework.id));
+
+      if (recordError) throw recordError;
+
+      const recordByExamId = new Map((records ?? []).map((record) => [record.exam_id, record]));
+
+      return homeworkRows.map((homework) => {
+        const record = recordByExamId.get(homework.id);
+        return {
+          id: homework.id,
+          title: homework.title,
+          dueDate: homework.exam_date,
+          createdAt: homework.created_at ?? null,
+          completedDate: record?.is_done ? record.updated_at ?? undefined : undefined,
+          status: record?.is_done ? 'completed' as const : 'pending' as const,
+        };
+      });
+    }, () => store.homeworkAssignments
+      .filter((homework) => homework.classId === classId)
+      .map((homework) => {
+        const record = homework.records.find((item) => item.studentId === studentId);
+        return {
+          id: homework.id,
+          title: homework.title,
+          dueDate: homework.dueDate,
+          createdAt: null,
+          completedDate: record?.isDone ? record.updatedAt : undefined,
+          status: record?.isDone ? 'completed' as const : 'pending' as const,
+        };
+      }));
+  },
+
+  async setHomeworkCompletion(input: HomeworkCompletionInput) {
+    return withFallback(async () => {
+      const { data: exam, error: examError } = await supabase!
+        .from('exams')
+        .select('id,class_id')
+        .eq('id', input.homeworkId)
+        .eq('class_id', input.classId)
+        .eq('exam_type', 'homework')
+        .maybeSingle();
+
+      if (examError) throw examError;
+      if (!exam) return false;
+
+      const { error } = await supabase!
+        .from('homework_records')
+        .upsert({
+          id: `${input.homeworkId}-${input.studentId}`,
+          exam_id: input.homeworkId,
+          student_id: input.studentId,
+          is_done: input.isDone,
+          updated_by: input.updatedBy ?? null,
+          updated_at: new Date().toISOString(),
+        }, { onConflict: 'exam_id,student_id' });
+
+      if (error) throw error;
+      return true;
+    }, () => {
+      const homework = store.homeworkAssignments.find((item) => item.id === input.homeworkId && item.classId === input.classId);
+      if (!homework) return false;
+      const record = homework.records.find((item) => item.studentId === input.studentId);
+      if (record) {
+        record.isDone = input.isDone;
+        record.updatedAt = new Date().toISOString();
+      } else {
+        homework.records.push({ studentId: input.studentId, isDone: input.isDone, updatedAt: new Date().toISOString() });
+      }
+      return true;
+    });
+  },
+
+  async deleteHomework(classId: string, homeworkId: string) {
+    return withFallback(async () => {
+      const { data: exam, error: lookupError } = await supabase!
+        .from('exams')
+        .select('id')
+        .eq('id', homeworkId)
+        .eq('class_id', classId)
+        .eq('exam_type', 'homework')
+        .maybeSingle();
+
+      if (lookupError) throw lookupError;
+      if (!exam) return false;
+
+      const { error: recordDeleteError } = await supabase!
+        .from('homework_records')
+        .delete()
+        .eq('exam_id', homeworkId);
+      if (recordDeleteError) throw recordDeleteError;
+
+      const { error } = await supabase!
+        .from('exams')
+        .delete()
+        .eq('id', homeworkId)
+        .eq('class_id', classId);
+
+      if (error) throw error;
+      return true;
+    }, () => {
+      const initialLength = store.homeworkAssignments.length;
+      store.homeworkAssignments = store.homeworkAssignments.filter((homework) => !(homework.id === homeworkId && homework.classId === classId));
+      return store.homeworkAssignments.length !== initialLength;
+    });
   },
 
   async getLatestModuleItemsForStudent(studentId: string | undefined, limit = 3) {
@@ -267,6 +708,7 @@ export const repo = {
         .from('exams')
         .select('id,class_id,title,exam_type,exam_date,total_marks,created_at')
         .in('class_id', classIds)
+        .neq('exam_type', 'homework')
         .order('exam_date', { ascending: false })
         .limit(limit);
       if (examsError) throw examsError;
@@ -339,6 +781,7 @@ export const repo = {
         .from('exams')
         .select('id,class_id,exam_type,title,exam_date,total_marks,created_at')
         .eq('class_id', subjectId)
+        .neq('exam_type', 'homework')
         .order('exam_date', { ascending: false });
 
       if (examsError) throw examsError;
@@ -669,6 +1112,38 @@ export const repo = {
     }, () => buildProgressSeriesFromMemory(studentId));
   },
 
+  async getStudentProgressBySubject(studentId?: string) {
+    if (!studentId) return {};
+
+    return withFallback(async () => {
+      const classIds = await this.getStudentClassIds(studentId);
+      if (classIds.length === 0) return {};
+
+      const { data: exams, error: examError } = await supabase!
+        .from('exams')
+        .select('id,exam_date,class_id')
+        .in('class_id', classIds);
+      if (examError) throw examError;
+      const examRows = exams ?? [];
+      if (examRows.length === 0) return {};
+
+      const examIds = examRows.map((exam) => exam.id);
+      const { data: results, error: resultError } = await supabase!
+        .from('results')
+        .select('exam_id,student_id,marks_obtained,is_absent')
+        .in('exam_id', examIds);
+      if (resultError) throw resultError;
+
+      const { data: enrollments, error: enrollmentError } = await supabase!
+        .from('enrollments')
+        .select('student_id,class_id')
+        .eq('student_id', studentId);
+      if (enrollmentError) throw enrollmentError;
+
+      return buildProgressBySubject(examRows, results ?? [], enrollments ?? [], studentId);
+    }, () => buildProgressBySubjectFromMemory(studentId));
+  },
+
   async getStudentPerformanceSummary(studentId?: string) {
     if (!studentId) return buildEmptyPerformanceSummary();
 
@@ -705,8 +1180,9 @@ export const repo = {
     return withFallback<LeaderboardEntry[]>(async () => {
       const { data: exams, error: examError } = await supabase!
         .from('exams')
-        .select('id')
-        .eq('class_id', classId);
+        .select('id,exam_date')
+        .eq('class_id', classId)
+        .neq('exam_type', 'homework');
       if (examError) throw examError;
       const examRows = exams ?? [];
       if (examRows.length === 0) return [];
@@ -727,7 +1203,7 @@ export const repo = {
         .in('id', studentIds);
       if (studentError) throw studentError;
 
-      return buildLeaderboardEntries(results ?? [], students ?? [], viewerStudentId);
+      return buildLeaderboardEntries(results ?? [], students ?? [], viewerStudentId, examRows);
     }, () => buildLeaderboardFromMemory(subjectId, classId, viewerStudentId));
   },
 
@@ -1670,7 +2146,7 @@ const mapClassAsSubject = (classItem: import('../types.js').AdminClassOption, te
 };
 
 const mapModuleItemType = (value: string | null | undefined): SubjectModuleItem['type'] => {
-  if (value === 'mark' || value === 'link' || value === 'text') return value;
+  if (value === 'mark' || value === 'link' || value === 'text' || value === 'document' || value === 'video') return value;
   return 'text';
 };
 
@@ -1837,6 +2313,29 @@ const getActiveClassIdsForStudent = async (studentId: string) => {
   ]));
 };
 
+const getActiveStudentIdsForClass = async (classId: string) => {
+  const [{ data: students, error: studentsError }, { data: enrollments, error: enrollmentsError }] = await Promise.all([
+    supabase!
+      .from('students')
+      .select('id,class_id')
+      .eq('class_id', classId),
+    supabase!
+      .from('student_enrollments')
+      .select('student_id,class_id,status')
+      .eq('class_id', classId),
+  ]);
+
+  if (studentsError) throw studentsError;
+  if (enrollmentsError) throw enrollmentsError;
+
+  return Array.from(new Set([
+    ...((students ?? []).map((student) => student.id)),
+    ...((enrollments ?? [])
+      .filter((item) => !item.status || item.status === 'active')
+      .map((item) => item.student_id)),
+  ]));
+};
+
 const getActiveEnrollmentsByStudentId = async () => {
   const { data, error } = await supabase!
     .from('student_enrollments')
@@ -1916,6 +2415,9 @@ const emptyClassMetrics = (): Partial<SubjectRecord> => ({
   classAvg: 0,
   rank: 0,
   trend: 'neutral',
+  homeworkDoneThisMonth: 0,
+  homeworkTargetThisMonth: 0,
+  recentHomeworks: [],
 });
 
 const getClassMetricsByClassId = async (classIds: string[], studentId: string): Promise<Map<string, Partial<SubjectRecord>>> => {
@@ -1970,6 +2472,48 @@ const getClassMetricsByClassId = async (classIds: string[], studentId: string): 
       trend: studentAverage >= classAverage ? 'up' : studentAverage > 0 ? 'down' : 'neutral',
     });
   });
+
+  const { data: homeworkExams, error: homeworkExamError } = await supabase!
+    .from('exams')
+    .select('id,class_id,title,exam_date,created_at')
+    .in('class_id', classIds)
+    .eq('exam_type', 'homework')
+    .order('exam_date', { ascending: false });
+  if (homeworkExamError) throw homeworkExamError;
+
+  const homeworkRows = homeworkExams ?? [];
+  if (homeworkRows.length > 0) {
+    const { data: homeworkRecords, error: homeworkRecordError } = await supabase!
+      .from('homework_records')
+      .select('exam_id,student_id,is_done,updated_at')
+      .eq('student_id', studentId)
+      .in('exam_id', homeworkRows.map((homework) => homework.id));
+
+    if (homeworkRecordError) throw homeworkRecordError;
+
+    const recordByExamId = new Map((homeworkRecords ?? []).map((record) => [record.exam_id, record]));
+
+    classIds.forEach((classId) => {
+      const classHomeworks = homeworkRows.filter((homework) => homework.class_id === classId);
+      const existingMetrics = metricsByClassId.get(classId) ?? emptyClassMetrics();
+      metricsByClassId.set(classId, {
+        ...existingMetrics,
+        homeworkDoneThisMonth: classHomeworks.filter((homework) => recordByExamId.get(homework.id)?.is_done).length,
+        homeworkTargetThisMonth: classHomeworks.length,
+        recentHomeworks: classHomeworks.slice(0, 5).map((homework) => {
+          const record = recordByExamId.get(homework.id);
+          return {
+            id: homework.id,
+            title: homework.title,
+            dueDate: homework.exam_date,
+            createdAt: homework.created_at ?? null,
+            completedDate: record?.is_done ? record.updated_at ?? undefined : undefined,
+            status: record?.is_done ? 'completed' as const : 'pending' as const,
+          };
+        }),
+      });
+    });
+  }
 
   return metricsByClassId;
 };
@@ -2030,6 +2574,73 @@ const buildProgressSeries = (
     score: stats.studentCount ? Math.round(stats.studentTotal / stats.studentCount) : 0,
     classAvg: stats.classCount ? Math.round(stats.classTotal / stats.classCount) : 0,
   }));
+};
+
+const buildProgressBySubject = (
+  exams: Array<{ id: string; exam_date: string; class_id: string }>,
+  results: Array<{ exam_id: string; student_id: string; marks_obtained: number | null; is_absent: boolean | null }>,
+  enrollments: Array<{ student_id: string; class_id: string }>,
+  studentId: string,
+) => {
+  const classIdByExam = new Map(exams.map((exam) => [exam.id, exam.class_id]));
+  const enrollmentsByClass = new Map(enrollments.map((e) => [e.class_id, e.student_id]));
+  
+  const progressBySubject = new Map<string, { marks: number[]; examDates: string[] }>();
+  
+  results.forEach((result) => {
+    if (result.student_id !== studentId || result.is_absent || result.marks_obtained === null) return;
+    
+    const classId = classIdByExam.get(result.exam_id);
+    if (!classId || enrollmentsByClass.get(classId) !== studentId) return;
+    
+    const exam = exams.find((e) => e.id === result.exam_id);
+    if (!exam) return;
+    
+    const progress = progressBySubject.get(classId) || { marks: [], examDates: [] };
+    progress.marks.push(Number(result.marks_obtained));
+    progress.examDates.push(exam.exam_date);
+    progressBySubject.set(classId, progress);
+  });
+
+  const result: Record<string, { average: number; latest: number }> = {};
+  
+  progressBySubject.forEach((progress, classId) => {
+    if (progress.marks.length === 0) return;
+    
+    const average = Math.round(progress.marks.reduce((a, b) => a + b, 0) / progress.marks.length);
+    const latest = progress.marks[progress.marks.length - 1] ?? 0;
+    
+    result[classId] = { average, latest };
+  });
+
+  return result;
+};
+
+const buildProgressBySubjectFromMemory = (studentId: string) => {
+  const student = store.students.find((item) => item.id === studentId);
+  if (!student) return {};
+  
+  const progressBySubject = new Map<string, { marks: number[]; examDates: string[] }>();
+  
+  student.marks.forEach((mark) => {
+    const progress = progressBySubject.get(mark.subjectId) || { marks: [], examDates: [] };
+    progress.marks.push(mark.mark);
+    progress.examDates.push(mark.examDate);
+    progressBySubject.set(mark.subjectId, progress);
+  });
+
+  const result: Record<string, { average: number; latest: number }> = {};
+  
+  progressBySubject.forEach((progress, subjectId) => {
+    if (progress.marks.length === 0) return;
+    
+    const average = Math.round(progress.marks.reduce((a, b) => a + b, 0) / progress.marks.length);
+    const latest = progress.marks[progress.marks.length - 1] ?? 0;
+    
+    result[subjectId] = { average, latest };
+  });
+
+  return result;
 };
 
 const buildProgressSeriesFromMemory = (studentId: string) => {
@@ -2144,7 +2755,42 @@ const buildLeaderboardEntries = (
   results: Array<{ exam_id: string; student_id: string; marks_obtained: number | null; is_absent: boolean | null }>,
   students: Array<{ id: string; name: string }>,
   viewerStudentId?: string,
+  exams?: Array<{ id: string; exam_date: string }>,
 ) => {
+  // If exams are provided, use the latest exam for ranking
+  if (exams && exams.length > 0) {
+    const sortedExams = [...exams].sort((a, b) => String(b.exam_date).localeCompare(String(a.exam_date)));
+    const latestExamId = sortedExams[0]?.id;
+    if (!latestExamId) return [];
+    
+    const latestResults = results.filter((r) => r.exam_id === latestExamId && !r.is_absent && r.marks_obtained !== null);
+    const studentById = new Map(students.map((student) => [student.id, student]));
+    
+    const ranked = latestResults
+      .map((result) => {
+        const student = studentById.get(result.student_id);
+        const name = student?.name ?? 'Student';
+        return {
+          studentId: result.student_id,
+          name,
+          marks: Number(result.marks_obtained),
+          avatar: name.charAt(0).toUpperCase(),
+        };
+      })
+      .sort((a, b) => b.marks - a.marks)
+      .map((entry, index) => ({
+        rank: index + 1,
+        name: entry.name,
+        marks: entry.marks,
+        avatar: entry.avatar,
+        badge: index === 0 ? ('gold' as const) : index === 1 ? ('silver' as const) : index === 2 ? ('bronze' as const) : null,
+        isYou: viewerStudentId ? entry.studentId === viewerStudentId : false,
+      }));
+
+    return ranked;
+  }
+
+  // Fallback to average if no exams provided
   const totals = new Map<string, { total: number; count: number }>();
   results.forEach((result) => {
     if (result.is_absent || result.marks_obtained === null) return;

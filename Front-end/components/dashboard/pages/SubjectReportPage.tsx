@@ -1,8 +1,8 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { ArrowLeft, ChevronDown, ChevronRight, FileText, Link2, Trophy } from 'lucide-react';
-import { ApiSubjectModule, SubjectRecord } from '@/types';
+import { useEffect, useMemo, useState } from 'react';
+import { ArrowLeft, CheckCircle2, ChevronDown, ChevronRight, Circle, ExternalLink, FileText, Link2, Trophy, Video } from 'lucide-react';
+import { ApiSubjectModule, SubjectHomeworkItem, SubjectRecord } from '@/types';
 import { apiGet } from '@/utils/api';
 
 interface Props {
@@ -10,13 +10,54 @@ interface Props {
   onBack: () => void;
 }
 
+type FeedItem = {
+  id: string;
+  title: string;
+  date: string | null;
+  kind: 'document' | 'video' | 'link' | 'mark' | 'homework';
+  href?: string;
+  topic?: string;
+  meta?: string;
+  status?: 'completed' | 'pending';
+};
+
+const dateValue = (value?: string | null) => {
+  if (!value) return 0;
+  const parsed = new Date(value).getTime();
+  return Number.isNaN(parsed) ? 0 : parsed;
+};
+
+const formatDate = (value?: string | null) => {
+  if (!value) return 'No date';
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return value;
+  return parsed.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+};
+
+const getItemLabel = (item: FeedItem) => {
+  if (item.kind === 'mark') return 'Assignment result';
+  if (item.kind === 'homework') return 'Homework';
+  if (item.kind === 'document') return 'Document';
+  if (item.kind === 'video') return 'Video';
+  return 'Link';
+};
+
+const getItemTone = (item: FeedItem) => {
+  if (item.kind === 'mark') return 'border-amber-200 bg-amber-50 text-amber-700';
+  if (item.kind === 'video') return 'border-rose-200 bg-rose-50 text-rose-700';
+  if (item.kind === 'document') return 'border-emerald-200 bg-emerald-50 text-emerald-700';
+  if (item.kind === 'link') return 'border-sky-200 bg-sky-50 text-sky-700';
+  if (item.status === 'completed') return 'border-emerald-200 bg-emerald-50 text-emerald-700';
+  return 'border-slate-200 bg-slate-50 text-slate-600';
+};
+
 export default function SubjectReportPage({ subject, onBack }: Props) {
   const [modules, setModules] = useState<ApiSubjectModule[]>([]);
   const [results, setResults] = useState<any[]>([]);
-  const [expandedModules, setExpandedModules] = useState<string[]>([]);
+  const [homework, setHomework] = useState<SubjectHomeworkItem[]>(subject.recentHomeworks);
+  const [expandedItems, setExpandedItems] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const allExpanded = modules.length > 0 && expandedModules.length === modules.length;
 
   useEffect(() => {
     let mounted = true;
@@ -24,40 +65,20 @@ export default function SubjectReportPage({ subject, onBack }: Props) {
     setLoading(true);
     setError('');
     setModules([]);
-    setExpandedModules([]);
+    setResults([]);
+    setHomework(subject.recentHomeworks);
+    setExpandedItems([]);
 
     Promise.all([
       apiGet<{ subjectId: string; modules: ApiSubjectModule[] }>(`/dashboard/subjects/${subject.id}/modules`),
       apiGet(`/dashboard/subjects/${subject.id}/results`).catch(() => ({ recentResults: [], results: [] })),
+      apiGet<{ subjectId: string; homework: SubjectHomeworkItem[] }>(`/dashboard/subjects/${subject.id}/homework`).catch(() => ({ homework: subject.recentHomeworks })),
     ])
-      .then(([response, resultResp]: any) => {
+      .then(([response, resultResp, homeworkResp]: any) => {
         if (!mounted) return;
-        const nextModules = response.modules ?? [];
-        const recentResults = (resultResp?.recentResults ?? resultResp?.results ?? []) as any[];
-        const nextModuleIds = new Set(nextModules.map((module) => module.id));
-
-        const resultModules = recentResults
-          .filter((r) => !r.isAbsent && r.marksObtained !== null)
-          .filter((r, index, all) => all.findIndex((candidate) => candidate.examId === r.examId) === index)
-          .map((r) => ({
-            id: `result-${r.examId}`,
-            title: r.examTitle,
-            items: [{
-              id: r.examId,
-              title: `${r.examTitle}: ${r.marksObtained}/${r.totalMarks ?? 100}`,
-              type: 'mark' as const,
-              createdAt: r.createdAt ?? r.examDate ?? null,
-            }],
-          }));
-
-        const mergedModules = [
-          ...nextModules,
-          ...resultModules.filter((module) => !nextModuleIds.has(module.id)),
-        ];
-
-        setModules(mergedModules);
-        setResults(recentResults);
-        setExpandedModules(mergedModules.slice(0, 3).map((module) => module.id));
+        setModules(response.modules ?? []);
+        setResults((resultResp?.results ?? resultResp?.recentResults ?? []) as any[]);
+        setHomework((homeworkResp?.homework ?? subject.recentHomeworks) as SubjectHomeworkItem[]);
       })
       .catch((fetchError) => {
         if (!mounted) return;
@@ -70,31 +91,67 @@ export default function SubjectReportPage({ subject, onBack }: Props) {
     return () => {
       mounted = false;
     };
-  }, [subject.id]);
+  }, [subject.id, subject.recentHomeworks]);
 
-  const toggleModule = (moduleId: string) => {
-    setExpandedModules((prev) =>
-      prev.includes(moduleId) ? prev.filter((id) => id !== moduleId) : [...prev, moduleId]
+  const feedItems = useMemo<FeedItem[]>(() => {
+    const resourceItems = modules.flatMap((module) =>
+      module.items
+        .filter((item) => item.type === 'document' || item.type === 'video' || item.type === 'link')
+        .map((item) => ({
+          id: item.id,
+          title: item.title,
+          date: item.createdAt ?? null,
+          kind: item.type,
+          href: item.href,
+        } satisfies FeedItem)),
+    );
+
+    const markItems = results
+      .filter((result, index, all) =>
+        !result.isAbsent &&
+        result.marksObtained !== null &&
+        all.findIndex((candidate) => candidate.examId === result.examId) === index,
+      )
+      .map((result) => ({
+        id: `result-${result.examId}`,
+        title: result.examTitle,
+        date: result.createdAt ?? result.examDate ?? null,
+        kind: 'mark' as const,
+        meta: `${result.marksObtained}/${result.totalMarks ?? 100}`,
+      }));
+
+    const homeworkItems = homework.map((item) => ({
+      id: `homework-${item.id}`,
+      title: item.title,
+      date: item.createdAt ?? item.dueDate ?? null,
+      kind: 'homework' as const,
+      status: item.status,
+    }));
+
+    return [...resourceItems, ...markItems, ...homeworkItems]
+      .sort((a, b) => dateValue(b.date) - dateValue(a.date));
+  }, [homework, modules, results]);
+
+  const allExpanded = feedItems.length > 0 && expandedItems.length === feedItems.length;
+
+  const toggleItem = (itemId: string) => {
+    setExpandedItems((current) =>
+      current.includes(itemId) ? current.filter((id) => id !== itemId) : [...current, itemId],
     );
   };
 
   const toggleAll = () => {
-    if (allExpanded) {
-      setExpandedModules([]);
-    } else {
-      setExpandedModules(modules.map((module) => module.id));
-    }
+    setExpandedItems(allExpanded ? [] : feedItems.map((item) => item.id));
   };
 
   return (
-    <div className="flex flex-col min-h-screen bg-slate-50 font-sans">
-      {/* Header Area */}
-      <div className="px-4 md:px-8 pt-4 md:pt-6">
-        <div className="max-w-[1400px] mx-auto rounded-2xl bg-slate-200 border border-slate-300 shadow-sm px-6 py-5">
+    <div className="flex min-h-screen flex-col bg-slate-50 font-sans">
+      <div className="px-4 pt-4 md:px-8 md:pt-6">
+        <div className="mx-auto max-w-[1400px] rounded-2xl border border-slate-300 bg-slate-200 px-6 py-5 shadow-sm">
           <button
             type="button"
             onClick={onBack}
-            className="flex items-center text-sm text-slate-500 hover:text-slate-900 mb-4 transition-colors"
+            className="mb-4 flex items-center text-sm text-slate-500 transition-colors hover:text-slate-900"
           >
             <ArrowLeft size={16} className="mr-1" /> Back to My courses
           </button>
@@ -104,83 +161,84 @@ export default function SubjectReportPage({ subject, onBack }: Props) {
         </div>
       </div>
 
-      {/* Main Content Area */}
-      <div className="flex-1 w-full px-4 md:px-8 py-4 md:py-6">
-        <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden w-full max-w-[1400px] mx-auto">
-          {!loading && !error && modules.length > 0 && (
-            <div className="px-4 md:px-6 py-3 border-b border-slate-100 flex justify-end">
+      <div className="w-full flex-1 px-4 py-4 md:px-8 md:py-6">
+        <div className="mx-auto w-full max-w-[980px]">
+          <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <h2 className="text-xl font-black text-slate-950">Subject Activity</h2>
+              <p className="mt-1 text-sm font-medium text-slate-500">Newest items are shown first.</p>
+            </div>
+            {!loading && !error && feedItems.length > 0 && (
               <button
+                type="button"
                 onClick={toggleAll}
-                className="text-sm font-medium text-blue-600 hover:text-blue-800 transition-colors"
+                className="self-start rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs font-bold text-slate-700 shadow-sm transition hover:bg-slate-50 sm:self-center sm:text-sm"
               >
                 {allExpanded ? 'Collapse all' : 'Expand all'}
               </button>
-            </div>
+            )}
+          </div>
+
+          {loading && <p className="rounded-xl border border-slate-200 bg-white px-4 py-6 text-sm text-slate-500">Loading subject content...</p>}
+          {!loading && error && <p className="rounded-xl border border-rose-100 bg-white px-4 py-6 text-sm text-rose-600">{error}</p>}
+          {!loading && !error && feedItems.length === 0 && (
+            <p className="rounded-xl border border-slate-200 bg-white px-4 py-6 text-sm italic text-slate-400">No subject activity available.</p>
           )}
 
-          {loading && <p className="px-4 md:px-6 py-6 text-sm text-slate-500">Loading subject content...</p>}
-          {!loading && error && <p className="px-4 md:px-6 py-6 text-sm text-rose-600">{error}</p>}
-          {!loading && !error && modules.length === 0 && (
-            <p className="px-4 md:px-6 py-6 text-sm text-slate-400 italic">No resources available.</p>
-          )}
-
-          <div className="divide-y divide-slate-100">
-            {modules.map((module) => {
-              const isExpanded = expandedModules.includes(module.id);
+          <div className="space-y-3">
+            {feedItems.map((item) => {
+              const isExpanded = expandedItems.includes(item.id);
               return (
-                <div key={module.id} className="group">
+                <div key={item.id} className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
                   <button
-                    onClick={() => toggleModule(module.id)}
-                    className="w-full flex items-center px-4 md:px-6 py-5 hover:bg-slate-50 transition-colors focus:outline-none focus:bg-slate-50"
+                    type="button"
+                    onClick={() => toggleItem(item.id)}
+                    className="flex w-full items-center gap-3 px-4 py-4 text-left transition hover:bg-slate-50 sm:px-5"
+                    aria-expanded={isExpanded}
                   >
-                    <div className="flex items-center justify-center w-6 h-6 rounded-full bg-slate-100 text-slate-500 mr-4 group-hover:bg-blue-100 group-hover:text-blue-600 transition-colors">
-                      {isExpanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+                    <span className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-sky-50 text-sky-600">
+                      {isExpanded ? <ChevronDown size={17} /> : <ChevronRight size={17} />}
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex min-w-0 flex-col gap-1 sm:flex-row sm:items-center sm:gap-3">
+                        <h3 className="line-clamp-2 text-base font-black leading-snug text-slate-950 sm:text-xl">{item.title}</h3>
+                        <span className={`w-fit rounded-full border px-2 py-0.5 text-[9px] font-black uppercase tracking-wider sm:text-[10px] ${getItemTone(item)}`}>
+                          {getItemLabel(item)}
+                        </span>
+                      </div>
+                      <p className="mt-1 text-xs font-semibold text-slate-500">
+                        {formatDate(item.date)}
+                      </p>
                     </div>
-                    <h2 className="text-lg font-semibold text-slate-800">{module.title}</h2>
                   </button>
 
                   {isExpanded && (
-                    <div className="px-4 md:px-6 pb-6 pl-14 md:pl-16">
-                      {module.items.length > 0 ? (
-                        <ul className="space-y-3">
-                          {module.items.map((item) => (
-                            <li key={item.id} className="flex items-start">
-                              {item.type === 'mark' && (
-                                <>
-                                  <span className="mt-0.5 mr-3 text-amber-500">
-                                    <Trophy size={18} />
-                                  </span>
-                                  <span className="rounded-full bg-amber-50 px-3 py-1 text-[15px] font-semibold text-amber-700 ring-1 ring-amber-200">
-                                    {item.title}
-                                  </span>
-                                </>
-                              )}
+                    <div className="border-t border-slate-200 px-4 pb-4 sm:px-5">
+                      <div className="divide-y divide-slate-200">
+                        <div className="flex items-center gap-3 py-4">
+                          <FeedIcon item={item} />
+                          <div className="min-w-0 flex-1">
+                            {item.href ? (
+                              <a href={item.href} target="_blank" rel="noreferrer" className="text-sm font-semibold text-blue-700 hover:underline sm:text-[15px]">
+                                {item.title}
+                              </a>
+                            ) : (
+                              <p className="text-sm font-semibold text-slate-800 sm:text-[15px]">{item.title}</p>
+                            )}
+                            <p className="mt-2 text-xs text-slate-500">
+                              {formatDate(item.date)}
+                            </p>
+                          </div>
+                          <ActivityAction item={item} />
+                        </div>
 
-                              {item.type === 'link' && (
-                                <>
-                                  <span className="mt-0.5 mr-3 text-blue-600">
-                                    <Link2 size={18} />
-                                  </span>
-                                  <a href={item.href} className="text-blue-600 hover:underline font-medium text-[15px]">
-                                    {item.title}
-                                  </a>
-                                </>
-                              )}
-
-                              {item.type === 'text' && (
-                                <>
-                                  <span className="mt-0.5 mr-3 text-slate-500">
-                                    <FileText size={18} />
-                                  </span>
-                                  <p className="text-[15px] leading-6 text-slate-700">{item.title}</p>
-                                </>
-                              )}
-                            </li>
-                          ))}
-                        </ul>
-                      ) : (
-                        <p className="text-sm text-slate-400 italic">No resources available.</p>
-                      )}
+                        {(item.meta || item.kind === 'homework') && (
+                          <div className="grid gap-2 py-3 text-xs text-slate-600 sm:grid-cols-3">
+                            <p><span className="font-black text-slate-500">Added:</span> {formatDate(item.date)}</p>
+                            {item.meta && <p><span className="font-black text-slate-500">Details:</span> {item.meta}</p>}
+                          </div>
+                        )}
+                      </div>
                     </div>
                   )}
                 </div>
@@ -191,4 +249,43 @@ export default function SubjectReportPage({ subject, onBack }: Props) {
       </div>
     </div>
   );
+}
+
+function FeedIcon({ item }: { item: FeedItem }) {
+  const className = 'mt-0.5 h-9 w-9 flex-shrink-0 rounded-xl border p-2 shadow-sm sm:h-11 sm:w-11 sm:rounded-2xl sm:p-2.5';
+
+  if (item.kind === 'mark') return <Trophy className={`${className} border-amber-200 bg-amber-50 text-amber-600`} />;
+  if (item.kind === 'video') return <Video className={`${className} border-rose-200 bg-rose-50 text-rose-600`} />;
+  if (item.kind === 'document') return <FileText className={`${className} border-emerald-200 bg-emerald-50 text-emerald-600`} />;
+  if (item.kind === 'link') return <Link2 className={`${className} border-sky-200 bg-sky-50 text-sky-600`} />;
+  if (item.status === 'completed') return <CheckCircle2 className={`${className} border-emerald-200 bg-emerald-50 text-emerald-600`} />;
+  return <Circle className={`${className} border-slate-200 bg-slate-50 text-slate-500`} />;
+}
+
+function ActivityAction({ item }: { item: FeedItem }) {
+  if (item.kind === 'homework') {
+    return (
+      <span className={item.status === 'completed' ? 'shrink-0 rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs font-black text-slate-900' : 'shrink-0 rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs font-black text-slate-900'}>
+        {item.status === 'completed' ? 'Done' : 'Pending'}
+      </span>
+    );
+  }
+
+  if (item.href) {
+    return (
+      <a href={item.href} target="_blank" rel="noreferrer" className="hidden shrink-0 items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs font-black text-slate-900 transition hover:bg-slate-50 sm:inline-flex">
+        Open <ExternalLink size={13} />
+      </a>
+    );
+  }
+
+  if (item.kind === 'mark') {
+    return (
+      <span className="shrink-0 rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs font-black text-slate-900">
+        {item.meta ?? 'Result'}
+      </span>
+    );
+  }
+
+  return null;
 }

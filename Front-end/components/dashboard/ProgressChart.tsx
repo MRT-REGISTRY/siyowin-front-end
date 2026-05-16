@@ -48,7 +48,7 @@ const CustomTooltip = ({ active, payload, label }: any) => {
         <p className="sd-tooltip-label">{label}</p>
         {payload.map((p: any) => (
           <p key={p.dataKey} style={{ color: p.color }} className="sd-tooltip-value">
-            {p.name}: <strong>{p.value}%</strong>
+            {p.name}: <strong>{p.value}</strong>
           </p>
         ))}
       </div>
@@ -143,7 +143,7 @@ export default function ProgressChart({ data, subjects = [] }: Props) {
             </select>
           )}
           <div className="sd-trend-pill" style={{ backgroundColor: `${trendColor}18`, color: trendColor }}>
-            {diff >= 0 ? '↑' : '↓'} {trend} · {diff > 0 ? '+' : ''}{diff}%
+            {diff >= 0 ? '↑' : '↓'} {trend} · {diff > 0 ? '+' : ''}{diff}
           </div>
         </div>
       </div>
@@ -170,7 +170,6 @@ export default function ProgressChart({ data, subjects = [] }: Props) {
               tick={{ fontSize: 12, fill: '#9CA3AF' }}
               axisLine={false}
               tickLine={false}
-              tickFormatter={(v) => `${v}%`}
             />
             <Tooltip content={<CustomTooltip />} />
             <Legend iconType="circle" iconSize={8} wrapperStyle={{ fontSize: 12, paddingTop: 12 }} />
@@ -183,12 +182,12 @@ export default function ProgressChart({ data, subjects = [] }: Props) {
         </ResponsiveContainer>
       </div>
 
-      {/* Monthly summary pills */}
+      {/* Subject summary pills */}
       <div className="sd-chart-pills">
         {chartData.map((d, i) => (
           <div key={`${d.label}-${i}`} className={`sd-chart-pill ${i === 0 ? 'sd-chart-pill-active' : ''}`}>
             <span className="sd-pill-month">{d.label}</span>
-            <span className="sd-pill-score">{d.score}/100</span>
+            <span className="sd-pill-score">{d.score}/{d.totalMarks}</span>
           </div>
         ))}
       </div>

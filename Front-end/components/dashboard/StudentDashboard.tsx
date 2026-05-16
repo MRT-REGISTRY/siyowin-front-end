@@ -10,6 +10,7 @@ import SubjectsPage from './pages/SubjectsPage';
 import SubjectReportPage from './pages/SubjectReportPage';
 import ProgressPage from './pages/ProgressPage';
 import SettingsPage from './pages/SettingsPage';
+import HomeworkSection from './HomeworkSection';
 import { apiGet } from '@/utils/api';
 import { ApiSubjectRecord, DashboardOverview, StudentProfile, SubjectRecord, SubjectModuleItem } from '@/types';
 import { normalizeSubjects } from '@/utils/subjects';
@@ -49,6 +50,13 @@ export default function StudentDashboard() {
     ].some((value) => (value ?? '').toLowerCase().includes(normalizedSearchQuery)));
   }, [normalizedSearchQuery, subjects]);
   const selectedSubject = selectedSubjectId ? subjects.find((subject) => subject.id === selectedSubjectId) ?? null : null;
+  const homework = useMemo(() => subjects.flatMap((subject) =>
+    subject.recentHomeworks.map((item) => ({
+      ...item,
+      subjectName: subject.name,
+      color: subject.color,
+    })),
+  ), [subjects]);
 
   useEffect(() => {
     let mounted = true;
@@ -168,6 +176,10 @@ export default function StudentDashboard() {
 
               <div className="sd-dashboard-progress">
                 <ProgressChart data={progress} subjects={subjects} />
+              </div>
+
+              <div className="sd-dashboard-progress">
+                <HomeworkSection homework={homework} />
               </div>
             </div>
           )}

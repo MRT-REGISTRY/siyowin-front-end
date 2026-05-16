@@ -10,7 +10,7 @@ import {
   teachers,
   users,
 } from './seed.js';
-import { AdminStudent, AdminStudentMark, AdminTeacher, AuthUser, DashboardOverview, LeaderboardEntry, StudentEnrollment } from '../types.js';
+import { AdminStudent, AdminStudentMark, AdminTeacher, AuthUser, DashboardOverview, LeaderboardEntry, StudentEnrollment, SubjectModule } from '../types.js';
 import { buildMarkKey, normalizeSearchText } from '../utils/marks.js';
 import { createId } from '../utils/ids.js';
 
@@ -26,6 +26,8 @@ export const store = {
   examTypes,
   csvColumns,
   studentEnrollments: [] as StudentEnrollment[],
+  subjectModules: [] as SubjectModule[],
+  homeworkAssignments: [] as Array<{ id: string; classId: string; title: string; dueDate: string; records: Array<{ studentId: string; isDone: boolean; updatedAt: string }> }>,
 };
 
 export const publicUser = (user: AuthUser): AuthUser => ({

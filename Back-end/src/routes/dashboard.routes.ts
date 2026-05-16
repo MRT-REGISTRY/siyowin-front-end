@@ -177,6 +177,33 @@ router.get('/subjects/:subjectId/homework', requireRoles('student', 'teacher', '
     return;
   }
 
+  if (req.user?.role === 'student') {
+    const studentId = req.user.studentId;
+    if (!studentId) {
+      res.status(400).json({ message: 'Student profile is required.' });
+      return;
+    }
+
+    const enrolledSubjects = await repo.getEnrolledSubjects(studentId);
+    if (!enrolledSubjects.some((item) => item.id === subject.id)) {
+      res.status(403).json({ message: 'You are not enrolled in this subject.' });
+      return;
+    }
+
+    const homework = await repo.getStudentSubjectHomeworks(studentId, subject.id);
+    const completed = homework.filter((item) => item.status === 'completed').length;
+    res.json({
+      subjectId: subject.id,
+      homework,
+      summary: {
+        completed,
+        target: homework.length,
+        percent: homework.length ? Math.round((completed / homework.length) * 100) : 0,
+      },
+    });
+    return;
+  }
+
   const limit = Number(req.query.limit ?? 5);
   res.json({
     subjectId: subject.id,
