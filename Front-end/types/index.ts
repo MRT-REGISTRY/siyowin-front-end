@@ -145,6 +145,10 @@ export type StudentProfile = {
   grade: string;
   classId: string;
   email?: string;
+  address?: string;
+  school?: string;
+  parentName?: string;
+  parentPhone?: string;
   term: string;
   year: number;
   avatar: string;

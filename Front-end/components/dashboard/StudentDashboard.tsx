@@ -193,7 +193,7 @@ export default function StudentDashboard() {
           )}
           
           {activeNav === 'progress'    && <ProgressPage overview={overview} subjects={subjects} progress={progress} />}
-          {activeNav === 'settings'    && <SettingsPage profile={profile} />}
+          {activeNav === 'settings'    && <SettingsPage profile={profile} onProfileUpdate={setProfile} />}
         </main>
       </div>
     </div>

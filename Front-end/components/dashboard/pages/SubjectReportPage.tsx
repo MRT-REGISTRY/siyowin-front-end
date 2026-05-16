@@ -162,7 +162,7 @@ export default function SubjectReportPage({ subject, onBack }: Props) {
       </div>
 
       <div className="w-full flex-1 px-4 py-4 md:px-8 md:py-6">
-        <div className="mx-auto w-full max-w-[980px]">
+        <div className="mx-auto w-full max-w-[1400px]">
           <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <h2 className="text-xl font-black text-slate-950">Subject Activity</h2>

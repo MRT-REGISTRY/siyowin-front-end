@@ -63,6 +63,10 @@ export const getStudentProfile = (studentId?: string) => {
     index: student.index,
     grade: student.grade,
     classId: student.classId,
+    address: student.address,
+    school: student.school,
+    parentName: student.parentName,
+    parentPhone: student.parentPhone,
     avatar: student.name.charAt(0).toUpperCase(),
   };
 };
@@ -146,6 +150,8 @@ export const createStudent = (input: Omit<AdminStudent, 'id' | 'marks' | 'grade'
     name: input.name,
     index: input.index,
     dateOfBirth: input.dateOfBirth,
+    address: input.address,
+    school: input.school,
     grade: classItem?.grade ?? input.grade ?? 'Unassigned',
     classId: input.classId,
     enrollments: [],

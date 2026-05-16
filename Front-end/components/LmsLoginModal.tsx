@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react'
 import { X, GraduationCap, BookOpen, Eye, EyeOff, ArrowLeft, LogIn, ChevronRight } from 'lucide-react'
-import { getDashboardPathForRole, login } from '@/utils/api'
+import { getDashboardPathForRole, login, storeSession } from '@/utils/api'
 
 // ── Siyowin brand colours (from logo) ────────────────────────────────
 const BRAND = {
@@ -28,6 +28,7 @@ export default function LmsLoginModal({ isOpen, onClose }: LmsLoginModalProps) {
   const [identifier, setIdentifier] = useState('')
   const [password, setPassword] = useState('')
   const [showPw, setShowPw]     = useState(false)
+  const [rememberMe, setRememberMe] = useState(true)
   const [loading, setLoading]   = useState(false)
   const [visible, setVisible]   = useState(false)
   const [error, setError]       = useState('')
@@ -43,7 +44,7 @@ export default function LmsLoginModal({ isOpen, onClose }: LmsLoginModalProps) {
       const t = setTimeout(() => {
         setStep('choose'); setRole(null)
         setIdentifier(''); setPassword('')
-        setShowPw(false); setLoading(false); setError('')
+        setShowPw(false); setRememberMe(true); setLoading(false); setError('')
       }, 380)
       return () => clearTimeout(t)
     }
@@ -81,8 +82,7 @@ export default function LmsLoginModal({ isOpen, onClose }: LmsLoginModalProps) {
         : { email: identifier, password, role }
       
       const result = await login(loginPayload)
-      window.localStorage.setItem('siyowin_token', result.token)
-      window.localStorage.setItem('siyowin_user', JSON.stringify(result.user))
+      storeSession(result, rememberMe)
       window.location.href = getDashboardPathForRole(result.user.role)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Sign in failed.')
@@ -292,7 +292,12 @@ export default function LmsLoginModal({ isOpen, onClose }: LmsLoginModalProps) {
 
               {/* Remember me */}
               <div className="flex items-center gap-2">
-                <input type="checkbox" id="remember" className="h-4 w-4 rounded"
+                <input
+                  type="checkbox"
+                  id="remember"
+                  checked={rememberMe}
+                  onChange={(event) => setRememberMe(event.target.checked)}
+                  className="h-4 w-4 rounded"
                   style={{ accentColor: roleColor }} />
                 <label htmlFor="remember" className="text-xs text-gray-500 cursor-pointer">
                   Remember me on this device

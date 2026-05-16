@@ -149,6 +149,8 @@ export type AdminStudent = {
   name: string;
   index: string;
   dateOfBirth?: string;
+  address?: string;
+  school?: string;
   grade: string;
   classId: string;
   enrollments?: StudentEnrollment[];

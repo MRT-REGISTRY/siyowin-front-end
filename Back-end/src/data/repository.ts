@@ -54,6 +54,13 @@ type HomeworkCompletionInput = {
   isDone: boolean;
   updatedBy?: string;
 };
+type StudentProfileUpdateInput = {
+  name: string;
+  address?: string | null;
+  school?: string | null;
+  parentName?: string | null;
+  parentPhone?: string | null;
+};
 type PublicMarksheetLookup = {
   subject: { id: string; name: string; classLabel?: string | null; teacher?: string | null };
   assignment: {
@@ -1028,7 +1035,7 @@ export const repo = {
       if (!studentId) return undefined;
       const { data, error } = await supabase!
         .from('students')
-        .select('id,name,index_number,date_of_birth,class_id,parent_name,parent_phone')
+        .select('id,name,index_number,date_of_birth,class_id,address,school,parent_name,parent_phone')
         .eq('id', studentId)
         .maybeSingle();
       if (error) throw error;
@@ -1044,6 +1051,10 @@ export const repo = {
         dateOfBirth: data.date_of_birth ?? undefined,
         grade: classItem?.grade ?? 'Unassigned',
         classId: primaryClassId ?? '',
+        address: data.address ?? undefined,
+        school: data.school ?? undefined,
+        parentName: data.parent_name ?? undefined,
+        parentPhone: data.parent_phone ?? undefined,
         avatar: data.name.charAt(0).toUpperCase(),
         term: termInfo.term,
         year: termInfo.year,
@@ -1059,6 +1070,53 @@ export const repo = {
         term: termInfo.term,
         year: termInfo.year,
       };
+    });
+  },
+
+  async updateStudentProfile(studentId: string | undefined, input: StudentProfileUpdateInput) {
+    if (!studentId) return undefined;
+
+    const nextName = input.name.trim();
+    const normalizeOptional = (value?: string | null) => {
+      const trimmed = value?.trim() ?? '';
+      return trimmed || null;
+    };
+
+    return withFallback(async () => {
+      const { data, error } = await supabase!
+        .from('students')
+        .update({
+          name: nextName,
+          address: normalizeOptional(input.address),
+          school: normalizeOptional(input.school),
+          parent_name: normalizeOptional(input.parentName),
+          parent_phone: normalizeOptional(input.parentPhone),
+        })
+        .eq('id', studentId)
+        .select('id')
+        .maybeSingle();
+
+      if (error) throw error;
+      if (!data) return undefined;
+
+      const { error: userError } = await supabase!
+        .from('users')
+        .update({ name: nextName })
+        .eq('student_id', studentId);
+      if (userError) throw userError;
+
+      return this.getStudentProfile(studentId);
+    }, () => {
+      const student = store.students.find((item) => item.id === studentId);
+      if (!student) return undefined;
+      student.name = nextName;
+      student.address = normalizeOptional(input.address) ?? undefined;
+      student.school = normalizeOptional(input.school) ?? undefined;
+      student.parentName = normalizeOptional(input.parentName) ?? undefined;
+      student.parentPhone = normalizeOptional(input.parentPhone) ?? undefined;
+      const user = store.users.find((item) => item.studentId === studentId);
+      if (user) user.name = nextName;
+      return this.getStudentProfile(studentId);
     });
   },
 
@@ -2086,6 +2144,8 @@ const mapStudentWithData = (
     name: data.name,
     index: data.index_number,
     dateOfBirth: data.date_of_birth ?? undefined,
+    address: data.address ?? undefined,
+    school: data.school ?? undefined,
     grade: primaryClass?.grade ?? 'Unassigned',
     classId: data.class_id ?? enrollments[0]?.classId ?? '',
     enrollments,

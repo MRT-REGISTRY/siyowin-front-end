@@ -1,11 +1,21 @@
 import { Router } from 'express';
+import { z } from 'zod';
 import { requireAuth, requireRoles } from '../middleware/auth.js';
 import { repo } from '../data/repository.js';
 import { asyncHandler } from '../middleware/asyncHandler.js';
+import { validateBody } from '../middleware/validate.js';
 
 const router = Router();
 
 router.use(requireAuth);
+
+const studentProfileUpdateSchema = z.object({
+  name: z.string().trim().min(1, 'Full name is required.').max(100),
+  address: z.string().trim().max(300).optional().nullable(),
+  school: z.string().trim().max(150).optional().nullable(),
+  parentName: z.string().trim().max(100).optional().nullable(),
+  parentPhone: z.string().trim().max(30).optional().nullable(),
+});
 
 const toSubjectResponse = (subject: any) => ({
   id: subject.id,
@@ -54,6 +64,34 @@ router.get('/student', requireRoles('student', 'admin', 'super-admin'), asyncHan
         color: subject.color,
       })),
     ),
+  });
+}));
+
+router.patch('/student/profile', requireRoles('student'), validateBody(studentProfileUpdateSchema), asyncHandler(async (req, res) => {
+  const studentId = req.user?.studentId;
+  if (!studentId) {
+    res.status(400).json({ message: 'Student profile is required.' });
+    return;
+  }
+
+  const profile = await repo.updateStudentProfile(studentId, {
+    name: req.body.name,
+    address: req.body.address,
+    school: req.body.school,
+    parentName: req.body.parentName,
+    parentPhone: req.body.parentPhone,
+  });
+
+  if (!profile) {
+    res.status(404).json({ message: 'Student profile not found.' });
+    return;
+  }
+
+  res.json({
+    profile: {
+      ...profile,
+      email: req.user?.email ?? '',
+    },
   });
 }));
 

@@ -2,6 +2,7 @@ import type { Metadata } from 'next'
 import { Geist, Geist_Mono } from 'next/font/google'
 import { Analytics } from '@vercel/analytics/next'
 import { LanguageProvider } from '@/components/LanguageProvider'
+import { ThemeProvider } from '@/components/theme-provider'
 import './globals.css'
 
 const _geist = Geist({ subsets: ["latin"] });
@@ -27,9 +28,11 @@ export default function RootLayout({
   children: React.ReactNode
 }>) {
   return (
-    <html lang="en" className="bg-white">
+    <html lang="en" suppressHydrationWarning>
       <body className="font-sans antialiased">
-        <LanguageProvider>{children}</LanguageProvider>
+        <ThemeProvider attribute="class" defaultTheme="light" enableSystem storageKey="siyowin-theme">
+          <LanguageProvider>{children}</LanguageProvider>
+        </ThemeProvider>
         <Analytics />
       </body>
     </html>

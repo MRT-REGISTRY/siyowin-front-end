@@ -64,6 +64,8 @@ CREATE TABLE students (
     name VARCHAR(100) NOT NULL,
     password_hash VARCHAR(255) NOT NULL,
     class_id TEXT REFERENCES classes(id) ON DELETE SET NULL,
+    address TEXT,
+    school VARCHAR(150),
     parent_name VARCHAR(100),
     parent_phone VARCHAR(20),
     date_of_birth DATE,
