@@ -6,13 +6,12 @@ import DashboardNavbar from './DashboardNavbar';
 import OverviewCards from './OverviewCards';
 import SubjectCards from './SubjectCards';
 import ProgressChart from './ProgressChart';
-import HomeworkSection from './HomeworkSection';
 import SubjectsPage from './pages/SubjectsPage';
 import SubjectReportPage from './pages/SubjectReportPage';
 import ProgressPage from './pages/ProgressPage';
 import SettingsPage from './pages/SettingsPage';
 import { apiGet } from '@/utils/api';
-import { ApiSubjectRecord, DashboardOverview, StudentProfile, SubjectRecord } from '@/types';
+import { ApiSubjectRecord, DashboardOverview, StudentProfile, SubjectRecord, SubjectModuleItem } from '@/types';
 import { normalizeSubjects } from '@/utils/subjects';
 import { useLanguage } from '@/components/LanguageProvider';
 
@@ -31,8 +30,9 @@ export default function StudentDashboard() {
   const [subjects, setSubjects] = useState<SubjectRecord[]>([]);
   const [profile, setProfile] = useState<StudentProfile | null>(null);
   const [overview, setOverview] = useState<DashboardOverview | null>(null);
+  const [latestModuleItems, setLatestModuleItems] = useState<SubjectModuleItem[]>([]);
+  const [latestResults, setLatestResults] = useState<any[]>([]);
   const [progress, setProgress] = useState<Array<{ month: string; score: number; classAvg: number }>>([]);
-  const [homework, setHomework] = useState<Array<any>>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -48,15 +48,6 @@ export default function StudentDashboard() {
       subject.gradeId,
     ].some((value) => (value ?? '').toLowerCase().includes(normalizedSearchQuery)));
   }, [normalizedSearchQuery, subjects]);
-  const visibleHomework = useMemo(() => {
-    if (!normalizedSearchQuery) return homework;
-    return homework.filter((item) => [
-      item.title,
-      item.subjectName,
-      item.status,
-      item.dueDate,
-    ].some((value) => String(value ?? '').toLowerCase().includes(normalizedSearchQuery)));
-  }, [homework, normalizedSearchQuery]);
   const selectedSubject = selectedSubjectId ? subjects.find((subject) => subject.id === selectedSubjectId) ?? null : null;
 
   useEffect(() => {
@@ -66,6 +57,8 @@ export default function StudentDashboard() {
       overview: DashboardOverview;
       profile: StudentProfile;
       subjects: ApiSubjectRecord[];
+      latestModuleItems?: SubjectModuleItem[];
+      latestResults?: any[];
       progress: Array<{ month: string; score?: number; average?: number; classAvg?: number }>;
       homework: Array<any>;
     }>('/dashboard/student')
@@ -74,12 +67,13 @@ export default function StudentDashboard() {
         setOverview(data.overview);
         setProfile(data.profile);
         setSubjects(normalizeSubjects(data.subjects, data.homework));
+        setLatestModuleItems(data.latestModuleItems ?? []);
+        setLatestResults((data as any).latestResults ?? []);
         setProgress(data.progress.map((item) => ({
           month: item.month,
           score: item.score ?? item.average ?? 0,
           classAvg: item.classAvg ?? 0,
         })));
-        setHomework(data.homework);
         setError('');
       })
       .catch((err) => {
@@ -146,18 +140,22 @@ export default function StudentDashboard() {
           {loading && <p className="sdp-card">{isSinhala ? 'පුවරුව පූරණය වෙමින්...' : 'Loading dashboard...'}</p>}
           {!loading && error && <p className="sdp-card text-red-600">{error}</p>}
           {activeNav === 'dashboard' && (
-            <>
+            <div className="sd-dashboard-grid">
               <div className="sd-greeting">
                 <div>
                   <h1 className="sd-greeting-title">
                     {isSinhala ? 'ආයුබෝවන්' : 'Good afternoon'}, <span className="sd-highlight">{profile?.name.split(' ')[0] ?? (isSinhala ? 'සිසුවා' : 'Student')}!</span>
                   </h1>
-                  <p className="sd-greeting-sub">{isSinhala ? 'මෙම වාරයේ ඔබගේ අධ්‍යාපනික ප්‍රගතියේ සාරාංශය මෙන්න.' : 'Here&apos;s a summary of your academic performance this term.'}</p>
+                  <p className="sd-greeting-sub">{isSinhala ? 'මෙම වාරයේ ඔබගේ අධ්‍යාපනික ප්‍රගතියේ සාරාංශය මෙන්න.' : 'Here is a summary of your academic performance this term.'}</p>
                 </div>
                 <div className="sd-term-badge">{profile ? `${profile.term} - ${profile.year}` : isSinhala ? 'වත්මන් වාරය' : 'Current term'}</div>
               </div>
-              <OverviewCards overview={overview} subjects={subjects} />
-              <div className="sd-mid-grid">
+
+              <div className="sd-dashboard-overview">
+                <OverviewCards overview={overview} latestItems={latestModuleItems} latestResults={latestResults} onOpenSubject={openSubject} />
+              </div>
+
+              <div className="sd-dashboard-subjects">
                 <SubjectCards
                   subjects={visibleSubjects}
                   onSelectSubject={openSubject}
@@ -166,12 +164,12 @@ export default function StudentDashboard() {
                     setActiveNav('subjects');
                   }}
                 />
-                <ProgressChart data={progress} />
               </div>
-              <div className="sd-bottom-grid">
-                <HomeworkSection homework={visibleHomework} />
+
+              <div className="sd-dashboard-progress">
+                <ProgressChart data={progress} subjects={subjects} />
               </div>
-            </>
+            </div>
           )}
 
           {activeNav === 'subjects' && selectedSubject && (

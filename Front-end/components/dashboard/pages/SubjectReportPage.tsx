@@ -1,61 +1,67 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { ArrowLeft, CalendarDays, CheckCircle2, Circle, NotebookPen } from 'lucide-react';
-import { SubjectExamResult, SubjectRecord, SubjectResultsResponse } from '@/types';
+import { ArrowLeft, ChevronDown, ChevronRight, FileText, Link2, Trophy } from 'lucide-react';
+import { ApiSubjectModule, SubjectRecord } from '@/types';
 import { apiGet } from '@/utils/api';
-import LeaderboardForSubject from '../LeaderboardForSubject';
-import { useLanguage } from '@/components/LanguageProvider';
 
 interface Props {
   subject: SubjectRecord;
   onBack: () => void;
 }
 
-const formatDate = (value: string) => {
-  const parsed = new Date(value);
-  if (Number.isNaN(parsed.getTime())) return value;
-
-  return parsed.toLocaleDateString('en-GB', {
-    day: 'numeric',
-    month: 'short',
-    year: 'numeric',
-  });
-};
-
-const formatExamType = (value: string) =>
-  value
-    .split('-')
-    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-    .join(' ');
-
-const renderScore = (result: SubjectExamResult) => {
-  if (result.isAbsent) return 'Absent';
-
-  const obtained = result.marksObtained ?? 0;
-  const total = result.totalMarks ?? 100;
-  return `${obtained}/${total}`;
-};
-
 export default function SubjectReportPage({ subject, onBack }: Props) {
-  const { isSinhala } = useLanguage();
-  const [report, setReport] = useState<SubjectResultsResponse | null>(null);
+  const [modules, setModules] = useState<ApiSubjectModule[]>([]);
+  const [results, setResults] = useState<any[]>([]);
+  const [expandedModules, setExpandedModules] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const allExpanded = modules.length > 0 && expandedModules.length === modules.length;
 
   useEffect(() => {
     let mounted = true;
+
     setLoading(true);
     setError('');
+    setModules([]);
+    setExpandedModules([]);
 
-    apiGet<SubjectResultsResponse>(`/dashboard/subjects/${subject.id}/results`)
-      .then((data) => {
+    Promise.all([
+      apiGet<{ subjectId: string; modules: ApiSubjectModule[] }>(`/dashboard/subjects/${subject.id}/modules`),
+      apiGet(`/dashboard/subjects/${subject.id}/results`).catch(() => ({ recentResults: [], results: [] })),
+    ])
+      .then(([response, resultResp]: any) => {
         if (!mounted) return;
-        setReport(data);
+        const nextModules = response.modules ?? [];
+        const recentResults = (resultResp?.recentResults ?? resultResp?.results ?? []) as any[];
+        const nextModuleIds = new Set(nextModules.map((module) => module.id));
+
+        const resultModules = recentResults
+          .filter((r) => !r.isAbsent && r.marksObtained !== null)
+          .filter((r, index, all) => all.findIndex((candidate) => candidate.examId === r.examId) === index)
+          .map((r) => ({
+            id: `result-${r.examId}`,
+            title: r.examTitle,
+            items: [{
+              id: r.examId,
+              title: `${r.examTitle}: ${r.marksObtained}/${r.totalMarks ?? 100}`,
+              type: 'mark' as const,
+              createdAt: r.createdAt ?? r.examDate ?? null,
+            }],
+          }));
+
+        const mergedModules = [
+          ...nextModules,
+          ...resultModules.filter((module) => !nextModuleIds.has(module.id)),
+        ];
+
+        setModules(mergedModules);
+        setResults(recentResults);
+        setExpandedModules(mergedModules.slice(0, 3).map((module) => module.id));
       })
-      .catch((err) => {
+      .catch((fetchError) => {
         if (!mounted) return;
-        setError(err instanceof Error ? err.message : 'Unable to load subject results.');
+        setError(fetchError instanceof Error ? fetchError.message : 'Unable to load subject content.');
       })
       .finally(() => {
         if (mounted) setLoading(false);
@@ -66,214 +72,123 @@ export default function SubjectReportPage({ subject, onBack }: Props) {
     };
   }, [subject.id]);
 
-  const results = report?.results ?? [];
-  const recentResults = report?.recentResults ?? [];
-  const previousResults = report?.previousResults ?? [];
-  const scoredResults = results.filter((item) => !item.isAbsent && item.marksObtained !== null);
-  const averageMark = scoredResults.length
-    ? Math.round(scoredResults.reduce((total, item) => total + (item.marksObtained ?? 0), 0) / scoredResults.length)
-    : null;
-  const absentCount = results.filter((item) => item.isAbsent).length;
+  const toggleModule = (moduleId: string) => {
+    setExpandedModules((prev) =>
+      prev.includes(moduleId) ? prev.filter((id) => id !== moduleId) : [...prev, moduleId]
+    );
+  };
+
+  const toggleAll = () => {
+    if (allExpanded) {
+      setExpandedModules([]);
+    } else {
+      setExpandedModules(modules.map((module) => module.id));
+    }
+  };
 
   return (
-    <div className="sdr-wrap">
-      <div className="sdr-topbar">
-        <button type="button" className="sdr-back-btn" onClick={onBack}>
-          <ArrowLeft size={16} /> Back to subjects
-        </button>
-        <span className="sdr-class-pill">{subject.classLabel}</span>
+    <div className="flex flex-col min-h-screen bg-slate-50 font-sans">
+      {/* Header Area */}
+      <div className="px-4 md:px-8 pt-4 md:pt-6">
+        <div className="max-w-[1400px] mx-auto rounded-2xl bg-slate-200 border border-slate-300 shadow-sm px-6 py-5">
+          <button
+            type="button"
+            onClick={onBack}
+            className="flex items-center text-sm text-slate-500 hover:text-slate-900 mb-4 transition-colors"
+          >
+            <ArrowLeft size={16} className="mr-1" /> Back to My courses
+          </button>
+          <h1 className="text-2xl font-bold text-slate-900">
+            {subject.name} - {subject.teacher}
+          </h1>
+        </div>
       </div>
 
-      <section className="sdr-hero sdp-card">
-        <div className="sdr-hero-main">
-          <div className="sdr-emoji" aria-hidden="true">{subject.emoji}</div>
-          <div>
-            <p className="sdr-subtitle">{isSinhala ? 'සිසුන්ගේ විභාග ප්‍රතිඵල' : 'Student exam results'}</p>
-            <h1 className="sdr-title">{subject.name}</h1>
-            <p className="sdr-teacher">Teacher: {subject.teacher}</p>
+      {/* Main Content Area */}
+      <div className="flex-1 w-full px-4 md:px-8 py-4 md:py-6">
+        <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden w-full max-w-[1400px] mx-auto">
+          {!loading && !error && modules.length > 0 && (
+            <div className="px-4 md:px-6 py-3 border-b border-slate-100 flex justify-end">
+              <button
+                onClick={toggleAll}
+                className="text-sm font-medium text-blue-600 hover:text-blue-800 transition-colors"
+              >
+                {allExpanded ? 'Collapse all' : 'Expand all'}
+              </button>
+            </div>
+          )}
+
+          {loading && <p className="px-4 md:px-6 py-6 text-sm text-slate-500">Loading subject content...</p>}
+          {!loading && error && <p className="px-4 md:px-6 py-6 text-sm text-rose-600">{error}</p>}
+          {!loading && !error && modules.length === 0 && (
+            <p className="px-4 md:px-6 py-6 text-sm text-slate-400 italic">No resources available.</p>
+          )}
+
+          <div className="divide-y divide-slate-100">
+            {modules.map((module) => {
+              const isExpanded = expandedModules.includes(module.id);
+              return (
+                <div key={module.id} className="group">
+                  <button
+                    onClick={() => toggleModule(module.id)}
+                    className="w-full flex items-center px-4 md:px-6 py-5 hover:bg-slate-50 transition-colors focus:outline-none focus:bg-slate-50"
+                  >
+                    <div className="flex items-center justify-center w-6 h-6 rounded-full bg-slate-100 text-slate-500 mr-4 group-hover:bg-blue-100 group-hover:text-blue-600 transition-colors">
+                      {isExpanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+                    </div>
+                    <h2 className="text-lg font-semibold text-slate-800">{module.title}</h2>
+                  </button>
+
+                  {isExpanded && (
+                    <div className="px-4 md:px-6 pb-6 pl-14 md:pl-16">
+                      {module.items.length > 0 ? (
+                        <ul className="space-y-3">
+                          {module.items.map((item) => (
+                            <li key={item.id} className="flex items-start">
+                              {item.type === 'mark' && (
+                                <>
+                                  <span className="mt-0.5 mr-3 text-amber-500">
+                                    <Trophy size={18} />
+                                  </span>
+                                  <span className="rounded-full bg-amber-50 px-3 py-1 text-[15px] font-semibold text-amber-700 ring-1 ring-amber-200">
+                                    {item.title}
+                                  </span>
+                                </>
+                              )}
+
+                              {item.type === 'link' && (
+                                <>
+                                  <span className="mt-0.5 mr-3 text-blue-600">
+                                    <Link2 size={18} />
+                                  </span>
+                                  <a href={item.href} className="text-blue-600 hover:underline font-medium text-[15px]">
+                                    {item.title}
+                                  </a>
+                                </>
+                              )}
+
+                              {item.type === 'text' && (
+                                <>
+                                  <span className="mt-0.5 mr-3 text-slate-500">
+                                    <FileText size={18} />
+                                  </span>
+                                  <p className="text-[15px] leading-6 text-slate-700">{item.title}</p>
+                                </>
+                              )}
+                            </li>
+                          ))}
+                        </ul>
+                      ) : (
+                        <p className="text-sm text-slate-400 italic">No resources available.</p>
+                      )}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
           </div>
         </div>
-
-        <div className="sdr-overall-box" style={{ borderColor: subject.color }}>
-          <span className="sdr-overall-label">Recent average</span>
-          <strong className="sdr-overall-mark" style={{ color: subject.color }}>
-            {averageMark !== null ? `${averageMark}%` : 'No marks yet'}
-          </strong>
-          <span className="sdr-overall-sub">
-            {results.length} exam{results.length === 1 ? '' : 's'} · {absentCount} absent
-          </span>
-        </div>
-      </section>
-
-      <section className="sdr-metric-grid">
-        {[
-          [isSinhala ? 'පන්තිය' : 'Class', subject.classLabel],
-          [isSinhala ? 'ශ්‍රේණිය' : 'Grade', subject.gradeId ?? (isSinhala ? 'සකසා නැත' : 'Not set')],
-          ['Medium', subject.medium ?? 'Not set'],
-          ['Schedule', subject.schedule ?? 'Not set'],
-          ['Fee', subject.fee !== null && subject.fee !== undefined ? `Rs. ${subject.fee}` : 'Not set'],
-        ].map(([label, value]) => (
-          <article key={label} className="sdr-metric-card sdp-card">
-            <span className="sdr-metric-label">{label}</span>
-            <strong className="sdr-metric-value" style={{ fontSize: 18 }}>{value}</strong>
-          </article>
-        ))}
-      </section>
-
-      {loading && <p className="sdp-card">Loading exam results...</p>}
-      {!loading && error && <p className="sdp-card text-red-600">{error}</p>}
-
-      {!loading && !error && (
-        <>
-          <section className="sdr-metric-grid">
-            {recentResults.map((result) => (
-              <article key={result.examId} className="sdr-metric-card sdp-card">
-                <div className="sdr-metric-head">
-                  <span className="sdr-metric-icon sdr-icon-red"><NotebookPen size={18} /></span>
-                  <span className="sdr-metric-label">{formatExamType(result.examType)}</span>
-                </div>
-                <strong className="sdr-metric-value" style={{ color: subject.color }}>
-                  {renderScore(result)}
-                </strong>
-                <p className="sdr-metric-note">{result.examTitle}</p>
-                <p className="sdr-metric-note">
-                  <CalendarDays size={14} style={{ display: 'inline', marginRight: 6 }} />
-                  {formatDate(result.examDate)}
-                </p>
-                <p className="sdr-metric-note">{result.isAbsent ? 'Absent' : 'Present'}</p>
-              </article>
-            ))}
-
-            {recentResults.length === 0 && (
-              <article className="sdr-metric-card sdp-card">
-                <div className="sdr-metric-head">
-                  <span className="sdr-metric-icon sdr-icon-red"><NotebookPen size={18} /></span>
-                  <span className="sdr-metric-label">Recent exams</span>
-                </div>
-                <strong className="sdr-metric-value">No results</strong>
-                <p className="sdr-metric-note">No exam result rows are available for this subject yet.</p>
-              </article>
-            )}
-          </section>
-
-          <section className="sdr-main-grid">
-            <article className="sdr-history-card sdp-card">
-              <div className="sd-section-header">
-                <div>
-                  <h2 className="sd-section-title">Previous exams</h2>
-                  <p className="sd-section-sub">Older results for this subject</p>
-                </div>
-              </div>
-
-              {previousResults.length > 0 ? (
-                <div className="sdr-history-list">
-                  {previousResults.map((result) => (
-                    <div key={result.examId} className="sdr-history-item">
-                      <div className="sdr-history-icon">
-                        <NotebookPen size={16} />
-                      </div>
-                      <div className="sdr-history-body">
-                        <div className="sdr-history-top">
-                          <strong>{result.examTitle}</strong>
-                          <span>{formatDate(result.examDate)}</span>
-                        </div>
-                        <p className="sdr-history-note">
-                          {formatExamType(result.examType)} · {result.isAbsent ? 'Absent for this exam' : `Scored ${renderScore(result)}`}
-                        </p>
-                      </div>
-                      <div className="sdr-history-mark" style={{ color: subject.color }}>
-                        {result.isAbsent ? 'Absent' : renderScore(result)}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <p className="sdr-history-note" style={{ margin: 0 }}>
-                  There are no older exams to show for this subject.
-                </p>
-              )}
-            </article>
-
-            <article className="sdr-homework-card sdp-card">
-              <div className="sd-section-header">
-                <div>
-                  <h2 className="sd-section-title">Result summary</h2>
-                  <p className="sd-section-sub">Present versus absent status</p>
-                </div>
-              </div>
-
-              <div className="sdr-homework-stats" style={{ marginTop: 0 }}>
-                <div>
-                  <span className="sdr-homework-label">Present</span>
-                  <strong>{results.length - absentCount}</strong>
-                </div>
-                <div>
-                  <span className="sdr-homework-label">Absent</span>
-                  <strong>{absentCount}</strong>
-                </div>
-              </div>
-
-              <div className="sdr-homework-bar">
-                <div
-                  className="sdr-homework-bar-fill"
-                  style={{
-                    width: `${results.length ? Math.round(((results.length - absentCount) / results.length) * 100) : 0}%`,
-                    background: subject.color,
-                  }}
-                />
-              </div>
-
-              <p className="sdr-homework-note">
-                {results.length === 0
-                  ? 'No subject results have been recorded yet.'
-                  : `${results.length - absentCount} exam${results.length - absentCount === 1 ? '' : 's'} were attended by the student.`}
-              </p>
-
-              <div className="sdr-recent-homework">
-                <div className="sdr-recent-homework-head">
-                  <h3>Result status</h3>
-                  <span>{results.length} total records</span>
-                </div>
-
-                <ul className="sdr-recent-homework-list">
-                  {results.slice(0, 5).map((result) => {
-                    const isAbsent = result.isAbsent;
-
-                    return (
-                      <li key={result.examId} className={`sdr-recent-homework-item ${isAbsent ? '' : 'sdr-recent-homework-done'}`}>
-                        <span className="sdr-recent-homework-status">
-                          {isAbsent ? <Circle size={16} /> : <CheckCircle2 size={16} />}
-                        </span>
-                        <span className="sdr-recent-homework-body">
-                          <strong>{result.examTitle}</strong>
-                          <small>
-                            {formatDate(result.examDate)} · {isAbsent ? 'Absent' : `Scored ${renderScore(result)}`}
-                          </small>
-                        </span>
-                        <span className={`sdr-recent-homework-badge ${isAbsent ? 'sdr-rh-badge-pending' : 'sdr-rh-badge-done'}`}>
-                          {isAbsent ? 'Absent' : 'Present'}
-                        </span>
-                      </li>
-                    );
-                  })}
-                </ul>
-              </div>
-            </article>
-          </section>
-
-          <section className="sdr-main-grid">
-            <article className="sdr-leaderboard-card sdp-card">
-              <div className="sd-section-header">
-                <div>
-                  <h2 className="sd-section-title">Class Leaderboard</h2>
-                  <p className="sd-section-sub">Performance within this class / subject</p>
-                </div>
-              </div>
-              <LeaderboardForSubject subjectId={subject.id} />
-            </article>
-          </section>
-        </>
-      )}
+      </div>
     </div>
   );
 }
